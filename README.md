@@ -6,7 +6,6 @@
 ![PyTest](https://img.shields.io/badge/PyTest-26%20Passed-success?logo=pytest&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-```markdown
 
 An interactive Streamlit application dedicated to **medical image restoration and low-pass filtering** (X-rays, MRI, DICOM CT scans). This platform quantitatively evaluates (PSNR, SSIM) **spatial** (*Mean, Median, Gaussian*) and **frequency** (*Ideal, Gaussian, Butterworth* via 2D FFT) low-pass filters, incorporating a pipeline fully compliant with the **DICOM PS3.3** standard (Hounsfield unit conversion, VOI LUT windowing, photometric interpretation handling).
 

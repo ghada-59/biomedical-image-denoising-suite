@@ -1,0 +1,18 @@
+# Python cache & build files
+__pycache__/
+*.pyc
+*$py.class
+*.elc
+.python-version
+
+# Testing & coverage outputs
+.coverage
+.coverage.*
+.pytest_cache/
+htmlcov/
+
+# Environments
+.venv/
+env/
+venv/
+ENV/

@@ -1,18 +1,37 @@
-# Python cache & build files
 __pycache__/
-*.pyc
+*.py[cod]
 *$py.class
-*.elc
-.python-version
-
-# Testing & coverage outputs
+*.so
+build/
+develop-eggs/
+dist/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+PIPFILE.lock
+.tox/
 .coverage
 .coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
 .pytest_cache/
-htmlcov/
-
-# Environments
-.venv/
+.env
+.venv
 env/
 venv/
 ENV/
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+outputs/
+reports/
+*.pkl
+*.joblib
+.ipynb_checkpoints/
+.streamlit/

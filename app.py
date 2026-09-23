@@ -114,7 +114,7 @@ if image_source is not None:
         st.error(f"❌ {exc}")
         st.stop()
 
-    st.sidebar.header("2. Clinical Noise Simulation")
+    st.sidebar.header("2. Noise Simulation")
     noise_type = st.sidebar.selectbox("Noise Type", ["None", *NOISE_TYPES])
 
     if noise_type == "None":

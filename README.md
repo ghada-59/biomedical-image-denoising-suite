@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 
-An interactive Streamlit application dedicated to **medical image restoration and low-pass filtering** (X-rays, MRI, DICOM CT scans). This platform quantitatively evaluates (PSNR, SSIM) **spatial** (*Mean, Median, Gaussian*) and **frequency** (*Ideal, Gaussian, Butterworth* via 2D FFT) low-pass filters, incorporating a pipeline fully compliant with the **DICOM PS3.3** standard (Hounsfield unit conversion, VOI LUT windowing, photometric interpretation handling).
+An interactive Streamlit application dedicated to **medical image restoration and low-pass filtering** (X-rays, MRI, DICOM CT scans). This platform quantitatively evaluates (PSNR, SSIM) **spatial** (*Mean, Median, Gaussian*) and **frequency** (*Ideal, Gaussian, Butterworth* via 2D FFT) low-pass filters, including DICOM handling based on relevant metadata and standard concepts (Hounsfield unit conversion, VOI LUT windowing, photometric interpretation handling).
 
 ---
 
@@ -55,7 +55,7 @@ Acquisition noise (thermal detector noise, photon noise in low-dose X-rays, mult
 
 ### Spatial vs. Frequency Domain
 
-| Domain | Algorithm | Characteristics & Clinical Behavior |
+| Domain | Algorithm | Characteristics |
 | --- | --- | --- |
 | **Spatial** | **Mean (Box)** | Uniform smoothing via $O(K^2)$ spatial convolution. Significantly blurs anatomical edges. |
 | **Spatial** | **Median** | Non-linear filter. Rejects impulse outliers (Salt & Pepper noise) while **preserving edge sharpness**. |
@@ -73,7 +73,7 @@ Acquisition noise (thermal detector noise, photon noise in low-dose X-rays, mult
 
 ## 🩺 Complete DICOM Pipeline
 
-Medical image ingestion (`.dcm`) strictly follows the DICOM standard:
+Medical image ingestion (`.dcm`) handles common DICOM metadata used in this project:
 
 1. **Photometric Interpretation**: Dynamic inversion for `MONOCHROME1` files (where minimum pixel value corresponds to white) based on exact stored bit depth (`BitsStored`).
 2. **Modality LUT (HU Conversion)**: Rescale slope and intercept application:
@@ -128,7 +128,7 @@ streamlit run app.py
 
 ## 🧪 Test Suite & CI/CD
 
-The scientific core is validated by **26 unit tests** verifying noise generation reproducibility, matrix shape preservation, numerical stability of metrics, and DICOM pipeline compliance.
+The scientific core is validated by **26 unit tests** covering noise generation, matrix shapes and ranges, numerical metrics, and the DICOM-loading paths implemented in the project.
 
 ```bash
 # Run unit tests with terminal coverage report

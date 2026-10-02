@@ -9,9 +9,9 @@ matplotlib>=3.7.0       # Visualisation des spectres de Fourier 2D
 pandas>=2.0.0           # Tableau de comparaison et stylage (pandas.Styler)
 
 # --- Imagerie Médicale & Échantillons -------------------------------------
-pydicom>=2.4.0          # Parsing DICOM (.dcm), conversion HU et fenêtrage clinique
+pydicom>=2.4.0          # Parsing DICOM (.dcm), HU conversion and windowing
 pooch>=1.8.0            # Requis par skimage.data.brain() pour le stockage en cache
-kagglehub>=0.2.0        # Téléchargement de COVID-19 Radiography Database
+kagglehub>=0.2.0        # Optional download of the COVID-19 Radiography Database
 
 # --- Tests & Assurance Qualité --------------------------------------------
 pytest>=8.0.0

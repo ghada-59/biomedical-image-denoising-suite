@@ -238,6 +238,12 @@ def calculate_metrics(
         raise ValueError(
             f"Image shapes must match: {clean_img.shape} vs {processed_img.shape}"
         )
+    if clean_img.ndim != 2:
+        raise ValueError(f"Expected 2D grayscale images, got ndim={clean_img.ndim}.")
+    if not (np.isfinite(clean_img).all() and np.isfinite(processed_img).all()):
+        raise ValueError("Images must contain only finite values.")
+    if float(clean_img.min()) < 0.0 or float(clean_img.max()) > 1.0 or float(processed_img.min()) < 0.0 or float(processed_img.max()) > 1.0:
+        raise ValueError("Images must be normalized to the [0, 1] range.")
     
     clean_img = clean_img.astype(np.float64)
     processed_img = processed_img.astype(np.float64)
@@ -281,9 +287,17 @@ def apply_spatial_filters(
     Raises:
         ValueError: If kernel_size invalid
     """
+    if isinstance(kernel_size, bool):
+        raise ValueError("kernel_size must be a positive integer.")
     k_size = int(kernel_size)
     if k_size < 1:
         raise ValueError("kernel_size must be a positive integer.")
+    if not np.isfinite(image_noisy).all():
+        raise ValueError("image_noisy must contain only finite values.")
+    if image_noisy.ndim != 2:
+        raise ValueError(f"Expected a 2D grayscale image, got shape {image_noisy.shape}.")
+    if float(image_noisy.min()) < 0.0 or float(image_noisy.max()) > 1.0:
+        raise ValueError("image_noisy must be normalized to the [0, 1] range.")
     if k_size % 2 == 0:
         k_size += 1
 
@@ -344,6 +358,12 @@ def apply_frequency_lowpass(
     if not (0 < cutoff_ratio < 1.0):
         raise ValueError(f"cutoff_ratio must be in (0, 1), got {cutoff_ratio}")
     
+    if not np.isfinite(image_noisy).all():
+        raise ValueError("image_noisy must contain only finite values.")
+    if image_noisy.ndim != 2:
+        raise ValueError(f"Expected a 2D grayscale image, got shape {image_noisy.shape}.")
+    if float(image_noisy.min()) < 0.0 or float(image_noisy.max()) > 1.0:
+        raise ValueError("image_noisy must be normalized to the [0, 1] range.")
     if order <= 0:
         raise ValueError(f"order must be positive, got {order}")
 

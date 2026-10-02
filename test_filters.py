@@ -190,6 +190,19 @@ def test_load_dicom_monochrome1_inverts_using_stored_bit_depth(monkeypatch):
     assert result[0, 0] > result[0, 1]
 
 
+def test_load_dicom_rejects_color(monkeypatch):
+    raw = np.zeros((16, 16, 3), dtype=np.uint8)
+    fake_ds = _fake_dicom_dataset(
+        pixel_array=raw,
+        SamplesPerPixel=3,
+        PhotometricInterpretation="RGB",
+    )
+    monkeypatch.setattr(filters.pydicom, "dcmread", lambda *_: fake_ds)
+
+    with pytest.raises(ValueError, match="Color DICOM"):
+        filters.load_medical_image("fake_color.dcm")
+
+
 def test_load_dicom_multiframe_keeps_first_frame(monkeypatch):
     frame = np.full((16, 16), 100, dtype=np.int16)
     fake_ds = _fake_dicom_dataset(

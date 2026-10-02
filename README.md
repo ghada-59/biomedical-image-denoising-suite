@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-FF4B4B?logo=streamlit&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.8%2B-5C3EE8?logo=opencv&logoColor=white)
-![PyTest](https://img.shields.io/badge/PyTest-26%20Passed-success?logo=pytest&logoColor=white)
+![PyTest](https://img.shields.io/badge/PyTest-35%20tests-informational?logo=pytest&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 
@@ -35,7 +35,7 @@ biomedical-image-denoising-suite/
 ├── filters.py               # Scientific engine (NumPy/OpenCV/scikit-image/pydicom)
 ├── download_data.py         # Data acquisition script (Kaggle dataset & synthetic DICOM)
 ├── test_filters.py          # PyTest unit test suite (34 tests)
-├── requirements.txt         # Project dependencies with pinned versions
+├── requirements.txt         # Project dependencies
 └── samples/                 # Medical image samples (generated dynamically)
 
 ```
@@ -104,7 +104,7 @@ $$\text{Range} = \left[ \text{WC} - \frac{\text{WW}}{2}, \text{WC} + \frac{\text
 ### 1. Clone & Environment Setup
 
 ```bash
-git clone 
+git clone https://github.com/ghada-59/biomedical-image-denoising-suite.git
 cd biomedical-image-denoising-suite
 
 conda create -n biomed-env python=3.10 -y
@@ -139,4 +139,4 @@ pytest --cov=filters --cov-report=term-missing
 
 PSNR and SSIM are computed against the **loaded reference image**. When synthetic noise is added in the application, that reference is the original image before degradation, so the comparison has a known reference. For an already-noisy real image uploaded without a ground-truth clean counterpart, these metrics measure similarity to the uploaded image rather than objective restoration accuracy.
 
-The included DICOM samples are public test samples or locally generated synthetic data. No patient dataset is committed to the repository. The optional Kaggle download is performed locally by the data-generation script.
+The included DICOM samples are public test samples or locally generated synthetic data. No patient dataset is committed to the repository. The optional Kaggle download is performed locally by the data-generation script. Dataset terms and attribution should be checked before redistribution.

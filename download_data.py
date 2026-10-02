@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import shutil
 import urllib.request
+import random
 from pathlib import Path
 
 import numpy as np
@@ -122,8 +123,8 @@ def generate_synthetic_dicom() -> None:
 
 
 def download_orthanc_samples() -> None:
-    """Downloads real lightweight clinical DICOM samples from Orthanc server."""
-    print("→ Clinical DICOM samples (Orthanc)…")
+    """Downloads lightweight public DICOM test samples from pydicom."""
+    print("→ Public DICOM test samples…")
     dicom_dir = SAMPLES_DIR / "clinical_dicom"
     dicom_dir.mkdir(parents=True, exist_ok=True)
 
@@ -133,7 +134,18 @@ def download_orthanc_samples() -> None:
             print(f"  ✓ {filename} (already exists)")
             continue
         try:
-            urllib.request.urlretrieve(url, dest)
+            with urllib.request.urlopen(url, timeout=30) as response:
+                data = response.read()
+            if not data:
+                raise ValueError("Downloaded file is empty.")
+            tmp = dest.with_suffix(dest.suffix + ".tmp")
+            tmp.write_bytes(data)
+            try:
+                import pydicom
+                pydicom.dcmread(tmp, stop_before_pixels=True)
+            except Exception as exc:
+                raise ValueError(f"Downloaded file is not a readable DICOM: {exc}") from exc
+            tmp.replace(dest)
             print(f"  ✓ {filename}")
         except Exception as exc:
             print(f"  ✗ {filename} failed ({exc})")
@@ -166,8 +178,12 @@ def download_kaggle_samples(n_per_class: int = DEFAULT_IMAGES_PER_CLASS) -> None
         class_name = img_dir.parent.name if img_dir.name == "images" else img_dir.name
         class_slug = class_name.strip().replace(" ", "_")
 
-        files = sorted(img_dir.glob("*.png")) or sorted(img_dir.glob("*.jpg"))
-        chosen = files[:n_per_class]
+        files = sorted(
+            p for p in img_dir.iterdir()
+            if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg"}
+        )
+        rng = random.Random(0)
+        chosen = sorted(rng.sample(files, min(n_per_class, len(files))), key=lambda p: p.name)
         if not chosen:
             continue
 

@@ -92,7 +92,7 @@ $$\text{Range} = \left[ \text{WC} - \frac{\text{WW}}{2}, \text{WC} + \frac{\text
 ## 🧰 Tech Stack
 
 * **Web Interface**: `Streamlit`
-* **Matrix Computation & Image Processing**: `NumPy`, `OpenCV` (`cv2`), `scikit-image`, `SciPy`
+* **Matrix Computation & Image Processing**: `NumPy`, `OpenCV` (`cv2`), `scikit-image`
 * **Medical Imaging**: `pydicom`
 * **Visualization & Benchmarking**: `Matplotlib`, `Pandas`
 * **Quality & Integration**: `pytest`, `pytest-cov`, `GitHub Actions`
@@ -128,7 +128,7 @@ streamlit run app.py
 
 ## 🧪 Test Suite & CI/CD
 
-The scientific core is validated by **26 unit tests** covering noise generation, matrix shapes and ranges, numerical metrics, and the DICOM-loading paths implemented in the project.
+The scientific core is validated by **29 unit tests** covering noise generation, input validation, matrix shapes and ranges, numerical metrics, and the DICOM-loading paths implemented in the project.
 
 ```bash
 # Run unit tests with terminal coverage report

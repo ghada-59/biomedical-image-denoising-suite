@@ -30,11 +30,11 @@ The project enforces a **strict Separation of Concerns (SoC)** between scientifi
 biomedical-image-denoising-suite/
 ├── .github/
 │   └── workflows/
-│       └── pytest.yml       # Automated Continuous Integration (CI) pipeline
+│       └── pytest.yml       # Automated test workflow on pushes and pull requests
 ├── app.py                   # Streamlit UI (Layout, widgets, and visualization)
-├── filters.py               # Scientific engine (Pure NumPy/OpenCV/SciPy functions)
+├── filters.py               # Scientific engine (NumPy/OpenCV/scikit-image/pydicom)
 ├── download_data.py         # Data acquisition script (Kaggle dataset & synthetic DICOM)
-├── test_filters.py          # PyTest unit test suite (26 tests)
+├── test_filters.py          # PyTest unit test suite (34 tests)
 ├── requirements.txt         # Project dependencies with pinned versions
 └── samples/                 # Medical image samples (generated dynamically)
 
@@ -51,23 +51,23 @@ biomedical-image-denoising-suite/
 
 ### Low-Pass Filtering Mechanism
 
-Acquisition noise (thermal detector noise, photon noise in low-dose X-rays, multiplicative speckle noise in ultrasound) primarily resides in high spatial frequencies. Low-pass filters attenuate these high frequencies to optimize the Signal-to-Noise Ratio (SNR).
+Different noise processes have different spatial and frequency characteristics. Low-pass filtering can attenuate high-frequency components, but it may also remove fine anatomical or image structure, so the result depends on the image and noise model.
 
 ### Spatial vs. Frequency Domain
 
 | Domain | Algorithm | Characteristics |
 | --- | --- | --- |
 | **Spatial** | **Mean (Box)** | Uniform smoothing via $O(K^2)$ spatial convolution. Significantly blurs anatomical edges. |
-| **Spatial** | **Median** | Non-linear filter. Rejects impulse outliers (Salt & Pepper noise) while **preserving edge sharpness**. |
+| **Spatial** | **Median** | Non-linear filter. Effective for impulse outliers such as Salt & Pepper noise and can preserve edges better than simple averaging in some cases. |
 | **Spatial** | **Gaussian** | Weighted spatial kernel. Smoothes noise while minimizing structural artifacts. |
 | **Frequency** | **Ideal** | Sharp circular binary mask on 2D FFT. Introduces prominent **ringing artifacts (Gibbs phenomenon)** around edges. |
 | **Frequency** | **Butterworth** | Smooth attenuation controlled by filter order $n$. Balances roll-off steepness and ringing suppression. |
-| **Frequency** | **Gaussian** | Smooth frequency attenuation with zero induced Gibbs ringing artifacts. |
+| **Frequency** | **Gaussian** | Smooth frequency attenuation without the sharp cutoff of the Ideal filter. |
 
 ### Evaluation Metrics
 
 * **PSNR (Peak Signal-to-Noise Ratio)**: Derived from the Mean Squared Error (MSE) relative to the clean reference image.
-* **SSIM (Structural Similarity Index)**: Evaluates luminance, contrast, and local structural degradation to closely align with clinical visual perception.
+* **SSIM (Structural Similarity Index)**: Evaluates luminance, contrast, and local structural similarity between a reference and processed image.
 
 ---
 
@@ -81,7 +81,7 @@ Medical image ingestion (`.dcm`) handles common DICOM metadata used in this proj
 $$\text{HU} = \text{PixelValue} \times \text{RescaleSlope} + \text{RescaleIntercept}$$
 
 
-3. **VOI LUT / Clinical Windowing**: Application of Window Center ($\text{WC}$) and Window Width ($\text{WW}$) parameters extracted from DICOM metadata:
+3. **Windowing**: Application of Window Center ($\text{WC}$) and Window Width ($\text{WW}$) parameters extracted from DICOM metadata:
 
 $$\text{Range} = \left[ \text{WC} - \frac{\text{WW}}{2}, \text{WC} + \frac{\text{WW}}{2} \right]$$
 
@@ -128,8 +128,15 @@ streamlit run app.py
 
 ## 🧪 Test Suite & CI/CD
 
-The scientific core is validated by **29 unit tests** covering noise generation, input validation, matrix shapes and ranges, numerical metrics, and the DICOM-loading paths implemented in the project.
+The scientific core contains **34 unit tests** covering noise generation, input validation, matrix shapes and ranges, numerical metrics, and the DICOM-loading paths implemented in the project. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
 
 ```bash
 # Run unit tests with terminal coverage report
 pytest --cov=filters --cov-report=term-missing
+
+
+### Important evaluation note
+
+PSNR and SSIM are computed against the **loaded reference image**. When synthetic noise is added in the application, that reference is the original image before degradation, so the comparison has a known reference. For an already-noisy real image uploaded without a ground-truth clean counterpart, these metrics measure similarity to the uploaded image rather than objective restoration accuracy.
+
+The included DICOM samples are public test samples or locally generated synthetic data. No patient dataset is committed to the repository. The optional Kaggle download is performed locally by the data-generation script.

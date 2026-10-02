@@ -98,7 +98,7 @@ elif samples:
     image_source = samples[sample_label]
     if "covid19_radiography" in Path(sample_label).parts:
         st.sidebar.caption(
-            "Sample from *COVID-19 Radiography Database* "
+            "Sample from the public *COVID-19 Radiography Database* "
             "(Chowdhury et al. 2020; Rahman et al. 2020) — full citation in the README."
         )
 else:
@@ -171,6 +171,11 @@ if image_source is not None:
             st.image(gauss_res, caption="Gaussian Filter", clamp=True, use_container_width=True)
             st.metric("PSNR", f"{_format_psnr(p_gauss)} dB")
             st.metric("SSIM", f"{s_gauss}")
+
+        if noise_type == "None":
+            st.info("No synthetic noise was added. PSNR/SSIM therefore measure fidelity to the uploaded/sample image, not denoising accuracy against a ground-truth clean image.")
+        else:
+            st.caption("Because the noise is synthetically added to the original image, PSNR/SSIM can be compared with that original reference.")
 
         st.divider()
         _show_benchmark_table(

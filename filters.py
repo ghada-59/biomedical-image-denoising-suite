@@ -204,6 +204,17 @@ def add_noise(
         except TypeError:
             return random_noise(image, mode=mode, seed=seed, clip=True, **kwargs)
 
+    if not isinstance(image, np.ndarray) or image.ndim != 2:
+        raise ValueError("image must be a 2D grayscale NumPy array.")
+    if not np.isfinite(image).all():
+        raise ValueError("image must contain only finite values.")
+    if float(image.min()) < 0.0 or float(image.max()) > 1.0:
+        raise ValueError("image must be normalized to the [0, 1] range.")
+    if not np.isfinite(amount) or not 0.0 <= amount <= 1.0:
+        raise ValueError(f"amount must be finite and in [0, 1], got {amount}")
+    if not np.isfinite(var) or var < 0.0:
+        raise ValueError(f"var must be finite and non-negative, got {var}")
+
     if noise_type == "Gaussian":
         logger.info(f"Adding Gaussian noise (var={var})")
         return _apply_noise("gaussian", var=var)
@@ -289,6 +300,8 @@ def apply_spatial_filters(
     """
     if isinstance(kernel_size, bool):
         raise ValueError("kernel_size must be a positive integer.")
+    if not isinstance(kernel_size, (int, np.integer)):
+        raise ValueError("kernel_size must be a positive integer.")
     k_size = int(kernel_size)
     if k_size < 1:
         raise ValueError("kernel_size must be a positive integer.")
@@ -300,6 +313,8 @@ def apply_spatial_filters(
         raise ValueError("image_noisy must be normalized to the [0, 1] range.")
     if k_size % 2 == 0:
         k_size += 1
+    if not np.isfinite(sigma) or sigma < 0.0:
+        raise ValueError(f"sigma must be finite and non-negative, got {sigma}")
 
     try:
         mean_img = cv2.boxFilter(
@@ -355,7 +370,7 @@ def apply_frequency_lowpass(
             f"Valid choices: {FREQUENCY_FILTERS}."
         )
     
-    if not (0 < cutoff_ratio < 1.0):
+    if not np.isfinite(cutoff_ratio) or not (0 < cutoff_ratio < 1.0):
         raise ValueError(f"cutoff_ratio must be in (0, 1), got {cutoff_ratio}")
     
     if not np.isfinite(image_noisy).all():
@@ -364,8 +379,8 @@ def apply_frequency_lowpass(
         raise ValueError(f"Expected a 2D grayscale image, got shape {image_noisy.shape}.")
     if float(image_noisy.min()) < 0.0 or float(image_noisy.max()) > 1.0:
         raise ValueError("image_noisy must be normalized to the [0, 1] range.")
-    if order <= 0:
-        raise ValueError(f"order must be positive, got {order}")
+    if not isinstance(order, (int, np.integer)) or order <= 0:
+        raise ValueError(f"order must be a positive integer, got {order}")
 
     try:
         rows, cols = image_noisy.shape
@@ -393,8 +408,8 @@ def apply_frequency_lowpass(
         fshift_filtered = fshift * mask
 
         f_ishift = np.fft.ifftshift(fshift_filtered)
-        img_back = np.fft.ifft2(f_ishift)
-        img_back = np.clip(np.abs(img_back), 0.0, 1.0)
+        img_back = np.real(np.fft.ifft2(f_ishift))
+        img_back = np.clip(img_back, 0.0, 1.0)
 
         spectrum = np.log1p(np.abs(fshift))
         spectrum_filtered = np.log1p(np.abs(fshift_filtered))

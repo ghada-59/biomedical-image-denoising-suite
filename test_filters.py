@@ -242,9 +242,6 @@ def test_apply_frequency_lowpass_rejects_non_finite_cutoff(clean_image):
     with pytest.raises(ValueError):
         filters.apply_frequency_lowpass(clean_image, cutoff_ratio=np.nan)
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-
 def test_apply_frequency_lowpass_rejects_invalid_cutoff(clean_image):
     with pytest.raises(ValueError):
         filters.apply_frequency_lowpass(clean_image, cutoff_ratio=0)
@@ -269,3 +266,31 @@ def test_load_medical_image_resets_uploaded_stream_position(clean_image):
     filters.load_medical_image(uploaded)
     result = filters.load_medical_image(uploaded)
     np.testing.assert_allclose(result, filters.load_medical_image(_FakeUploadedFile("scan.png", buf.tobytes())))
+
+
+
+def test_add_noise_rejects_invalid_inputs(clean_image):
+    with pytest.raises(ValueError):
+        filters.add_noise(clean_image * 2.0, "Gaussian")
+    with pytest.raises(ValueError):
+        filters.add_noise(np.full_like(clean_image, np.nan), "Gaussian")
+    with pytest.raises(ValueError):
+        filters.add_noise(clean_image, "Salt & Pepper", amount=-0.1)
+    with pytest.raises(ValueError):
+        filters.add_noise(clean_image, "Gaussian", var=-0.1)
+
+
+def test_apply_spatial_filters_rejects_invalid_parameters(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_spatial_filters(clean_image, kernel_size=5.5)
+    with pytest.raises(ValueError):
+        filters.apply_spatial_filters(clean_image, sigma=-1.0)
+
+
+def test_apply_frequency_lowpass_rejects_non_integer_order(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(clean_image, order=2.5)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

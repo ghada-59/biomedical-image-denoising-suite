@@ -205,6 +205,43 @@ def test_load_dicom_multiframe_keeps_first_frame(monkeypatch):
     assert result.shape == frame.shape
 
 
+
+def test_calculate_metrics_rejects_invalid_images(clean_image):
+    with pytest.raises(ValueError):
+        filters.calculate_metrics(clean_image, np.full_like(clean_image, np.nan))
+    with pytest.raises(ValueError):
+        filters.calculate_metrics(clean_image, clean_image * 2.0)
+    with pytest.raises(ValueError):
+        filters.calculate_metrics(clean_image, np.stack([clean_image, clean_image]))
+
+
+def test_apply_spatial_filters_rejects_invalid_images(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_spatial_filters(np.full_like(clean_image, np.nan))
+    with pytest.raises(ValueError):
+        filters.apply_spatial_filters(clean_image * 2.0)
+    with pytest.raises(ValueError):
+        filters.apply_spatial_filters(np.stack([clean_image, clean_image]))
+
+
+def test_apply_spatial_filters_rejects_boolean_kernel(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_spatial_filters(clean_image, kernel_size=True)
+
+
+def test_apply_frequency_lowpass_rejects_invalid_images(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(np.full_like(clean_image, np.nan))
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(clean_image * 2.0)
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(np.stack([clean_image, clean_image]))
+
+
+def test_apply_frequency_lowpass_rejects_non_finite_cutoff(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(clean_image, cutoff_ratio=np.nan)
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 

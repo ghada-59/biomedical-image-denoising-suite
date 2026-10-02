@@ -28,8 +28,8 @@ st.set_page_config(
 
 st.title("🔬 Biomedical Image Low-Pass Filtering & Benchmarking")
 st.markdown(
-    "Advanced analysis suite: Spatial filtering, frequency domain (2D FFT), and"
-    " quantitative evaluation (PSNR / SSIM)."
+    "Educational analysis of spatial and frequency-domain filtering with"
+    " quantitative image-quality metrics (PSNR / SSIM)."
 )
 
 
@@ -67,7 +67,7 @@ def _show_benchmark_table(rows: list[dict], baseline_label: str | None = None) -
 
     if not candidates.empty:
         best_name = candidates.loc[candidates["SSIM"].idxmax(), "Filter"]
-        st.caption(f"🏆 Best quality tradeoff (SSIM) among filters: **{best_name}**")
+        st.caption(f"Highest SSIM among displayed filters: **{best_name}**")
 
 
 def _show_spectrum(container, spectrum: np.ndarray, title: str, vmin: float, vmax: float) -> None:

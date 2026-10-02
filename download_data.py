@@ -198,6 +198,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if args.kaggle_per_class < 1:
+        parser.error("--kaggle-per-class must be at least 1.")
+
     SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Generating samples in {SAMPLES_DIR}/\n")
 

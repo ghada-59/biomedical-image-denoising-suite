@@ -69,7 +69,9 @@ def _normalize_dynamic_range(
     window_width: Optional[float] = None,
 ) -> np.ndarray:
     """Normalize image using DICOM window/level or auto-scale."""
-    if window_center is not None and window_width and window_width > 0:
+    if window_center is not None or window_width is not None:
+        if window_center is None or window_width is None or not np.isfinite(window_center) or not np.isfinite(window_width) or window_width <= 0:
+            raise ValueError("DICOM WindowCenter and WindowWidth must both be present and WindowWidth must be positive.")
         low = window_center - window_width / 2.0
         high = window_center + window_width / 2.0
         image = np.clip(image, low, high)
@@ -93,8 +95,8 @@ def load_medical_image(source: ImageSource) -> np.ndarray:
     """
     Load medical image from file or stream.
     
-    Supports DICOM with proper photometric interpretation, HU conversion,
-    and VOI LUT (window/level) application.
+    Supports grayscale DICOM with photometric interpretation, HU conversion,
+    and Window Center/Window Width normalization.
     
     Args:
         source: File path, Path object, or file-like object
@@ -132,11 +134,17 @@ def _load_dicom(source: ImageSource) -> np.ndarray:
     
     pixel_array = dataset.pixel_array
 
-    # Handle multi-frame images
+    samples_per_pixel = int(getattr(dataset, "SamplesPerPixel", 1))
+    if samples_per_pixel != 1:
+        raise ValueError("Color DICOM images are not supported; expected SamplesPerPixel=1.")
+
+    # Handle multi-frame grayscale images by using the first frame.
     if pixel_array.ndim > 2:
-        logger.warning("Multi-frame DICOM detected. Using first frame.")
+        logger.warning("Multi-frame grayscale DICOM detected. Using first frame.")
         pixel_array = pixel_array[0]
-    
+    if pixel_array.ndim != 2:
+        raise ValueError(f"Expected a 2D grayscale DICOM image, got shape {pixel_array.shape}.")
+
     pixel_array = pixel_array.astype(np.float64)
 
     # Photometric Interpretation (MONOCHROME1 = invert)

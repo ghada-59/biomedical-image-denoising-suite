@@ -124,7 +124,7 @@ def test_apply_frequency_lowpass_shapes_and_range(clean_image, filter_type):
 
 
 @pytest.mark.parametrize("filter_type", filters.FREQUENCY_FILTERS)
-def test_apply_frequency_lowpass_attenuates_spectrum_energy(clean_image, filter_type):
+def test_apply_frequency_lowpass_reduces_log_spectrum_magnitude_sum(clean_image, filter_type):
     noisy = filters.add_noise(clean_image, "Gaussian", var=0.02, seed=1)
     _, spectrum, spectrum_f = filters.apply_frequency_lowpass(
         noisy, cutoff_ratio=0.15, filter_type=filter_type
@@ -175,7 +175,7 @@ def test_load_dicom_applies_hu_rescale_and_clinical_window(monkeypatch):
     assert result[0, 0] == pytest.approx(0.4, abs=1e-6)
 
 
-def test_load_dicom_monochrome1_inverts_using_bits_stored(monkeypatch):
+def test_load_dicom_monochrome1_inverts_using_stored_bit_depth(monkeypatch):
     raw = np.array([[0, 4095]], dtype=np.int16)
     fake_ds = _fake_dicom_dataset(
         pixel_array=raw,
@@ -207,3 +207,28 @@ def test_load_dicom_multiframe_keeps_first_frame(monkeypatch):
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+def test_apply_frequency_lowpass_rejects_invalid_cutoff(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(clean_image, cutoff_ratio=0)
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(clean_image, cutoff_ratio=1.0)
+
+
+def test_apply_frequency_lowpass_rejects_invalid_order(clean_image):
+    with pytest.raises(ValueError):
+        filters.apply_frequency_lowpass(clean_image, order=0)
+
+
+def test_calculate_metrics_rejects_shape_mismatch(clean_image):
+    with pytest.raises(ValueError):
+        filters.calculate_metrics(clean_image, clean_image[:-1])
+
+
+def test_load_medical_image_resets_uploaded_stream_position(clean_image):
+    ok, buf = cv2.imencode(".png", filters._to_uint8(clean_image))
+    assert ok
+    uploaded = _FakeUploadedFile("scan.png", buf.tobytes())
+    filters.load_medical_image(uploaded)
+    result = filters.load_medical_image(uploaded)
+    np.testing.assert_allclose(result, filters.load_medical_image(_FakeUploadedFile("scan.png", buf.tobytes())))

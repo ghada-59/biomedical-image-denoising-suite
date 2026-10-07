@@ -55,11 +55,9 @@ def _slice_key(dataset: pydicom.Dataset) -> tuple[float, np.ndarray]:
         position = np.asarray(dataset.ImagePositionPatient, dtype=float)
         return float(np.dot(position, normal)), normal
 
-    if hasattr(dataset, "SliceLocation"):
-        return float(dataset.SliceLocation), np.array([0.0, 0.0, 1.0])
-
     raise ValueError(
-        "DICOM slice has neither ImagePositionPatient nor SliceLocation."
+        "DICOM slice must contain ImageOrientationPatient and "
+        "ImagePositionPatient for reliable 3D reconstruction."
     )
 
 
@@ -124,6 +122,10 @@ def load_dicom_volume(
         pixel_array = apply_modality_lut(pixel_array, dataset)
         slices.append(np.asarray(pixel_array, dtype=np.float32))
 
+        if not hasattr(dataset, "ImagePositionPatient"):
+            raise ValueError(
+                "ImagePositionPatient is required for 3D volume reconstruction."
+            )
         position = np.asarray(dataset.ImagePositionPatient, dtype=float)
         if position.size != 3:
             raise ValueError("Invalid ImagePositionPatient.")

@@ -1,14 +1,10 @@
-"""Image processing engine for biomedical denoising.
-
-Provides spatial and frequency domain filtering with comprehensive error handling,
-type hints, and quantitative metrics (PSNR, SSIM).
-"""
+"""2D image loading, noise simulation, filtering, and metrics."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, BinaryIO, Union, Optional, Tuple
 import logging
+from pathlib import Path
+from typing import Any, BinaryIO, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -24,38 +20,28 @@ ImageSource = Union[str, Path, BinaryIO]
 NOISE_TYPES = ("Gaussian", "Salt & Pepper", "Speckle (Ultrasound)")
 FREQUENCY_FILTERS = ("ideal", "gauss", "butterworth")
 
-__all__ = [
-    "load_medical_image",
-    "add_noise",
-    "calculate_metrics",
-    "apply_spatial_filters",
-    "apply_frequency_lowpass",
-    "NOISE_TYPES",
-    "FREQUENCY_FILTERS",
-]
-
 
 def _to_uint8(image: np.ndarray) -> np.ndarray:
-    """Convert float [0,1] image to uint8 [0,255]."""
+    """Convert a [0, 1] image to uint8."""
     return np.clip(np.round(image * 255.0), 0, 255).astype(np.uint8)
 
 
 def _to_float01(image: np.ndarray) -> np.ndarray:
-    """Convert uint8 [0,255] image to float [0,1]."""
+    """Convert a uint8 image to float64 in [0, 1]."""
     return image.astype(np.float64) / 255.0
 
 
 def _rescale_to_hu(
-    pixel_array: np.ndarray, 
-    slope: float, 
-    intercept: float
+    pixel_array: np.ndarray,
+    slope: float,
+    intercept: float,
 ) -> np.ndarray:
-    """Apply DICOM RescaleSlope and RescaleIntercept (Hounsfield Units)."""
+    """Apply the DICOM rescale operation."""
     return pixel_array.astype(np.float64) * slope + intercept
 
 
 def _extract_dicom_window(value: Any) -> Optional[float]:
-    """Extract window level/width from DICOM metadata."""
+    """Return the first numeric value from a DICOM window field."""
     if value is None:
         return None
     if hasattr(value, "__iter__") and not isinstance(value, (str, bytes)):
@@ -68,118 +54,119 @@ def _normalize_dynamic_range(
     window_center: Optional[float] = None,
     window_width: Optional[float] = None,
 ) -> np.ndarray:
-    """Normalize image using DICOM window/level or auto-scale."""
+    """Normalize an image with an optional DICOM window."""
     if window_center is not None or window_width is not None:
-        if window_center is None or window_width is None or not np.isfinite(window_center) or not np.isfinite(window_width) or window_width <= 0:
-            raise ValueError("DICOM WindowCenter and WindowWidth must both be present and WindowWidth must be positive.")
+        if (
+            window_center is None
+            or window_width is None
+            or not np.isfinite(window_center)
+            or not np.isfinite(window_width)
+            or window_width <= 0
+        ):
+            raise ValueError(
+                "WindowCenter and WindowWidth must be present and WindowWidth "
+                "must be positive."
+            )
         low = window_center - window_width / 2.0
         high = window_center + window_width / 2.0
         image = np.clip(image, low, high)
-        return (image - low) / (high - low + 1e-8)
+        return (image - low) / (high - low)
 
-    lo, hi = float(np.min(image)), float(np.max(image))
-    if lo == hi:
-        logger.warning("Image has uniform intensity. Returning zeros.")
+    low = float(np.min(image))
+    high = float(np.max(image))
+    if low == high:
+        logger.warning("Image has uniform intensity; returning zeros.")
         return np.zeros_like(image, dtype=np.float64)
-    
-    return (image - lo) / (hi - lo + 1e-8)
+
+    return (image - low) / (high - low)
 
 
 def _read_source_name(source: ImageSource) -> str:
-    """Extract filename from file source."""
+    """Return a readable name for a file path or file-like object."""
     name = getattr(source, "name", None)
     return str(name) if name is not None else str(source)
 
 
 def load_medical_image(source: ImageSource) -> np.ndarray:
-    """
-    Load medical image from file or stream.
-    
-    Supports grayscale DICOM with photometric interpretation, HU conversion,
-    and Window Center/Window Width normalization.
-    
-    Args:
-        source: File path, Path object, or file-like object
-        
-    Returns:
-        Normalized float64 image in [0.0, 1.0]
-        
-    Raises:
-        ValueError: If file cannot be read or format unsupported
-    """
+    """Load a grayscale standard image or DICOM image into [0, 1]."""
     filename = _read_source_name(source)
     try:
         if filename.lower().endswith(".dcm"):
-            logger.info(f"Loading DICOM: {filename}")
             return _load_dicom(source)
-        logger.info(f"Loading standard image: {filename}")
         return _load_standard_image(source)
     except ValueError:
         raise
     except Exception as exc:
-        logger.error(f"Unable to read image '{filename}': {exc}")
-        raise ValueError(f"Unable to read image '{filename}': {exc}") from exc
+        raise ValueError(
+            f"Unable to read image '{filename}': {exc}"
+        ) from exc
 
 
 def _load_dicom(source: ImageSource) -> np.ndarray:
-    """Load DICOM file with proper medical imaging handling."""
+    """Load a grayscale DICOM image with basic modality handling."""
     if hasattr(source, "seek"):
         source.seek(0)
-    
+
     try:
         dataset = pydicom.dcmread(source)
-    except Exception as e:
-        logger.error(f"DICOM read error: {e}")
-        raise ValueError(f"Failed to read DICOM: {e}") from e
-    
+    except Exception as exc:
+        raise ValueError(f"Failed to read DICOM: {exc}") from exc
+
     pixel_array = dataset.pixel_array
-
     samples_per_pixel = int(getattr(dataset, "SamplesPerPixel", 1))
-    if samples_per_pixel != 1:
-        raise ValueError("Color DICOM images are not supported; expected SamplesPerPixel=1.")
 
-    # Handle multi-frame grayscale images by using the first frame.
+    if samples_per_pixel != 1:
+        raise ValueError(
+            "Color DICOM images are not supported; expected SamplesPerPixel=1."
+        )
+
     if pixel_array.ndim > 2:
-        logger.warning("Multi-frame grayscale DICOM detected. Using first frame.")
+        logger.warning("Multi-frame DICOM detected; using the first frame.")
         pixel_array = pixel_array[0]
+
     if pixel_array.ndim != 2:
-        raise ValueError(f"Expected a 2D grayscale DICOM image, got shape {pixel_array.shape}.")
+        raise ValueError(
+            f"Expected a 2D grayscale DICOM image, got {pixel_array.shape}."
+        )
 
     pixel_array = pixel_array.astype(np.float64)
 
-    # Photometric Interpretation (MONOCHROME1 = invert)
-    photometric = getattr(dataset, "PhotometricInterpretation", "MONOCHROME2")
-    if photometric == "MONOCHROME1":
+    if getattr(dataset, "PhotometricInterpretation", "MONOCHROME2") == "MONOCHROME1":
         bits_stored = getattr(dataset, "BitsStored", None)
-        ceiling = float((2**bits_stored) - 1) if bits_stored else float(pixel_array.max())
+        ceiling = (
+            float(2**int(bits_stored) - 1)
+            if bits_stored is not None
+            else float(pixel_array.max())
+        )
         pixel_array = ceiling - pixel_array
-        logger.info("Applied MONOCHROME1 inversion")
 
-    # Modality LUT (HU conversion)
     slope = float(getattr(dataset, "RescaleSlope", 1.0))
     intercept = float(getattr(dataset, "RescaleIntercept", 0.0))
     image = _rescale_to_hu(pixel_array, slope, intercept)
 
-    # VOI LUT (Window/Level)
-    window_center = _extract_dicom_window(getattr(dataset, "WindowCenter", None))
-    window_width = _extract_dicom_window(getattr(dataset, "WindowWidth", None))
-    
+    window_center = _extract_dicom_window(
+        getattr(dataset, "WindowCenter", None)
+    )
+    window_width = _extract_dicom_window(
+        getattr(dataset, "WindowWidth", None)
+    )
+
     return _normalize_dynamic_range(image, window_center, window_width)
 
 
 def _load_standard_image(source: ImageSource) -> np.ndarray:
-    """Load standard image format (PNG, JPG, etc.)."""
+    """Load a standard image as grayscale."""
     if hasattr(source, "read"):
         if hasattr(source, "seek"):
             source.seek(0)
-        file_bytes = np.frombuffer(source.read(), dtype=np.uint8)
-        image = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
+        data = np.frombuffer(source.read(), dtype=np.uint8)
+        image = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
     else:
         image = cv2.imread(str(source), cv2.IMREAD_GRAYSCALE)
 
     if image is None:
         raise ValueError("Unrecognized image format or corrupted file.")
-    
+
     return _to_float01(image)
 
 
@@ -190,101 +177,69 @@ def add_noise(
     var: float = 0.01,
     seed: Optional[int] = None,
 ) -> np.ndarray:
-    """
-    Add noise to image for degradation testing.
-    
-    Args:
-        image: Normalized image [0.0, 1.0]
-        noise_type: "Gaussian", "Salt & Pepper", or "Speckle (Ultrasound)"
-        amount: For S&P noise (fraction of pixels)
-        var: For Gaussian/Speckle noise (variance)
-        seed: Random seed for reproducibility
-        
-    Returns:
-        Noisy image
-        
-    Raises:
-        ValueError: If noise_type invalid
-    """
-    def _apply_noise(mode: str, **kwargs) -> np.ndarray:
-        try:
-            return random_noise(image, mode=mode, rng=seed, clip=True, **kwargs)
-        except TypeError:
-            return random_noise(image, mode=mode, seed=seed, clip=True, **kwargs)
-
+    """Add reproducible synthetic noise to a normalized image."""
     if not isinstance(image, np.ndarray) or image.ndim != 2:
         raise ValueError("image must be a 2D grayscale NumPy array.")
     if not np.isfinite(image).all():
         raise ValueError("image must contain only finite values.")
     if float(image.min()) < 0.0 or float(image.max()) > 1.0:
-        raise ValueError("image must be normalized to the [0, 1] range.")
+        raise ValueError("image must be normalized to [0, 1].")
     if not np.isfinite(amount) or not 0.0 <= amount <= 1.0:
-        raise ValueError(f"amount must be finite and in [0, 1], got {amount}")
+        raise ValueError(f"amount must be in [0, 1], got {amount}")
     if not np.isfinite(var) or var < 0.0:
-        raise ValueError(f"var must be finite and non-negative, got {var}")
+        raise ValueError(f"var must be non-negative, got {var}")
+
+    def apply_noise(mode: str, **kwargs: Any) -> np.ndarray:
+        try:
+            return random_noise(image, mode=mode, rng=seed, clip=True, **kwargs)
+        except TypeError:
+            return random_noise(image, mode=mode, seed=seed, clip=True, **kwargs)
 
     if noise_type == "Gaussian":
-        logger.info(f"Adding Gaussian noise (var={var})")
-        return _apply_noise("gaussian", var=var)
+        return apply_noise("gaussian", var=var)
     if noise_type == "Salt & Pepper":
-        logger.info(f"Adding Salt & Pepper noise (amount={amount})")
-        return _apply_noise("s&p", amount=amount)
+        return apply_noise("s&p", amount=amount)
     if noise_type == "Speckle (Ultrasound)":
-        logger.info(f"Adding Speckle noise (var={var})")
-        return _apply_noise("speckle", var=var)
+        return apply_noise("speckle", var=var)
 
-    raise ValueError(f"Unknown noise type: {noise_type!r}. Valid choices: {NOISE_TYPES}.")
+    raise ValueError(
+        f"Unknown noise type: {noise_type!r}. Valid choices: {NOISE_TYPES}."
+    )
 
 
 def calculate_metrics(
-    clean_img: np.ndarray, 
-    processed_img: np.ndarray
+    clean_img: np.ndarray,
+    processed_img: np.ndarray,
 ) -> Tuple[float, float]:
-    """
-    Compute PSNR and SSIM metrics.
-    
-    Args:
-        clean_img: Reference image
-        processed_img: Test image
-        
-    Returns:
-        Tuple of (PSNR in dB, SSIM in [-1, 1])
-        
-    Raises:
-        ValueError: If shapes don't match or images invalid
-    """
+    """Return PSNR and SSIM without rounding the numerical results."""
     if clean_img.shape != processed_img.shape:
         raise ValueError(
             f"Image shapes must match: {clean_img.shape} vs {processed_img.shape}"
         )
     if clean_img.ndim != 2:
-        raise ValueError(f"Expected 2D grayscale images, got ndim={clean_img.ndim}.")
-    if not (np.isfinite(clean_img).all() and np.isfinite(processed_img).all()):
+        raise ValueError("Expected 2D grayscale images.")
+    if not (
+        np.isfinite(clean_img).all()
+        and np.isfinite(processed_img).all()
+    ):
         raise ValueError("Images must contain only finite values.")
-    if float(clean_img.min()) < 0.0 or float(clean_img.max()) > 1.0 or float(processed_img.min()) < 0.0 or float(processed_img.max()) > 1.0:
-        raise ValueError("Images must be normalized to the [0, 1] range.")
-    
+    if (
+        float(clean_img.min()) < 0.0
+        or float(clean_img.max()) > 1.0
+        or float(processed_img.min()) < 0.0
+        or float(processed_img.max()) > 1.0
+    ):
+        raise ValueError("Images must be normalized to [0, 1].")
+
     clean_img = clean_img.astype(np.float64)
     processed_img = processed_img.astype(np.float64)
 
     try:
-        score_ssim = ssim(clean_img, processed_img, data_range=1.0)
-        mse = float(np.mean((clean_img - processed_img) ** 2))
-
-        if mse == 0.0:
-            score_psnr: float = float("inf")
-        else:
-            score_psnr = float(psnr(clean_img, processed_img, data_range=1.0))
-
-        rounded_psnr = score_psnr if np.isinf(score_psnr) else round(score_psnr, 2)
-        
-        logger.info(f"Metrics: PSNR={rounded_psnr}, SSIM={score_ssim:.4f}")
-        
-        return rounded_psnr, round(float(score_ssim), 4)
-    
-    except Exception as e:
-        logger.error(f"Metrics computation failed: {e}")
-        raise ValueError(f"Failed to compute metrics: {e}") from e
+        score_ssim = float(ssim(clean_img, processed_img, data_range=1.0))
+        score_psnr = float(psnr(clean_img, processed_img, data_range=1.0))
+        return score_psnr, score_ssim
+    except Exception as exc:
+        raise ValueError(f"Failed to compute metrics: {exc}") from exc
 
 
 def apply_spatial_filters(
@@ -292,63 +247,46 @@ def apply_spatial_filters(
     kernel_size: int = 5,
     sigma: float = 0.0,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Apply spatial domain filters (Mean, Median, Gaussian).
-    
-    Args:
-        image_noisy: Noisy input image
-        kernel_size: Filter kernel size (will be made odd)
-        sigma: Gaussian sigma (0 = auto)
-        
-    Returns:
-        Tuple of (mean_filtered, median_filtered, gaussian_filtered)
-        
-    Raises:
-        ValueError: If kernel_size invalid
-    """
-    if isinstance(kernel_size, bool):
+    """Apply mean, median, and Gaussian spatial filters."""
+    if isinstance(kernel_size, bool) or not isinstance(
+        kernel_size, (int, np.integer)
+    ):
         raise ValueError("kernel_size must be a positive integer.")
-    if not isinstance(kernel_size, (int, np.integer)):
-        raise ValueError("kernel_size must be a positive integer.")
+
     k_size = int(kernel_size)
     if k_size < 1:
         raise ValueError("kernel_size must be a positive integer.")
-    if not np.isfinite(image_noisy).all():
-        raise ValueError("image_noisy must contain only finite values.")
-    if image_noisy.ndim != 2:
-        raise ValueError(f"Expected a 2D grayscale image, got shape {image_noisy.shape}.")
-    if float(image_noisy.min()) < 0.0 or float(image_noisy.max()) > 1.0:
-        raise ValueError("image_noisy must be normalized to the [0, 1] range.")
     if k_size % 2 == 0:
         k_size += 1
+    if image_noisy.ndim != 2 or not np.isfinite(image_noisy).all():
+        raise ValueError("image_noisy must be a finite 2D array.")
+    if float(image_noisy.min()) < 0.0 or float(image_noisy.max()) > 1.0:
+        raise ValueError("image_noisy must be normalized to [0, 1].")
     if not np.isfinite(sigma) or sigma < 0.0:
-        raise ValueError(f"sigma must be finite and non-negative, got {sigma}")
+        raise ValueError(f"sigma must be non-negative, got {sigma}")
 
     try:
         mean_img = cv2.boxFilter(
-            image_noisy, -1, (k_size, k_size), 
-            borderType=cv2.BORDER_REFLECT101
+            image_noisy,
+            -1,
+            (k_size, k_size),
+            borderType=cv2.BORDER_REFLECT101,
         )
         median_img = _to_float01(
             cv2.medianBlur(_to_uint8(image_noisy), k_size)
         )
         gaussian_img = cv2.GaussianBlur(
-            image_noisy, (k_size, k_size), 
-            sigmaX=sigma, borderType=cv2.BORDER_REFLECT101
+            image_noisy,
+            (k_size, k_size),
+            sigmaX=sigma,
+            borderType=cv2.BORDER_REFLECT101,
         )
-
-        # Enforce [0.0, 1.0] bounds
-        mean_img = np.clip(mean_img, 0.0, 1.0)
-        median_img = np.clip(median_img, 0.0, 1.0)
-        gaussian_img = np.clip(gaussian_img, 0.0, 1.0)
-        
-        logger.info(f"Applied spatial filters (kernel={k_size}, sigma={sigma})")
-
-        return mean_img, median_img, gaussian_img
-    
-    except Exception as e:
-        logger.error(f"Spatial filtering failed: {e}")
-        raise ValueError(f"Spatial filtering failed: {e}") from e
+        return tuple(
+            np.clip(img, 0.0, 1.0)
+            for img in (mean_img, median_img, gaussian_img)
+        )
+    except Exception as exc:
+        raise ValueError(f"Spatial filtering failed: {exc}") from exc
 
 
 def apply_frequency_lowpass(
@@ -357,73 +295,41 @@ def apply_frequency_lowpass(
     filter_type: str = "gauss",
     order: int = 2,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Apply frequency domain low-pass filters.
-    
-    Args:
-        image_noisy: Noisy input image
-        cutoff_ratio: Cutoff frequency as fraction of image size
-        filter_type: "ideal", "gauss", or "butterworth"
-        order: Butterworth filter order
-        
-    Returns:
-        Tuple of (filtered_image, spectrum_original, spectrum_filtered)
-        
-    Raises:
-        ValueError: If filter_type or parameters invalid
-    """
+    """Apply an Ideal, Gaussian, or Butterworth 2D FFT low-pass filter."""
     if filter_type not in FREQUENCY_FILTERS:
         raise ValueError(
             f"Unknown frequency filter type: {filter_type!r}. "
             f"Valid choices: {FREQUENCY_FILTERS}."
         )
-    
-    if not np.isfinite(cutoff_ratio) or not (0 < cutoff_ratio < 1.0):
-        raise ValueError(f"cutoff_ratio must be in (0, 1), got {cutoff_ratio}")
-    
-    if not np.isfinite(image_noisy).all():
-        raise ValueError("image_noisy must contain only finite values.")
-    if image_noisy.ndim != 2:
-        raise ValueError(f"Expected a 2D grayscale image, got shape {image_noisy.shape}.")
+    if not np.isfinite(cutoff_ratio) or not 0 < cutoff_ratio < 1.0:
+        raise ValueError(
+            f"cutoff_ratio must be in (0, 1), got {cutoff_ratio}"
+        )
+    if image_noisy.ndim != 2 or not np.isfinite(image_noisy).all():
+        raise ValueError("image_noisy must be a finite 2D array.")
     if float(image_noisy.min()) < 0.0 or float(image_noisy.max()) > 1.0:
-        raise ValueError("image_noisy must be normalized to the [0, 1] range.")
+        raise ValueError("image_noisy must be normalized to [0, 1].")
     if not isinstance(order, (int, np.integer)) or order <= 0:
         raise ValueError(f"order must be a positive integer, got {order}")
 
-    try:
-        rows, cols = image_noisy.shape
-        crow, ccol = rows // 2, cols // 2
+    rows, cols = image_noisy.shape
+    crow, ccol = rows // 2, cols // 2
+    fshift = np.fft.fftshift(np.fft.fft2(image_noisy))
+    y, x = np.ogrid[-crow : rows - crow, -ccol : cols - ccol]
+    radius = np.sqrt(x**2 + y**2)
+    cutoff = cutoff_ratio * min(crow, ccol)
 
-        f = np.fft.fft2(image_noisy)
-        fshift = np.fft.fftshift(f)
+    if filter_type == "ideal":
+        mask = (radius <= cutoff).astype(np.float64)
+    elif filter_type == "gauss":
+        mask = np.exp(-(radius**2) / (2.0 * cutoff**2))
+    else:
+        mask = 1.0 / (1.0 + (radius / cutoff) ** (2 * order))
 
-        y, x = np.ogrid[-crow : rows - crow, -ccol : cols - ccol]
-        radius_sq = x**2 + y**2
-        cutoff_freq = cutoff_ratio * min(crow, ccol)
+    filtered_shift = fshift * mask
+    image_back = np.real(np.fft.ifft2(np.fft.ifftshift(filtered_shift)))
+    image_back = np.clip(image_back, 0.0, 1.0)
 
-        if filter_type == "ideal":
-            mask = (radius_sq <= cutoff_freq**2).astype(np.float64)
-            logger.info(f"Applied Ideal low-pass filter (cutoff={cutoff_freq:.1f})")
-        
-        elif filter_type == "gauss":
-            mask = np.exp(-radius_sq / (2 * (cutoff_freq**2 + 1e-8)))
-            logger.info(f"Applied Gaussian low-pass filter (cutoff={cutoff_freq:.1f})")
-        
-        else:  # butterworth
-            mask = 1.0 / (1.0 + (np.sqrt(radius_sq) / (cutoff_freq + 1e-8)) ** (2 * order))
-            logger.info(f"Applied Butterworth low-pass filter (order={order}, cutoff={cutoff_freq:.1f})")
-
-        fshift_filtered = fshift * mask
-
-        f_ishift = np.fft.ifftshift(fshift_filtered)
-        img_back = np.real(np.fft.ifft2(f_ishift))
-        img_back = np.clip(img_back, 0.0, 1.0)
-
-        spectrum = np.log1p(np.abs(fshift))
-        spectrum_filtered = np.log1p(np.abs(fshift_filtered))
-
-        return img_back, spectrum, spectrum_filtered
-    
-    except Exception as e:
-        logger.error(f"Frequency filtering failed: {e}")
-        raise ValueError(f"Frequency filtering failed: {e}") from e
+    spectrum = np.log1p(np.abs(fshift))
+    spectrum_filtered = np.log1p(np.abs(filtered_shift))
+    return image_back, spectrum, spectrum_filtered

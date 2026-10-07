@@ -3,7 +3,6 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-FF4B4B?logo=streamlit&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.8%2B-5C3EE8?logo=opencv&logoColor=white)
-![PyTest](https://img.shields.io/badge/PyTest-35%20tests-informational?logo=pytest&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 
@@ -24,7 +23,7 @@ An interactive Streamlit application dedicated to **medical image restoration an
 
 ## 🏗️ Overview & Architecture
 
-The project enforces a **strict Separation of Concerns (SoC)** between scientific computation and the user interface:
+The project separates the scientific processing code from the Streamlit interface.
 
 ```text
 biomedical-image-denoising-suite/
@@ -34,7 +33,7 @@ biomedical-image-denoising-suite/
 ├── app.py                   # Streamlit UI (Layout, widgets, and visualization)
 ├── filters.py               # Scientific engine (NumPy/OpenCV/scikit-image/pydicom)
 ├── download_data.py         # Data acquisition script (Kaggle dataset & synthetic DICOM)
-├── test_filters.py          # PyTest unit test suite (34 tests)
+├── test_filters.py          # PyTest unit tests
 ├── requirements.txt         # Project dependencies
 └── samples/                 # Medical image samples (generated dynamically)
 
@@ -128,7 +127,7 @@ streamlit run app.py
 
 ## 🧪 Test Suite & CI/CD
 
-The scientific core contains **34 unit tests** covering noise generation, input validation, matrix shapes and ranges, numerical metrics, and the DICOM-loading paths implemented in the project. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
+The test suite covers noise generation, input validation, filtering, numerical metrics, and DICOM-loading paths. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
 
 ```bash
 # Run unit tests with terminal coverage report
@@ -139,4 +138,4 @@ pytest --cov=filters --cov-report=term-missing
 
 PSNR and SSIM are computed against the **loaded reference image**. When synthetic noise is added in the application, that reference is the original image before degradation, so the comparison has a known reference. For an already-noisy real image uploaded without a ground-truth clean counterpart, these metrics measure similarity to the uploaded image rather than objective restoration accuracy.
 
-The included DICOM samples are public test samples or locally generated synthetic data. No patient dataset is committed to the repository. The optional Kaggle download is performed locally by the data-generation script. Dataset terms and attribution should be checked before redistribution.
+The included DICOM samples are public test files or locally generated synthetic data. The larger CT dataset used for the 3D experiments is not committed to the repository. Dataset access, attribution, and redistribution terms must be respected.

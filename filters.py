@@ -236,7 +236,10 @@ def calculate_metrics(
 
     try:
         score_ssim = float(ssim(clean_img, processed_img, data_range=1.0))
-        score_psnr = float(psnr(clean_img, processed_img, data_range=1.0))
+        if np.array_equal(clean_img, processed_img):
+            score_psnr = float("inf")
+        else:
+            score_psnr = float(psnr(clean_img, processed_img, data_range=1.0))
         return score_psnr, score_ssim
     except Exception as exc:
         raise ValueError(f"Failed to compute metrics: {exc}") from exc

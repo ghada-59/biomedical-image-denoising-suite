@@ -10,7 +10,7 @@ def gaussian_denoise_volume(
     volume: np.ndarray,
     sigma: float = 1.0,
 ) -> np.ndarray:
-    """Apply isotropic 3D Gaussian smoothing."""
+    """Apply Gaussian smoothing with the same sigma in voxel units along all three axes."""
     if not isinstance(volume, np.ndarray) or volume.ndim != 3:
         raise ValueError("volume must be a 3D NumPy array.")
     if not np.isfinite(volume).all():

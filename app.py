@@ -23,13 +23,14 @@ SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
 SAMPLE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".dcm"}
 
 st.set_page_config(
-    page_title="Biomedical Image Denoising Suite v2", page_icon="🔬", layout="wide"
+    page_title="Biomedical Image Denoising Suite",
+    page_icon="🔬",
+    layout="wide"
 )
 
-st.title("🔬 Biomedical Image Low-Pass Filtering & Benchmarking")
-st.markdown(
-    "Educational analysis of spatial and frequency-domain filtering with"
-    " quantitative image-quality metrics (PSNR / SSIM)."
+st.title("🔬 Biomedical Image Denoising Suite")
+st.caption(
+    "Classical image filtering with reproducible image-quality measurements."
 )
 
 

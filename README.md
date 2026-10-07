@@ -17,13 +17,13 @@ An interactive Streamlit application dedicated to **medical image denoising expe
 - [Complete DICOM Pipeline](#-complete-dicom-pipeline)
 - [Tech Stack](#-tech-stack)
 - [Installation & Usage](#-installation--usage)
-- [Test Suite & CI/CD](#-test-suite--cicd)
+- [Test Suite & Continuous Integration](#-test-suite--continuous-integration)
 
 ---
 
 ## 🏗️ Overview & Architecture
 
-The project separates the scientific processing code from the Streamlit interface.
+The project separates the 2D processing pipeline from the Streamlit interface and keeps the optional 3D DICOM workflow in `src/`.
 
 ```text
 biomedical-image-denoising-suite/
@@ -159,3 +159,24 @@ This is an educational image-processing project, not a clinical diagnostic tool.
 PSNR and SSIM are meaningful here when synthetic noise is added to a known reference image. For real clinical images without a clean reference, the project reports descriptive changes rather than claiming denoising accuracy.
 
 The 3D reconstruction code expects a consistent DICOM series with `ImageOrientationPatient`, `ImagePositionPatient`, `PixelSpacing`, and compatible image dimensions/series metadata.
+
+
+### 3D workflow
+
+The optional 3D tools are separate from the Streamlit app and require VTK. They operate on a local DICOM series directory:
+
+```bash
+# Orthogonal slice views
+python -m src.slice_viewer path/to/dicom_series
+
+# Original CT volume
+python run_3d_viewer.py path/to/dicom_series
+
+# Original vs. Gaussian-smoothed volume
+python run_denoised_3d_viewer.py path/to/dicom_series --sigma 1.0
+
+# Descriptive smoothing report
+python -m src.evaluate_volume_denoising path/to/dicom_series --sigma 1.0
+```
+
+The 3D workflow is intended for compatible single-frame CT series and is not a clinical visualization system.

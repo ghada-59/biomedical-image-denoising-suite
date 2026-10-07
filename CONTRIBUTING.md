@@ -18,8 +18,7 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
-pip install pytest pytest-cov
+python -m pip install -r requirements.txt
 
 # Run tests
 pytest -v
@@ -52,16 +51,16 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
 
 ## Testing Requirements
 
-- All new code **must have tests**
-- Minimum coverage: **80%**
-- Run locally: `pytest --cov=filters --cov-report=term-missing`
+- Add or update tests for changed processing logic.
+- Run locally: `python -m pytest -q`
+- Optional coverage: `python -m pytest --cov=filters --cov-report=term-missing`
 
 ## Pull Request Process
 
 1. Create a feature branch: `git checkout -b feature/your-feature`
 2. Make changes with descriptive commits
 3. Add/update tests
-4. Run: `pytest` and `flake8`
+4. Run: `python -m pytest -q`
 5. Push to your fork
 6. Create PR with description of changes
 7. Ensure CI passes

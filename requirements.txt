@@ -1,18 +1,22 @@
-# --- Interface Web --------------------------------------------------------
-streamlit>=1.30.0       # Support de use_container_width=True utilisé dans app.py
+# Web app
+streamlit>=1.30.0
 
-# --- Calcul Scientifique & Traitement d'Image -----------------------------
+# Scientific computing and image processing
 numpy>=1.24.0
-opencv-python>=4.8.0    # Décodage et filtrage spatial (boxFilter, GaussianBlur, medianBlur)
-scikit-image>=0.21.0    # random_noise (gestion rng/seed), calcul de PSNR et SSIM
-matplotlib>=3.7.0       # Visualisation des spectres de Fourier 2D
-pandas>=2.0.0           # Tableau de comparaison et stylage (pandas.Styler)
+opencv-python>=4.8.0
+scikit-image>=0.21.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+scipy>=1.10.0
 
-# --- Imagerie Médicale & Échantillons -------------------------------------
-pydicom>=2.4.0          # Parsing DICOM (.dcm), HU conversion and windowing
-pooch>=1.8.0            # Requis par skimage.data.brain() pour le stockage en cache
-kagglehub>=0.2.0        # Optional download of the COVID-19 Radiography Database
+# Medical imaging
+pydicom>=2.4.0
+pooch>=1.8.0
+kagglehub>=0.2.0
 
-# --- Tests & Assurance Qualité --------------------------------------------
+# 3D visualization
+vtk>=9.2.0
+
+# Testing
 pytest>=8.0.0
 pytest-cov>=4.1.0

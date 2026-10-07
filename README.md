@@ -30,12 +30,15 @@ biomedical-image-denoising-suite/
 ├── .github/
 │   └── workflows/
 │       └── pytest.yml       # Automated test workflow on pushes and pull requests
-├── app.py                   # Streamlit UI (Layout, widgets, and visualization)
-├── filters.py               # Scientific engine (NumPy/OpenCV/scikit-image/pydicom)
-├── download_data.py         # Data acquisition script (Kaggle dataset & synthetic DICOM)
-├── test_filters.py          # PyTest unit tests
+├── app.py                   # Streamlit interface for 2D experiments
+├── filters.py               # 2D image loading, filtering, and metrics
+├── evaluate_denoising.py    # Reproducible 2D benchmark
+├── download_data.py         # Local sample generation and downloads
+├── test_filters.py          # 2D unit tests
+├── test_volume_denoising.py # 3D denoising unit tests
+├── src/                     # DICOM volume, denoising, and visualization code
 ├── requirements.txt         # Project dependencies
-└── samples/                 # Medical image samples (generated dynamically)
+└── samples/                 # Local sample data (not a required dataset)
 
 ```
 
@@ -70,7 +73,7 @@ Different noise processes have different spatial and frequency characteristics. 
 
 ---
 
-## 🩺 Complete DICOM Pipeline
+## 🩺 DICOM and 3D CT Pipeline
 
 Medical image ingestion (`.dcm`) handles common DICOM metadata used in this project:
 
@@ -91,10 +94,11 @@ $$\text{Range} = \left[ \text{WC} - \frac{\text{WW}}{2}, \text{WC} + \frac{\text
 ## 🧰 Tech Stack
 
 * **Web Interface**: `Streamlit`
-* **Matrix Computation & Image Processing**: `NumPy`, `OpenCV` (`cv2`), `scikit-image`
-* **Medical Imaging**: `pydicom`
-* **Visualization & Benchmarking**: `Matplotlib`, `Pandas`
-* **Quality & Integration**: `pytest`, `pytest-cov`, `GitHub Actions`
+* **Image processing**: `NumPy`, `OpenCV`, `scikit-image`, `SciPy`
+* **Medical imaging**: `pydicom`
+* **3D visualization**: `VTK`, `Matplotlib`
+* **Benchmarking**: `Pandas`
+* **Testing and CI**: `pytest`, `pytest-cov`, `GitHub Actions`
 
 ---
 
@@ -106,16 +110,23 @@ $$\text{Range} = \left[ \text{WC} - \frac{\text{WW}}{2}, \text{WC} + \frac{\text
 git clone https://github.com/ghada-59/biomedical-image-denoising-suite.git
 cd biomedical-image-denoising-suite
 
-conda create -n biomed-env python=3.10 -y
-conda activate biomed-env
-pip install -r requirements.txt
+python -m venv .venv
+# Windows
+.venv\\Scripts\\activate
+# Linux/macOS
+# source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 
 ```
 
 ### 2. Sample Generation & Application Launch
 
 ```bash
-# Generate sample data (Synthetic DICOM + COVID-19 dataset subset)
+# Generate the built-in samples and public DICOM test files
+python download_data.py --skip-kaggle
+
+# Optional: download a small Kaggle sample subset
 python download_data.py
 
 # Launch the interactive Streamlit dashboard
@@ -130,9 +141,12 @@ streamlit run app.py
 The test suite covers noise generation, input validation, filtering, numerical metrics, and DICOM-loading paths. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
 
 ```bash
-# Run unit tests with terminal coverage report
-pytest --cov=filters --cov-report=term-missing
+# Run the full test suite
+python -m pytest -q
 
+# Optional coverage report
+python -m pytest --cov=filters --cov-report=term-missing
+```
 
 ### Important evaluation note
 

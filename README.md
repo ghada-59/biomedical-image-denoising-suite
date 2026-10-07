@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 
-An interactive Streamlit application dedicated to **medical image restoration and low-pass filtering** (X-rays, MRI, DICOM CT scans). This platform quantitatively evaluates (PSNR, SSIM) **spatial** (*Mean, Median, Gaussian*) and **frequency** (*Ideal, Gaussian, Butterworth* via 2D FFT) low-pass filters, including DICOM handling based on relevant metadata and standard concepts (Hounsfield unit conversion, VOI LUT windowing, photometric interpretation handling).
+An interactive Streamlit application dedicated to **medical image denoising experiments and low-pass filtering** (X-rays, MRI, DICOM CT scans). This platform quantitatively evaluates (PSNR, SSIM) **spatial** (*Mean, Median, Gaussian*) and **frequency** (*Ideal, Gaussian, Butterworth* via 2D FFT) low-pass filters, including DICOM handling based on relevant metadata and standard concepts (Hounsfield unit conversion, DICOM windowing using Window Center / Window Width, photometric interpretation handling).
 
 ---
 
@@ -123,10 +123,7 @@ python -m pip install -r requirements.txt
 ### 2. Sample Generation & Application Launch
 
 ```bash
-# Generate the built-in samples and public DICOM test files
-python download_data.py --skip-kaggle
-
-# Optional: download a small Kaggle sample subset
+# Generate the built-in sample images and DICOM test files
 python download_data.py
 
 # Launch the interactive Streamlit dashboard
@@ -136,7 +133,7 @@ streamlit run app.py
 
 ---
 
-## 🧪 Test Suite & CI/CD
+## 🧪 Test Suite & Continuous Integration
 
 The test suite covers noise generation, input validation, filtering, numerical metrics, and DICOM-loading paths. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
 
@@ -153,3 +150,12 @@ python -m pytest --cov=filters --cov-report=term-missing
 PSNR and SSIM are computed against the **loaded reference image**. When synthetic noise is added in the application, that reference is the original image before degradation, so the comparison has a known reference. For an already-noisy real image uploaded without a ground-truth clean counterpart, these metrics measure similarity to the uploaded image rather than objective restoration accuracy.
 
 The included DICOM samples are public test files or locally generated synthetic data. The larger CT dataset used for the 3D experiments is not committed to the repository. Dataset access, attribution, and redistribution terms must be respected.
+
+
+## ⚠️ Scope and limitations
+
+This is an educational image-processing project, not a clinical diagnostic tool. The implemented methods are classical spatial/frequency-domain filters and 3D Gaussian smoothing; they are not presented as state-of-the-art medical denoising methods.
+
+PSNR and SSIM are meaningful here when synthetic noise is added to a known reference image. For real clinical images without a clean reference, the project reports descriptive changes rather than claiming denoising accuracy.
+
+The 3D reconstruction code expects a consistent DICOM series with `ImageOrientationPatient`, `ImagePositionPatient`, `PixelSpacing`, and compatible image dimensions/series metadata.

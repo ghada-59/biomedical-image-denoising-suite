@@ -42,3 +42,14 @@ def test_numpy_to_vtk_volume_rejects_non_orthonormal_direction():
     bad_direction = np.array([[1, 1, 0], [0, 1, 0], [0, 0, 1]], dtype=float)
     with pytest.raises(ValueError, match="orthonormal"):
         numpy_to_vtk_volume(volume, (1, 1, 1), (0, 0, 0), bad_direction)
+
+
+
+def test_add_text_overlay_uses_renderer_compatible_view_prop_api():
+    from src.vtk_viewer import add_text_overlay
+
+    renderer = vtk.vtkRenderer()
+    actor = add_text_overlay(renderer, "ORIGINAL CT", (10, 20), 14)
+
+    assert isinstance(actor, vtk.vtkTextActor)
+    assert renderer.HasViewProp(actor)

@@ -1,97 +1,51 @@
-"""Render a DICOM CT volume before and after 3D Gaussian smoothing."""
-
+"""Render, compare and export original and 3D-smoothed CT volumes."""
 from __future__ import annotations
-
 import argparse
-
+from pathlib import Path
+import numpy as np
 import vtk
-
 from src.dicom_volume import load_dicom_volume
 from src.volume_denoising import gaussian_denoise_volume
-from src.vtk_viewer import numpy_to_vtk_volume
+from src.vtk_viewer import numpy_to_vtk_volume, save_render_window_png
 
 
-def create_volume(image: vtk.vtkImageData) -> vtk.vtkVolume:
-    """Create a VTK volume actor with CT-oriented transfer functions."""
-    mapper = vtk.vtkSmartVolumeMapper()
-    mapper.SetInputData(image)
-
-    volume_property = vtk.vtkVolumeProperty()
-    volume_property.ShadeOn()
-    volume_property.SetInterpolationTypeToLinear()
-
-    color = vtk.vtkColorTransferFunction()
-    color.AddRGBPoint(-1000, 0.05, 0.05, 0.10)
-    color.AddRGBPoint(-700, 0.10, 0.25, 0.80)
-    color.AddRGBPoint(-400, 0.10, 0.70, 0.95)
-    color.AddRGBPoint(-100, 0.20, 0.90, 0.70)
-    color.AddRGBPoint(100, 0.95, 0.85, 0.20)
-    color.AddRGBPoint(300, 1.00, 0.45, 0.10)
-    color.AddRGBPoint(700, 0.90, 0.10, 0.10)
-
-    opacity = vtk.vtkPiecewiseFunction()
-    opacity.AddPoint(-1000, 0.00)
-    opacity.AddPoint(-700, 0.005)
-    opacity.AddPoint(-400, 0.015)
-    opacity.AddPoint(-100, 0.035)
-    opacity.AddPoint(100, 0.08)
-    opacity.AddPoint(300, 0.18)
-    opacity.AddPoint(700, 0.30)
-
-    volume_property.SetColor(color)
-    volume_property.SetScalarOpacity(opacity)
-
-    actor = vtk.vtkVolume()
-    actor.SetMapper(mapper)
-    actor.SetProperty(volume_property)
+def make_actor(image):
+    mapper=vtk.vtkSmartVolumeMapper(); mapper.SetInputData(image)
+    prop=vtk.vtkVolumeProperty(); prop.ShadeOn(); prop.SetInterpolationTypeToLinear()
+    color=vtk.vtkColorTransferFunction()
+    for value,rgb in [(-1000,(.05,.05,.1)),(-700,(.1,.25,.8)),(-400,(.1,.7,.95)),(-100,(.2,.9,.7)),(100,(.95,.85,.2)),(300,(1,.45,.1)),(700,(.9,.1,.1))]:
+        color.AddRGBPoint(value,*rgb)
+    opacity=vtk.vtkPiecewiseFunction()
+    for value,alpha in [(-1000,0),(-700,.005),(-400,.015),(-100,.035),(100,.08),(300,.18),(700,.3)]:
+        opacity.AddPoint(value,alpha)
+    prop.SetColor(color); prop.SetScalarOpacity(opacity)
+    actor=vtk.vtkVolume(); actor.SetMapper(mapper); actor.SetProperty(prop)
     return actor
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Compare original and smoothed CT volumes."
-    )
-    parser.add_argument("series_dir", help="Path to a DICOM series directory.")
-    parser.add_argument("--sigma", type=float, default=1.0)
-    args = parser.parse_args()
-
-    volume, spacing, origin = load_dicom_volume(args.series_dir)
-    denoised = gaussian_denoise_volume(volume, sigma=args.sigma)
-
-    original_actor = create_volume(
-        numpy_to_vtk_volume(volume, spacing, origin)
-    )
-    denoised_actor = create_volume(
-        numpy_to_vtk_volume(denoised, spacing, origin)
-    )
-
-    renderer_original = vtk.vtkRenderer()
-    renderer_denoised = vtk.vtkRenderer()
-    renderer_original.AddVolume(original_actor)
-    renderer_denoised.AddVolume(denoised_actor)
-
-    renderer_original.SetBackground(0.03, 0.03, 0.05)
-    renderer_denoised.SetBackground(0.03, 0.03, 0.05)
-    renderer_original.SetViewport(0.0, 0.0, 0.5, 1.0)
-    renderer_denoised.SetViewport(0.5, 0.0, 1.0, 1.0)
-
-    renderer_original.ResetCamera()
-    camera = renderer_original.GetActiveCamera()
-    renderer_denoised.SetActiveCamera(camera)
-    renderer_denoised.ResetCameraClippingRange()
-
-    window = vtk.vtkRenderWindow()
-    window.AddRenderer(renderer_original)
-    window.AddRenderer(renderer_denoised)
-    window.SetSize(1400, 800)
-    window.SetWindowName("CT: Original vs Smoothed")
-
-    interactor = vtk.vtkRenderWindowInteractor()
-    interactor.SetRenderWindow(window)
-
-    window.Render()
+def main():
+    parser=argparse.ArgumentParser(description="Compare original and Gaussian-smoothed CT volumes.")
+    parser.add_argument("series_dir")
+    parser.add_argument("--sigma-mm","--sigma",dest="sigma_mm",type=float,default=1.0,
+                        help="Gaussian standard deviation in physical millimetres.")
+    parser.add_argument("--output",type=Path,default=Path("reports/3D/original_vs_smoothed_ct.png"))
+    args=parser.parse_args()
+    if not np.isfinite(args.sigma_mm) or args.sigma_mm<=0:
+        parser.error("--sigma-mm must be finite and greater than zero.")
+    volume,spacing,origin,direction=load_dicom_volume(args.series_dir)
+    smoothed=gaussian_denoise_volume(volume,sigma=args.sigma_mm,spacing_xyz_mm=spacing)
+    left=vtk.vtkRenderer(); right=vtk.vtkRenderer()
+    left.AddVolume(make_actor(numpy_to_vtk_volume(volume,spacing,origin,direction)))
+    right.AddVolume(make_actor(numpy_to_vtk_volume(smoothed,spacing,origin,direction)))
+    left.SetBackground(.03,.03,.05); right.SetBackground(.03,.03,.05)
+    left.SetViewport(0,0,.5,1); right.SetViewport(.5,0,1,1)
+    left.ResetCamera()
+    right.SetActiveCamera(left.GetActiveCamera())
+    window=vtk.vtkRenderWindow(); window.AddRenderer(left); window.AddRenderer(right)
+    window.SetSize(1400,800); window.SetWindowName(f"CT Original vs Smoothed — sigma {args.sigma_mm:g} mm")
+    interactor=vtk.vtkRenderWindowInteractor(); interactor.SetRenderWindow(window)
+    save_render_window_png(window,args.output)
     interactor.Start()
 
-
-if __name__ == "__main__":
+if __name__=="__main__":
     main()

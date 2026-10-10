@@ -44,7 +44,7 @@ DEFAULT_WINDOW_WIDTH = 1500.0
 # Speckle noise is simulated mathematically here; it is not evidence that
 # speckle noise is specific to CT or that this scan is an ultrasound image.
 NOISE_TYPES = ("Gaussian", "Salt & Pepper", "Speckle (synthetic)")
-FILTER_NOISE_TYPE = {"Speckle (synthetic)": "Speckle (Ultrasound)"}
+NOISE_SEED_OFFSETS = {"Gaussian": 101, "Salt & Pepper": 211, "Speckle (synthetic)": 307}
 
 
 def window_ct_slice(
@@ -62,8 +62,15 @@ def window_ct_slice(
     if not np.isfinite(window_width) or window_width <= 0:
         raise ValueError("window_width must be finite and greater than 0.")
 
-    lower = window_center - window_width / 2.0
-    return np.clip((image_hu.astype(np.float64) - lower) / window_width, 0.0, 1.0)
+    if window_width < 1.0:
+        raise ValueError("window_width must be at least 1 for DICOM linear windowing.")
+    image = image_hu.astype(np.float64)
+    if window_width == 1.0:
+        return (image > window_center - 0.5).astype(np.float64)
+    lower = window_center - 0.5 - (window_width - 1.0) / 2.0
+    upper = window_center - 0.5 + (window_width - 1.0) / 2.0
+    scaled = (image - (window_center - 0.5)) / (window_width - 1.0) + 0.5
+    return np.clip(np.where(image <= lower, 0.0, np.where(image > upper, 1.0, scaled)), 0.0, 1.0)
 
 
 def select_slice_indices(
@@ -114,11 +121,22 @@ def _slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
 
 
+def derive_run_seed(base_seed: int, slice_index: int, noise_type: str, repeat_index: int) -> int:
+    """Derive a stable, distinct seed for a slice/noise/repeat combination."""
+    if noise_type not in NOISE_SEED_OFFSETS:
+        raise ValueError(f"Unknown noise type: {noise_type!r}")
+    if base_seed < 0 or slice_index < 0 or repeat_index < 0:
+        raise ValueError("Seed, slice index, and repeat index must be non-negative.")
+    return int((base_seed + slice_index * 100003 + repeat_index * 1009
+                + NOISE_SEED_OFFSETS[noise_type]) % (2**32 - 1))
+
+
 def _add_noise(
     clean_image: np.ndarray,
     noise_type: str,
     noise_variance: float,
     salt_pepper_amount: float,
+    seed: int,
 ) -> tuple[np.ndarray, str]:
     """Return reproducible synthetic noise and describe its parameters."""
     if noise_type == "Salt & Pepper":
@@ -127,7 +145,7 @@ def _add_noise(
                 clean_image,
                 "Salt & Pepper",
                 amount=salt_pepper_amount,
-                seed=SEED,
+                seed=seed,
             ),
             f"amount={salt_pepper_amount:g}",
         )
@@ -138,7 +156,7 @@ def _add_noise(
             clean_image,
             implementation_name,
             var=noise_variance,
-            seed=SEED,
+            seed=seed,
         ),
         f"variance={noise_variance:g}",
     )
@@ -226,17 +244,18 @@ def _evaluate_one_slice(
     noise_type: str,
     noise_variance: float,
     salt_pepper_amount: float,
+    repeat_index: int,
+    seed: int,
+    save_visuals: bool,
 ) -> list[dict]:
-    """Evaluate spatial and frequency filters for one CT slice and noise type."""
+    """Evaluate spatial and frequency filters for one CT slice/noise/repeat."""
     noisy_image, noise_parameter = _add_noise(
-        clean_image,
-        noise_type,
-        noise_variance,
-        salt_pepper_amount,
+        clean_image, noise_type, noise_variance, salt_pepper_amount, seed
     )
     slice_label = f"{_slug(series_name)}_slice_{slice_index:03d}"
-    _save_spatial_visualization(clean_image, noisy_image, slice_label, noise_type)
-    _save_frequency_visualization(clean_image, noisy_image, slice_label, noise_type)
+    if save_visuals:
+        _save_spatial_visualization(clean_image, noisy_image, slice_label, noise_type)
+        _save_frequency_visualization(clean_image, noisy_image, slice_label, noise_type)
 
     rows: list[dict] = []
     spatial_filtered = apply_spatial_filters(
@@ -254,6 +273,8 @@ def _evaluate_one_slice(
             {
                 "Series": series_name,
                 "Slice Index": slice_index,
+                "Repeat": repeat_index + 1,
+                "Seed": seed,
                 "Noise": noise_type,
                 "Noise Parameter": noise_parameter,
                 "Domain": "Spatial",
@@ -318,6 +339,10 @@ def main() -> None:
             "spread-out slices."
         ),
     )
+    parser.add_argument("--repeats", type=int, default=3,
+                        help="Independent synthetic-noise realizations per slice and noise type.")
+    parser.add_argument("--seed", type=int, default=SEED,
+                        help="Base seed used to derive reproducible independent noise realizations.")
     parser.add_argument("--window-center", type=float, default=DEFAULT_WINDOW_CENTER)
     parser.add_argument("--window-width", type=float, default=DEFAULT_WINDOW_WIDTH)
     parser.add_argument("--noise-variance", type=float, default=DEFAULT_NOISE_VARIANCE)
@@ -337,6 +362,10 @@ def main() -> None:
         )
     if not series_dir.is_dir():
         parser.error(f"DICOM series directory does not exist: {series_dir}")
+    if args.repeats < 1:
+        parser.error("--repeats must be at least 1.")
+    if args.seed < 0:
+        parser.error("--seed must be non-negative.")
     if not np.isfinite(args.noise_variance) or args.noise_variance < 0:
         parser.error("--noise-variance must be finite and non-negative.")
     if (
@@ -346,7 +375,7 @@ def main() -> None:
         parser.error("--salt-pepper-amount must be within [0, 1].")
 
     print(f"Loading DICOM CT series: {series_dir}")
-    volume, spacing, _ = load_dicom_volume(series_dir)
+    volume, spacing, _origin, _direction = load_dicom_volume(series_dir)
     indices = select_slice_indices(volume.shape[0], args.slice_indices)
     print(f"Volume shape (z, y, x): {volume.shape}")
     print(f"Voxel spacing (x, y, z) mm: {spacing}")
@@ -355,10 +384,9 @@ def main() -> None:
         "CT display window: "
         f"center={args.window_center:g} HU, width={args.window_width:g} HU"
     )
-    print(
-        "Reference note: metrics compare each restored, synthetically degraded "
-        "slice with its original windowed source slice."
-    )
+    print(f"Independent synthetic-noise repetitions per slice/type: {args.repeats}")
+    print(f"Base random seed: {args.seed}")
+    print("Reference note: source slice before synthetic degradation; not clinical ground truth.")
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     VISUALS_DIR.mkdir(parents=True, exist_ok=True)
@@ -371,23 +399,28 @@ def main() -> None:
             window_width=args.window_width,
         )
         for noise_type in NOISE_TYPES:
-            print(f"Slice {index} — {noise_type}")
-            all_results.extend(
-                _evaluate_one_slice(
-                    clean_image=clean_image,
-                    series_name=series_dir.name,
-                    slice_index=index,
-                    noise_type=noise_type,
-                    noise_variance=args.noise_variance,
-                    salt_pepper_amount=args.salt_pepper_amount,
+            for repeat_index in range(args.repeats):
+                run_seed = derive_run_seed(args.seed, index, noise_type, repeat_index)
+                print(f"Slice {index} — {noise_type} — repeat {repeat_index + 1}/{args.repeats} (seed={run_seed})")
+                all_results.extend(
+                    _evaluate_one_slice(
+                        clean_image=clean_image,
+                        series_name=series_dir.name,
+                        slice_index=index,
+                        noise_type=noise_type,
+                        noise_variance=args.noise_variance,
+                        salt_pepper_amount=args.salt_pepper_amount,
+                        repeat_index=repeat_index,
+                        seed=run_seed,
+                        save_visuals=(repeat_index == 0),
+                    )
                 )
-            )
 
     results_df = pd.DataFrame(all_results)
     baseline = (
         results_df[results_df["Filter"] == "Noisy (Unfiltered)"]
-        [["Series", "Slice Index", "Noise", "PSNR (dB)", "SSIM"]]
-        .drop_duplicates(["Series", "Slice Index", "Noise"])
+        [["Series", "Slice Index", "Repeat", "Noise", "PSNR (dB)", "SSIM"]]
+        .drop_duplicates(["Series", "Slice Index", "Repeat", "Noise"])
         .rename(
             columns={
                 "PSNR (dB)": "Baseline PSNR (dB)",
@@ -397,7 +430,7 @@ def main() -> None:
     )
     results_df = results_df.merge(
         baseline,
-        on=["Series", "Slice Index", "Noise"],
+        on=["Series", "Slice Index", "Repeat", "Noise"],
         how="left",
     )
     results_df["PSNR Gain (dB)"] = (
@@ -421,14 +454,19 @@ def main() -> None:
         )
         .agg(
             Slices_Evaluated=("Slice Index", "nunique"),
+            Runs_Evaluated=("Repeat", "size"),
             Mean_PSNR_dB=("PSNR (dB)", "mean"),
+            Std_PSNR_dB=("PSNR (dB)", "std"),
             Mean_SSIM=("SSIM", "mean"),
+            Std_SSIM=("SSIM", "std"),
             Mean_PSNR_Gain_dB=("PSNR Gain (dB)", "mean"),
             Mean_SSIM_Gain=("SSIM Gain", "mean"),
         )
     )
     summary["Mean_PSNR_dB"] = summary["Mean_PSNR_dB"].round(3)
+    summary["Std_PSNR_dB"] = summary["Std_PSNR_dB"].fillna(0).round(3)
     summary["Mean_SSIM"] = summary["Mean_SSIM"].round(4)
+    summary["Std_SSIM"] = summary["Std_SSIM"].fillna(0).round(4)
     summary["Mean_PSNR_Gain_dB"] = summary["Mean_PSNR_Gain_dB"].round(3)
     summary["Mean_SSIM_Gain"] = summary["Mean_SSIM_Gain"].round(4)
 
@@ -440,6 +478,7 @@ def main() -> None:
     print(f"Mean results by filter/noise: {summary_path}")
     print(f"2D comparison figures: {VISUALS_DIR}")
     print(f"Rows in detailed benchmark: {len(results_df)}")
+    print(f"Independent repetitions per slice/noise type: {args.repeats}")
     print(f"Noise labels: {', '.join(NOISE_TYPES)}")
     print("\nMean results:")
     print(summary.to_string(index=False))

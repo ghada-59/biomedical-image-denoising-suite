@@ -77,7 +77,7 @@ Different noise processes have different spatial and frequency characteristics. 
 
 Medical image ingestion (`.dcm`) handles common DICOM metadata used in this project:
 
-1. **Photometric Interpretation**: Dynamic inversion for `MONOCHROME1` files (where minimum pixel value corresponds to white) based on exact stored bit depth (`BitsStored`).
+1. **Photometric Interpretation**: The quantitative DICOM modality values are not inverted for `MONOCHROME1`. The 2D display loader applies display-polarity inversion only after modality transformation and window normalization.
 2. **Modality LUT (HU Conversion)**: Rescale slope and intercept application:
 
 $$\text{HU} = \text{PixelValue} \times \text{RescaleSlope} + \text{RescaleIntercept}$$
@@ -85,7 +85,7 @@ $$\text{HU} = \text{PixelValue} \times \text{RescaleSlope} + \text{RescaleInterc
 
 3. **Windowing**: Application of Window Center ($\text{WC}$) and Window Width ($\text{WW}$) parameters extracted from DICOM metadata:
 
-$$\text{Range} = \left[ \text{WC} - \frac{\text{WW}}{2}, \text{WC} + \frac{\text{WW}}{2} \right]$$
+The default linear VOI window follows the DICOM convention (including the `-0.5` center offset and `WW - 1` scaling); invalid widths are rejected.
 
 
 
@@ -144,10 +144,10 @@ On CT, the script converts modality values to a fixed lung display window (defau
 python evaluate_denoising.py --dicom-series data/tcia/LIDC-IDRI-0709/1.3.6.1.4.1.14519.5.2.1.6279.6001.309707676674808510671394142910
 
 # Optional: select exact zero-based axial slice indices
-python evaluate_denoising.py --dicom-series path/to/one_dicom_series --slice-indices 20 35 50 65 80
+python evaluate_denoising.py --dicom-series path/to/one_dicom_series --slice-indices 20 35 50 65 80 --repeats 3 --seed 42
 ```
 
-The script selects up to five spread-out slices by default and creates:
+The script selects up to five spread-out slices by default and evaluates three independently seeded synthetic-noise realizations per slice and noise type (configurable with `--repeats`). The summary CSV includes means and standard deviations across runs. It creates:
 
 - `reports/denoising_benchmark.csv`: per-slice and per-filter metrics and gains relative to the unfiltered noisy input.
 - `reports/denoising_summary.csv`: mean PSNR/SSIM and mean gains by filter and noise type.
@@ -180,7 +180,7 @@ outputs.
 
 ### Quantitative Results
 
-Mean metrics across five representative CT slices:
+Historical pilot metrics from the earlier single-realization version (retained for context; do not compare them directly with the updated multi-realization benchmark):
 
 | Synthetic noise | Noisy PSNR (dB) | Noisy SSIM | Median filter PSNR (dB) | Median filter SSIM |
 |---|---:|---:|---:|---:|
@@ -188,11 +188,10 @@ Mean metrics across five representative CT slices:
 | Salt & Pepper | 21.070 | 0.6259 | 36.007 | 0.9711 |
 | Speckle (synthetic) | 22.450 | 0.4845 | 31.106 | 0.8169 |
 
-The median filter achieved the highest mean PSNR among the evaluated spatial
-filters in these experiments. For Gaussian noise, however, the mean filter
-achieved a slightly higher mean SSIM (0.6099 compared with 0.6048 for the median
-filter), illustrating that PSNR and SSIM capture different aspects of image
-similarity.
+In that preliminary pilot, the Median filter achieved the highest mean PSNR among
+the spatial filters for all three noise types. Re-run the updated benchmark after
+downloading this revision before reporting current metrics. Its CSV output records
+each run's seed and reports across-run standard deviations.
 
 **Evaluation limitation:** The reference is the original CT slice before
 synthetic noise was added. These results measure recovery under controlled
@@ -201,11 +200,11 @@ clinical noise or demonstrate clinical diagnostic benefit.
 
 ### Dataset attribution
 
-The local TCIA LIDC-IDRI CT series is not bundled in this repository. When using LIDC-IDRI, follow the dataset's attribution and data-use requirements. Reference: Armato SG III et al., *Data From LIDC-IDRI*, The Cancer Imaging Archive (2015), DOI: [10.7937/K9/TCIA.2015.LO9QL9SX](https://doi.org/10.7937/K9/TCIA.2015.LO9QL9SX). See the [official TCIA collection page](https://www.cancerimagingarchive.net/collection/lidc-idri/).
+The local TCIA LIDC-IDRI CT series is not bundled in this repository. The 3D volume loader rejects mixed-series directories, inconsistent orientations and non-uniform slice spacing rather than silently constructing a misleading regular grid. When using LIDC-IDRI, follow the dataset's attribution and data-use requirements. Reference: Armato SG III et al., *Data From LIDC-IDRI*, The Cancer Imaging Archive (2015), DOI: [10.7937/K9/TCIA.2015.LO9QL9SX](https://doi.org/10.7937/K9/TCIA.2015.LO9QL9SX). See the [official TCIA collection page](https://www.cancerimagingarchive.net/collection/lidc-idri/).
 
 ## 🧪 Test Suite & Continuous Integration
 
-The test suite covers noise generation, input validation, filtering, numerical metrics, DICOM-loading paths, CT window normalization, and slice-index selection. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
+The test suite covers noise generation, input validation, filtering, numerical metrics, DICOM loading/sorting, physical spacing, geometry checks, CT window normalization, and reproducible seed derivation. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
 
 ```bash
 # Run the full test suite
@@ -233,20 +232,20 @@ The 3D reconstruction code expects a consistent DICOM series with `ImageOrientat
 
 ### 3D workflow
 
-The optional 3D tools are separate from the Streamlit app and require VTK. They operate on a local DICOM series directory:
+The optional 3D tools are separate from the Streamlit app and require VTK. They preserve the DICOM direction matrix in VTK, validate single-series identity and uniform slice spacing, apply Gaussian sigma in physical millimetres, and save PNG snapshots. They operate on a local DICOM series directory:
 
 ```bash
 # Orthogonal slice views
 python -m src.slice_viewer path/to/dicom_series
 
 # Original CT volume
-python run_3d_viewer.py path/to/dicom_series
+python run_3d_viewer.py path/to/dicom_series --output reports/3D/original_ct_volume.png
 
 # Original vs. Gaussian-smoothed volume
-python run_denoised_3d_viewer.py path/to/dicom_series --sigma 1.0
+python run_denoised_3d_viewer.py path/to/dicom_series --sigma-mm 1.0
 
 # Descriptive smoothing report
-python -m src.evaluate_volume_denoising path/to/dicom_series --sigma 1.0
+python -m src.evaluate_volume_denoising path/to/dicom_series --sigma-mm 1.0
 ```
 
 The 3D workflow is intended for compatible single-frame CT series and is not a clinical visualization system.

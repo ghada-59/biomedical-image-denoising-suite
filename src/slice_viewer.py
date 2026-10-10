@@ -23,7 +23,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    volume, spacing, _ = load_dicom_volume(args.series_dir)
+    volume, spacing, _origin, _direction = load_dicom_volume(args.series_dir)
 
     axial = volume[volume.shape[0] // 2]
     coronal = volume[:, volume.shape[1] // 2, :]

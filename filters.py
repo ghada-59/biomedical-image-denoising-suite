@@ -9,6 +9,8 @@ from typing import Any, BinaryIO, Optional, Tuple, Union
 import cv2
 import numpy as np
 import pydicom
+from pydicom.pixels import apply_modality_lut
+from scipy.ndimage import median_filter
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
 from skimage.util import random_noise
@@ -17,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 ImageSource = Union[str, Path, BinaryIO]
 
-NOISE_TYPES = ("Gaussian", "Salt & Pepper", "Speckle (Ultrasound)")
+NOISE_TYPES = ("Gaussian", "Salt & Pepper", "Speckle (synthetic)")
 FREQUENCY_FILTERS = ("ideal", "gauss", "butterworth")
 
 
@@ -67,10 +69,14 @@ def _normalize_dynamic_range(
                 "WindowCenter and WindowWidth must be present and WindowWidth "
                 "must be positive."
             )
-        low = window_center - window_width / 2.0
-        high = window_center + window_width / 2.0
-        image = np.clip(image, low, high)
-        return (image - low) / (high - low)
+        if window_width < 1.0:
+            raise ValueError("DICOM WindowWidth must be at least 1.")
+        if window_width == 1.0:
+            return (image > window_center - 0.5).astype(np.float64)
+        lower = window_center - 0.5 - (window_width - 1.0) / 2.0
+        upper = window_center - 0.5 + (window_width - 1.0) / 2.0
+        scaled = (image - (window_center - 0.5)) / (window_width - 1.0) + 0.5
+        return np.clip(scaled, 0.0, 1.0)
 
     low = float(np.min(image))
     high = float(np.max(image))
@@ -129,20 +135,13 @@ def _load_dicom(source: ImageSource) -> np.ndarray:
             f"Expected a 2D grayscale DICOM image, got {pixel_array.shape}."
         )
 
-    pixel_array = pixel_array.astype(np.float64)
-
-    if getattr(dataset, "PhotometricInterpretation", "MONOCHROME2") == "MONOCHROME1":
-        bits_stored = getattr(dataset, "BitsStored", None)
-        ceiling = (
-            float(2**int(bits_stored) - 1)
-            if bits_stored is not None
-            else float(pixel_array.max())
-        )
-        pixel_array = ceiling - pixel_array
-
-    slope = float(getattr(dataset, "RescaleSlope", 1.0))
-    intercept = float(getattr(dataset, "RescaleIntercept", 0.0))
-    image = _rescale_to_hu(pixel_array, slope, intercept)
+    # Apply a modality LUT when present; otherwise use the standard rescale tags.
+    try:
+        image = np.asarray(apply_modality_lut(pixel_array, dataset), dtype=np.float64)
+    except (TypeError, AttributeError):
+        slope = float(getattr(dataset, "RescaleSlope", 1.0))
+        intercept = float(getattr(dataset, "RescaleIntercept", 0.0))
+        image = pixel_array.astype(np.float64) * slope + intercept
 
     window_center = _extract_dicom_window(
         getattr(dataset, "WindowCenter", None)
@@ -150,8 +149,13 @@ def _load_dicom(source: ImageSource) -> np.ndarray:
     window_width = _extract_dicom_window(
         getattr(dataset, "WindowWidth", None)
     )
+    normalized = _normalize_dynamic_range(image, window_center, window_width)
 
-    return _normalize_dynamic_range(image, window_center, window_width)
+    # MONOCHROME1 describes display polarity, not quantitative modality values.
+    # Apply the inversion only after modality transformation and normalization.
+    if getattr(dataset, "PhotometricInterpretation", "MONOCHROME2") == "MONOCHROME1":
+        normalized = 1.0 - normalized
+    return np.clip(normalized, 0.0, 1.0)
 
 
 def _load_standard_image(source: ImageSource) -> np.ndarray:
@@ -199,7 +203,7 @@ def add_noise(
         return apply_noise("gaussian", var=var)
     if noise_type == "Salt & Pepper":
         return apply_noise("s&p", amount=amount)
-    if noise_type == "Speckle (Ultrasound)":
+    if noise_type == "Speckle (synthetic)":
         return apply_noise("speckle", var=var)
 
     raise ValueError(
@@ -275,8 +279,9 @@ def apply_spatial_filters(
             (k_size, k_size),
             borderType=cv2.BORDER_REFLECT101,
         )
-        median_img = _to_float01(
-            cv2.medianBlur(_to_uint8(image_noisy), k_size)
+        # Preserve floating-point intensities instead of quantizing to uint8.
+        median_img = median_filter(
+            image_noisy.astype(np.float64), size=k_size, mode="reflect"
         )
         gaussian_img = cv2.GaussianBlur(
             image_noisy,

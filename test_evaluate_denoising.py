@@ -3,13 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from evaluate_denoising import select_slice_indices, window_ct_slice
+from evaluate_denoising import derive_run_seed, select_slice_indices, window_ct_slice
 
 
 def test_window_ct_slice_maps_lung_window_limits_to_zero_and_one() -> None:
     image_hu = np.array([[-1350.0, -600.0, 150.0]])
     actual = window_ct_slice(image_hu, window_center=-600.0, window_width=1500.0)
-    np.testing.assert_allclose(actual, [[0.0, 0.5, 1.0]])
+    np.testing.assert_allclose(actual, [[0.0, 0.5003335557, 1.0]], atol=1e-8)
 
 
 def test_window_ct_slice_clips_outside_window() -> None:
@@ -55,3 +55,9 @@ def test_select_slice_indices_validates_explicit_indices() -> None:
         select_slice_indices(10, [10])
     with pytest.raises(ValueError):
         select_slice_indices(10, [])
+
+
+def test_seed_derivation_is_stable_and_distinct():
+    a = derive_run_seed(42, 15, "Gaussian", 0)
+    assert a == derive_run_seed(42, 15, "Gaussian", 0)
+    assert len({a, derive_run_seed(42, 15, "Gaussian", 1), derive_run_seed(42, 32, "Gaussian", 0)}) == 3

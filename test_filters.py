@@ -172,7 +172,7 @@ def test_load_dicom_applies_hu_rescale_and_clinical_window(monkeypatch):
     result = filters.load_medical_image("fake_ct.dcm")
     assert result.shape == raw.shape
     assert result.min() >= 0.0 and result.max() <= 1.0
-    assert result[0, 0] == pytest.approx(0.4, abs=1e-6)
+    assert result[0, 0] == pytest.approx(0.4010025063, abs=1e-6)
 
 
 def test_load_dicom_monochrome1_inverts_using_stored_bit_depth(monkeypatch):

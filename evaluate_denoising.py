@@ -18,7 +18,6 @@ import pandas as pd
 
 from filters import (
     FREQUENCY_FILTERS,
-    NOISE_TYPES,
     add_noise,
     apply_frequency_lowpass,
     apply_spatial_filters,
@@ -41,6 +40,11 @@ CUTOFF_RATIO = 0.10
 BUTTERWORTH_ORDER = 2
 DEFAULT_WINDOW_CENTER = -600.0
 DEFAULT_WINDOW_WIDTH = 1500.0
+
+# Speckle noise is simulated mathematically here; it is not evidence that
+# speckle noise is specific to CT or that this scan is an ultrasound image.
+NOISE_TYPES = ("Gaussian", "Salt & Pepper", "Speckle (synthetic)")
+FILTER_NOISE_TYPE = {"Speckle (synthetic)": "Speckle (Ultrasound)"}
 
 
 def window_ct_slice(
@@ -116,22 +120,23 @@ def _add_noise(
     noise_variance: float,
     salt_pepper_amount: float,
 ) -> tuple[np.ndarray, str]:
-    """Return a reproducibly degraded image and its parameter description."""
+    """Return reproducible synthetic noise and describe its parameters."""
     if noise_type == "Salt & Pepper":
         return (
             add_noise(
                 clean_image,
-                noise_type,
+                "Salt & Pepper",
                 amount=salt_pepper_amount,
                 seed=SEED,
             ),
             f"amount={salt_pepper_amount:g}",
         )
 
+    implementation_name = FILTER_NOISE_TYPE.get(noise_type, noise_type)
     return (
         add_noise(
             clean_image,
-            noise_type,
+            implementation_name,
             var=noise_variance,
             seed=SEED,
         ),
@@ -400,14 +405,15 @@ def main() -> None:
     )
     results_df["SSIM Gain"] = results_df["SSIM"] - results_df["Baseline SSIM"]
 
-    for column in ("PSNR (dB)", "Baseline PSNR (dB)", "PSNR Gain (dB)"):
-        results_df[column] = results_df[column].round(3)
-    for column in ("SSIM", "Baseline SSIM", "SSIM Gain"):
-        results_df[column] = results_df[column].round(4)
-
     detail_path = REPORTS_DIR / "denoising_benchmark.csv"
-    results_df.to_csv(detail_path, index=False, encoding="utf-8")
+    display_results_df = results_df.copy()
+    for column in ("PSNR (dB)", "Baseline PSNR (dB)", "PSNR Gain (dB)"):
+        display_results_df[column] = display_results_df[column].round(3)
+    for column in ("SSIM", "Baseline SSIM", "SSIM Gain"):
+        display_results_df[column] = display_results_df[column].round(4)
+    display_results_df.to_csv(detail_path, index=False, encoding="utf-8")
 
+    # Aggregate from full-precision values; only round the displayed summary below.
     summary = (
         results_df.groupby(
             ["Noise", "Noise Parameter", "Domain", "Filter"],
@@ -434,6 +440,7 @@ def main() -> None:
     print(f"Mean results by filter/noise: {summary_path}")
     print(f"2D comparison figures: {VISUALS_DIR}")
     print(f"Rows in detailed benchmark: {len(results_df)}")
+    print(f"Noise labels: {', '.join(NOISE_TYPES)}")
     print("\nMean results:")
     print(summary.to_string(index=False))
 

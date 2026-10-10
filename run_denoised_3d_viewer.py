@@ -55,14 +55,14 @@ def main() -> None:
     parser.add_argument("--sigma", type=float, default=1.0)
     args = parser.parse_args()
 
-    volume, spacing, origin = load_dicom_volume(args.series_dir)
+    volume, spacing, origin, direction = load_dicom_volume(args.series_dir)
     denoised = gaussian_denoise_volume(volume, sigma=args.sigma)
 
     original_actor = create_volume(
-        numpy_to_vtk_volume(volume, spacing, origin)
+        numpy_to_vtk_volume(volume, spacing, origin, direction)
     )
     denoised_actor = create_volume(
-        numpy_to_vtk_volume(denoised, spacing, origin)
+        numpy_to_vtk_volume(denoised, spacing, origin, direction)
     )
 
     renderer_original = vtk.vtkRenderer()

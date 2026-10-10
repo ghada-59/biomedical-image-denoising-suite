@@ -238,14 +238,20 @@ The optional 3D tools are separate from the Streamlit app and require VTK. They 
 # Orthogonal slice views
 python -m src.slice_viewer path/to/dicom_series
 
-# Original CT volume
+# Original CT volume (neutral grayscale is the default)
 python run_3d_viewer.py path/to/dicom_series --output reports/3D/original_ct_volume.png
 
-# Original vs. Gaussian-smoothed volume
-python run_denoised_3d_viewer.py path/to/dicom_series --sigma-mm 1.0
+# Optional pseudo-colour maps CT intensity only; it is not functional activity
+python run_3d_viewer.py path/to/dicom_series --color-mode hu-pseudocolor
 
-# Descriptive smoothing report
+# Original vs. 3D Gaussian-smoothed volume, using the same camera and intensity mapping
+python run_denoised_3d_viewer.py path/to/dicom_series --sigma-mm 1.0 --output reports/3D/original_vs_smoothed_ct.png
+
+# Optional pseudo-colour comparison (same mapping on both volumes)
+python run_denoised_3d_viewer.py path/to/dicom_series --sigma-mm 1.0 --color-mode hu-pseudocolor
+
+# Orthogonal slice/difference figure and descriptive smoothing report
 python -m src.evaluate_volume_denoising path/to/dicom_series --sigma-mm 1.0
 ```
 
-The 3D workflow is intended for compatible single-frame CT series and is not a clinical visualization system.
+The volume viewer annotates the volume dimensions, voxel spacing and display mode, and includes an orientation marker. The original/smoothed comparison shares a camera and the same intensity transfer function so that visual differences are easier to interpret. Grayscale is the default; pseudo-colour is an intensity mapping only, not a PET-like functional overlay. The 3D workflow is intended for compatible single-frame CT series and is not a clinical visualization system. Smoothing can remove small structures, so a smoother appearance alone is not evidence of improved diagnostic quality.

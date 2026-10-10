@@ -135,7 +135,13 @@ def _load_dicom(source: ImageSource) -> np.ndarray:
             f"Expected a 2D grayscale DICOM image, got {pixel_array.shape}."
         )
 
-    image = np.asarray(apply_modality_lut(pixel_array, dataset), dtype=np.float64)
+    # Apply a modality LUT when present; otherwise use the standard rescale tags.
+    try:
+        image = np.asarray(apply_modality_lut(pixel_array, dataset), dtype=np.float64)
+    except (TypeError, AttributeError):
+        slope = float(getattr(dataset, "RescaleSlope", 1.0))
+        intercept = float(getattr(dataset, "RescaleIntercept", 0.0))
+        image = pixel_array.astype(np.float64) * slope + intercept
 
     window_center = _extract_dicom_window(
         getattr(dataset, "WindowCenter", None)

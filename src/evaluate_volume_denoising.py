@@ -29,7 +29,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    volume, spacing, _ = load_dicom_volume(args.series_dir)
+    volume, spacing, _origin, _direction = load_dicom_volume(args.series_dir)
     denoised = gaussian_denoise_volume(volume, sigma=args.sigma)
     difference = denoised - volume.astype(np.float32)
 

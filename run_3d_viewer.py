@@ -15,8 +15,8 @@ def main() -> None:
     parser.add_argument("series_dir", help="Path to a DICOM series directory.")
     args = parser.parse_args()
 
-    volume, spacing, origin = load_dicom_volume(args.series_dir)
-    image = numpy_to_vtk_volume(volume, spacing, origin)
+    volume, spacing, origin, direction = load_dicom_volume(args.series_dir)
+    image = numpy_to_vtk_volume(volume, spacing, origin, direction)
 
     mapper = vtk.vtkSmartVolumeMapper()
     mapper.SetInputData(image)

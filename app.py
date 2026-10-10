@@ -30,7 +30,7 @@ st.set_page_config(
 
 st.title("🔬 Biomedical Image Denoising Suite")
 st.caption(
-    "Classical image filtering with reproducible image-quality measurements."
+    "Classical image filtering with seed-controlled synthetic-noise experiments."
 )
 
 
@@ -116,6 +116,16 @@ if image_source is not None:
         st.stop()
 
     st.sidebar.header("2. Noise Simulation")
+    seed = int(
+        st.sidebar.number_input(
+            "Random seed",
+            min_value=0,
+            max_value=2**32 - 1,
+            value=42,
+            step=1,
+            help="Keep the same seed and settings to reproduce a synthetic-noise run.",
+        )
+    )
     noise_type = st.sidebar.selectbox("Noise Type", ["None", *NOISE_TYPES])
 
     if noise_type == "None":
@@ -125,13 +135,13 @@ if image_source is not None:
             "Fraction of affected pixels", 0.001, 0.2, 0.02, 0.005,
             help="Fraction of pixels replaced by white or black.",
         )
-        noisy_image = add_noise(clean_image, noise_type, amount=amount)
+        noisy_image = add_noise(clean_image, noise_type, amount=amount, seed=seed)
     else:
         var = st.sidebar.slider(
             "Noise Variance", 0.001, 0.2, 0.02, 0.005,
             help="Variance of the noise distribution added to each pixel.",
         )
-        noisy_image = add_noise(clean_image, noise_type, var=var)
+        noisy_image = add_noise(clean_image, noise_type, var=var, seed=seed)
 
     st.sidebar.header("3. Filter Settings")
     kernel_size = st.sidebar.slider("Spatial Kernel Size", 3, 15, 5, step=2)

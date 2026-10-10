@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-FF4B4B?logo=streamlit&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.8%2B-5C3EE8?logo=opencv&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+![License](https://img.shields.io/badge/License-not%20specified-lightgrey.svg)
 
 
 An interactive Streamlit application dedicated to **medical image denoising experiments and low-pass filtering** (X-rays, MRI, DICOM CT scans). This platform quantitatively evaluates (PSNR, SSIM) **spatial** (*Mean, Median, Gaussian*) and **frequency** (*Ideal, Gaussian, Butterworth* via 2D FFT) low-pass filters, including DICOM handling based on relevant metadata and standard concepts (Hounsfield unit conversion, DICOM windowing using Window Center / Window Width, photometric interpretation handling).
@@ -23,7 +23,7 @@ An interactive Streamlit application dedicated to **medical image denoising expe
 
 ## 🏗️ Overview & Architecture
 
-The project separates the 2D processing pipeline from the Streamlit interface and keeps the optional 3D DICOM workflow in `src/`.
+The project separates the 2D processing pipeline from the Streamlit interface and keeps the optional 3D DICOM workflow in `src/`. No repository-wide license is currently declared; check third-party dataset and sample-file terms separately before redistribution.
 
 ```text
 biomedical-image-denoising-suite/
@@ -180,7 +180,7 @@ outputs.
 
 ### Quantitative Results
 
-Historical pilot metrics from the earlier single-realization version (retained for context; do not compare them directly with the updated multi-realization benchmark):
+Historical pilot metrics from the earlier single-realization version (retained for context; do not compare them directly with the updated multi-realization benchmark). These are not the current multi-run results:
 
 | Synthetic noise | Noisy PSNR (dB) | Noisy SSIM | Median filter PSNR (dB) | Median filter SSIM |
 |---|---:|---:|---:|---:|

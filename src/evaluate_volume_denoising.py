@@ -8,19 +8,22 @@ from src.dicom_volume import load_dicom_volume
 from src.volume_denoising import gaussian_denoise_volume
 
 
-def _save_slice_figure(volume, smoothed, output_path: Path):
+def _save_slice_figure(volume, smoothed, output_path: Path, spacing_xyz_mm):
     z, y, x = (n // 2 for n in volume.shape)
     original = [volume[z, :, :], volume[:, y, :], volume[:, :, x]]
     filtered = [smoothed[z, :, :], smoothed[:, y, :], smoothed[:, :, x]]
     titles = ["Axial", "Coronal", "Sagittal"]
+    # Use physical pixel aspect ratios so thick-slice CT is not stretched.
+    sx, sy, sz = spacing_xyz_mm
+    aspects = [sy / sx, sz / sx, sz / sy]
     fig, axes = plt.subplots(3, 3, figsize=(13, 12))
     for col, title in enumerate(titles):
         diff = np.abs(filtered[col] - original[col])
-        axes[0, col].imshow(original[col], cmap="gray")
+        axes[0, col].imshow(original[col], cmap="gray", aspect=aspects[col])
         axes[0, col].set_title(f"Original — {title}")
-        axes[1, col].imshow(filtered[col], cmap="gray")
+        axes[1, col].imshow(filtered[col], cmap="gray", aspect=aspects[col])
         axes[1, col].set_title("Gaussian-smoothed")
-        axes[2, col].imshow(diff, cmap="magma", vmin=0, vmax=max(float(np.percentile(diff, 99)), 1e-6))
+        axes[2, col].imshow(diff, cmap="magma", aspect=aspects[col], vmin=0, vmax=max(float(np.percentile(diff, 99)), 1e-6))
         axes[2, col].set_title("Absolute difference")
     for ax in axes.ravel():
         ax.axis("off")
@@ -65,7 +68,7 @@ claims are not supported. Smoothing can blur small anatomical structures.
 """
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(report, encoding="utf-8")
-    _save_slice_figure(volume, smoothed, args.figure_output)
+    _save_slice_figure(volume, smoothed, args.figure_output, spacing)
     print(report)
     print(f"Report saved to: {args.output}")
     print(f"Figure saved to: {args.figure_output}")

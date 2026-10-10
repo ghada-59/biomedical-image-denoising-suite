@@ -201,6 +201,10 @@ if image_source is not None:
 
     with tab2:
         st.subheader("Low-Pass Filtering in Frequency Domain (2D FFT)")
+        if noise_type == "None":
+            st.info("No synthetic noise was added. PSNR/SSIM describe similarity to the loaded image, not denoising accuracy against an independent clean reference.")
+        else:
+            st.caption("The noise is synthetic and the loaded image is the reference; these metrics do not establish performance on unknown clinical noise.")
 
         fft_type = st.radio(
             "Displayed Frequency Filter",

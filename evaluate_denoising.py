@@ -150,11 +150,10 @@ def _add_noise(
             f"amount={salt_pepper_amount:g}",
         )
 
-    implementation_name = FILTER_NOISE_TYPE.get(noise_type, noise_type)
     return (
         add_noise(
             clean_image,
-            implementation_name,
+            noise_type,
             var=noise_variance,
             seed=seed,
         ),
@@ -300,6 +299,8 @@ def _evaluate_one_slice(
             {
                 "Series": series_name,
                 "Slice Index": slice_index,
+                "Repeat": repeat_index + 1,
+                "Seed": seed,
                 "Noise": noise_type,
                 "Noise Parameter": noise_parameter,
                 "Domain": "Frequency",

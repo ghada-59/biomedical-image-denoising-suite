@@ -3,7 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from evaluate_denoising import derive_run_seed, select_slice_indices, window_ct_slice
+from evaluate_denoising import (
+    _add_noise,
+    _evaluate_one_slice,
+    derive_run_seed,
+    select_slice_indices,
+    window_ct_slice,
+)
 
 
 def test_window_ct_slice_maps_lung_window_limits_to_zero_and_one() -> None:
@@ -61,3 +67,44 @@ def test_seed_derivation_is_stable_and_distinct():
     a = derive_run_seed(42, 15, "Gaussian", 0)
     assert a == derive_run_seed(42, 15, "Gaussian", 0)
     assert len({a, derive_run_seed(42, 15, "Gaussian", 1), derive_run_seed(42, 32, "Gaussian", 0)}) == 3
+
+
+
+@pytest.mark.parametrize(
+    "noise_type",
+    ["Gaussian", "Salt & Pepper", "Speckle (synthetic)"],
+)
+def test_benchmark_noise_labels_are_supported(noise_type: str) -> None:
+    image = np.linspace(0.0, 1.0, 256, dtype=np.float64).reshape(16, 16)
+    noisy, parameter = _add_noise(
+        image,
+        noise_type=noise_type,
+        noise_variance=0.02,
+        salt_pepper_amount=0.02,
+        seed=123,
+    )
+    assert noisy.shape == image.shape
+    assert np.isfinite(noisy).all()
+    assert float(noisy.min()) >= 0.0
+    assert float(noisy.max()) <= 1.0
+    assert parameter
+
+
+def test_all_benchmark_rows_keep_repeat_and_seed_metadata() -> None:
+    image = np.linspace(0.0, 1.0, 32 * 32, dtype=np.float64).reshape(32, 32)
+    rows = _evaluate_one_slice(
+        clean_image=image,
+        series_name="synthetic_test",
+        slice_index=12,
+        noise_type="Gaussian",
+        noise_variance=0.02,
+        salt_pepper_amount=0.02,
+        repeat_index=1,
+        seed=456,
+        save_visuals=False,
+    )
+    assert rows
+    assert all(row.get("Repeat") == 2 for row in rows)
+    assert all(row.get("Seed") == 456 for row in rows)
+    assert any(row["Domain"] == "Spatial" for row in rows)
+    assert any(row["Domain"] == "Frequency" for row in rows)

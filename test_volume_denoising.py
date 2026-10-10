@@ -38,3 +38,21 @@ def test_gaussian_denoise_rejects_non_finite_volume() -> None:
     volume[0, 0, 0] = np.nan
     with pytest.raises(ValueError):
         gaussian_denoise_volume(volume, sigma=1.0)
+
+def test_gaussian_uses_physical_spacing(monkeypatch):
+    import src.volume_denoising as module
+    observed = {}
+    def fake_filter(volume, sigma, mode):
+        observed["sigma"] = sigma
+        observed["mode"] = mode
+        return volume
+    monkeypatch.setattr(module, "gaussian_filter", fake_filter)
+    gaussian_denoise_volume(np.zeros((5, 6, 7)), sigma=1.0, spacing_xyz_mm=(0.5, 0.5, 3.0))
+    assert observed["sigma"] == pytest.approx((1/3, 2.0, 2.0))
+    assert observed["mode"] == "reflect"
+
+
+def test_gaussian_rejects_invalid_spacing():
+    for spacing in ((1, 1), (1, 0, 1), (1, np.nan, 1)):
+        with pytest.raises(ValueError):
+            gaussian_denoise_volume(np.zeros((3, 3, 3)), spacing_xyz_mm=spacing)

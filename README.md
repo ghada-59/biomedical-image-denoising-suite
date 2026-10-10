@@ -155,6 +155,50 @@ The script selects up to five spread-out slices by default and creates:
 
 The `reports/` directory is generated locally and is intentionally ignored by Git. Add only selected, clearly labeled result figures to the repository if they are useful in the README or portfolio.
 
+### Representative Visual Results
+
+The following figures illustrate representative results from the controlled
+synthetic-noise benchmark on axial CT slices. Each comparison includes the
+original windowed reference, the synthetically degraded image, and the filtered
+outputs.
+
+#### Gaussian Synthetic Noise — Spatial Filtering
+
+![Gaussian noise spatial-filter comparison](docs/images/ct_gaussian_spatial.png)
+
+#### Salt-and-Pepper Noise — Spatial Filtering
+
+![Salt-and-pepper noise spatial-filter comparison](docs/images/ct_salt_pepper_spatial.png)
+
+#### Salt-and-Pepper Noise — Frequency-Domain Filtering
+
+![Salt-and-pepper noise frequency-filter comparison](docs/images/ct_salt_pepper_frequency.png)
+
+#### Synthetic Speckle Noise — Spatial Filtering
+
+![Synthetic speckle spatial-filter comparison](docs/images/ct_speckle_spatial.png)
+
+### Quantitative Results
+
+Mean metrics across five representative CT slices:
+
+| Synthetic noise | Noisy PSNR (dB) | Noisy SSIM | Median filter PSNR (dB) | Median filter SSIM |
+|---|---:|---:|---:|---:|
+| Gaussian | 18.376 | 0.1702 | 28.086 | 0.6048 |
+| Salt & Pepper | 21.070 | 0.6259 | 36.007 | 0.9711 |
+| Speckle (synthetic) | 22.450 | 0.4845 | 31.106 | 0.8169 |
+
+The median filter achieved the highest mean PSNR among the evaluated spatial
+filters in these experiments. For Gaussian noise, however, the mean filter
+achieved a slightly higher mean SSIM (0.6099 compared with 0.6048 for the median
+filter), illustrating that PSNR and SSIM capture different aspects of image
+similarity.
+
+**Evaluation limitation:** The reference is the original CT slice before
+synthetic noise was added. These results measure recovery under controlled
+synthetic perturbations; they do not establish performance on unknown real
+clinical noise or demonstrate clinical diagnostic benefit.
+
 ### Dataset attribution
 
 The local TCIA LIDC-IDRI CT series is not bundled in this repository. When using LIDC-IDRI, follow the dataset's attribution and data-use requirements. Reference: Armato SG III et al., *Data From LIDC-IDRI*, The Cancer Imaging Archive (2015), DOI: [10.7937/K9/TCIA.2015.LO9QL9SX](https://doi.org/10.7937/K9/TCIA.2015.LO9QL9SX). See the [official TCIA collection page](https://www.cancerimagingarchive.net/collection/lidc-idri/).

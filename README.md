@@ -255,3 +255,17 @@ python -m src.evaluate_volume_denoising path/to/dicom_series --sigma-mm 1.0
 ```
 
 The volume viewer annotates the volume dimensions, voxel spacing and display mode, and includes an orientation marker. The original/smoothed comparison shares a camera and the same intensity transfer function so that visual differences are easier to interpret. Grayscale is the default; pseudo-colour is an intensity mapping only, not a PET-like functional overlay. The 3D workflow is intended for compatible single-frame CT series and is not a clinical visualization system. Smoothing can remove small structures, so a smoother appearance alone is not evidence of improved diagnostic quality.
+
+## 3D CT Volume Rendering: Original vs Gaussian-Smoothed
+
+![3D CT comparison before and after Gaussian smoothing](docs/images/original_vs_smoothed_ct_color.png)
+
+This visualization compares an original thoracic CT volume with the same volume after 3D Gaussian smoothing using a standard deviation of σ = 1 mm.
+
+* **Voxel spacing:** 0.54 × 0.54 × 3.0 mm, according to the source series metadata.
+* **Visualization:** Both volumes use the same CT intensity-to-color mapping.
+* **Interpretation:** The colors represent CT intensity only; they do not represent functional activity.
+* **Limitation:** Smoothing may reduce small intensity variations but can also blur fine anatomical details.
+
+This is an educational image-processing experiment, not a clinical performance assessment.
+

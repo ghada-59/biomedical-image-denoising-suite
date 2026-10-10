@@ -123,7 +123,7 @@ def add_text_overlay(renderer, text, position=(18, 760), font_size=18):
     text_prop.SetBold(True)
     text_prop.SetColor(1.0, 1.0, 1.0)
     text_prop.SetShadow(True)
-    renderer.AddActor2D(actor)
+    renderer.AddViewProp(actor)
     return actor
 
 

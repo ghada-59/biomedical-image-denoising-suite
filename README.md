@@ -32,13 +32,13 @@ biomedical-image-denoising-suite/
 │       └── pytest.yml       # Automated test workflow on pushes and pull requests
 ├── app.py                   # Streamlit interface for 2D experiments
 ├── filters.py               # 2D image loading, filtering, and metrics
-├── evaluate_denoising.py    # Reproducible 2D benchmark
+├── evaluate_denoising.py    # DICOM CT slice benchmark + 2D figure exports
 ├── download_data.py         # Local sample generation and downloads
 ├── test_filters.py          # 2D unit tests
 ├── test_volume_denoising.py # 3D denoising unit tests
 ├── src/                     # DICOM volume, denoising, and visualization code
 ├── requirements.txt         # Project dependencies
-└── samples/                 # Local sample data (not a required dataset)
+└── samples/                 # Optional UI/demo images; not the main CT benchmark
 
 ```
 
@@ -133,9 +133,35 @@ streamlit run app.py
 
 ---
 
+## 📈 Reproducible 2D CT benchmark
+
+The primary 2D benchmark uses representative axial slices from a local DICOM CT series, rather than treating the two sample PNG files as the project's clinical reference set. The `brain_mri.png` and `cells_tissue.png` files remain optional examples for the Streamlit interface only.
+
+On CT, the script converts modality values to a fixed lung display window (default: center -600 HU, width 1500 HU), normalizes the displayed slice to [0, 1], adds reproducible synthetic noise, and compares classical spatial/frequency filters with the original windowed source slice. These metrics measure recovery from a controlled synthetic perturbation; the clinical CT slice is not claimed to be a noise-free ground truth.
+
+```bash
+# Use a single DICOM series directory
+python evaluate_denoising.py --dicom-series data/tcia/LIDC-IDRI-0709/1.3.6.1.4.1.14519.5.2.1.6279.6001.309707676674808510671394142910
+
+# Optional: select exact zero-based axial slice indices
+python evaluate_denoising.py --dicom-series path/to/one_dicom_series --slice-indices 20 35 50 65 80
+```
+
+The script selects up to five spread-out slices by default and creates:
+
+- `reports/denoising_benchmark.csv`: per-slice and per-filter metrics and gains relative to the unfiltered noisy input.
+- `reports/denoising_summary.csv`: mean PSNR/SSIM and mean gains by filter and noise type.
+- `reports/2D/`: image comparisons for spatial and frequency-domain filters.
+
+The `reports/` directory is generated locally and is intentionally ignored by Git. Add only selected, clearly labeled result figures to the repository if they are useful in the README or portfolio.
+
+### Dataset attribution
+
+The local TCIA LIDC-IDRI CT series is not bundled in this repository. When using LIDC-IDRI, follow the dataset's attribution and data-use requirements. Reference: Armato SG III et al., *Data From LIDC-IDRI*, The Cancer Imaging Archive (2015), DOI: [10.7937/K9/TCIA.2015.LO9QL9SX](https://doi.org/10.7937/K9/TCIA.2015.LO9QL9SX). See the [official TCIA collection page](https://www.cancerimagingarchive.net/collection/lidc-idri/).
+
 ## 🧪 Test Suite & Continuous Integration
 
-The test suite covers noise generation, input validation, filtering, numerical metrics, and DICOM-loading paths. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
+The test suite covers noise generation, input validation, filtering, numerical metrics, DICOM-loading paths, CT window normalization, and slice-index selection. GitHub Actions runs this test suite automatically on pushes and pull requests targeting `main`.
 
 ```bash
 # Run the full test suite

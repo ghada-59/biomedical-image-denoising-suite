@@ -153,7 +153,7 @@ The script selects up to five spread-out slices by default and evaluates three i
 - `reports/denoising_summary.csv`: mean PSNR/SSIM and mean gains by filter and noise type.
 - `reports/2D/`: image comparisons for spatial and frequency-domain filters.
 
-The `reports/` directory is generated locally and is intentionally ignored by Git. Add only selected, clearly labeled result figures to the repository if they are useful in the README or portfolio.
+The `reports/` directory is generated locally and is intentionally ignored by Git. The committed benchmark snapshot and selected figures under `docs/` provide a reproducible reference for the results shown here.
 
 ### Representative Visual Results
 

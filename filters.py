@@ -9,7 +9,11 @@ from typing import Any, BinaryIO, Optional, Tuple, Union
 import cv2
 import numpy as np
 import pydicom
-from pydicom.pixels import apply_modality_lut
+
+try:  # pydicom 3.x
+    from pydicom.pixels import apply_modality_lut
+except ImportError:  # pydicom 2.4.x compatibility
+    from pydicom.pixel_data_handlers.util import apply_modality_lut
 from scipy.ndimage import median_filter
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim

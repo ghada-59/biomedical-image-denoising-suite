@@ -1,79 +1,48 @@
-# Contributing to Biomedical Image Denoising Suite
+# Contributing
 
-Thank you for your interest in contributing! This document outlines guidelines for contributing.
-
-## Code of Conduct
-
-Be respectful, inclusive, and professional in all interactions.
-
-## Development Setup
+## Development setup
 
 ```bash
-# Clone repository
 git clone https://github.com/ghada-59/biomedical-image-denoising-suite.git
 cd biomedical-image-denoising-suite
+python -m venv .venv
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
 
-# Install dependencies
+# Linux/macOS
+# source .venv/bin/activate
+
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-
-# Run tests
-pytest -v
 ```
 
-## Code Style
+## Code changes
 
-- Follow **PEP 8** guidelines
-- Use **type hints** for all function signatures
-- Add **docstrings** (Google style) to all public functions
-- Maximum line length: 88 characters (Black formatter)
+- Keep image-processing functions independent of the Streamlit interface where practical.
+- Validate image dimensions, numeric ranges, and DICOM geometry at input boundaries.
+- Use descriptive names and focused functions; add type hints where they clarify interfaces.
+- Document assumptions that affect medical-image interpretation, including units, pixel spacing, intensity transforms, and display windowing.
+- Avoid describing synthetic-noise experiments as clinical validation or as evidence of diagnostic benefit.
 
-Example:
-```python
-def normalize_image(image: np.ndarray) -> np.ndarray:
-    """
-    Normalize image to [0.0, 1.0] float64 range.
-    
-    Args:
-        image: Input image (any dtype)
-        
-    Returns:
-        Normalized float64 image in [0.0, 1.0]
-        
-    Raises:
-        ValueError: If image is None or empty
-    """
-    ...
+## Tests
+
+Run the test suite before submitting a change:
+
+```bash
+python -m pytest -q
 ```
 
-## Testing Requirements
+Add or update tests when changing filtering, metric calculations, DICOM loading, volume geometry, or rendering behavior. For numerical changes, include tests for invalid inputs as well as expected outputs.
 
-- Add or update tests for changed processing logic.
-- Run locally: `python -m pytest -q`
-- Optional coverage: `python -m pytest --cov=filters --cov-report=term-missing`
+## Pull requests
 
-## Pull Request Process
+Include a short description of the change, the reason for it, and the tests you ran. For changes to benchmark results, state the dataset/series used, selected slices, noise settings, random seed, and how the reported metrics were calculated. Do not commit local datasets, private medical data, virtual environments, or generated reports unless there is a clear reason and the data's terms permit redistribution.
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes with descriptive commits
-3. Add/update tests
-4. Run: `python -m pytest -q`
-5. Push to your fork
-6. Create PR with description of changes
-7. Ensure CI passes
+## Reporting a problem
 
-## Issue Reporting
+Include the Python version, operating system, command used, expected behavior, actual behavior, and relevant traceback. Do not attach identifiable patient data.
 
-Include:
-- Python version
-- Operating system
-- Steps to reproduce
-- Expected vs actual behavior
-- Error traceback (if applicable)
+## Licensing and sample data
 
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+No repository-wide license is currently declared. Do not assume that the source code is available for reuse under an open-source license unless a license is added. Third-party sample images and DICOM files may have their own terms; check those terms before redistributing them.

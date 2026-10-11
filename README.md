@@ -279,7 +279,11 @@ The volume viewer annotates the volume dimensions, voxel spacing and display mod
 
 ## 3D CT Volume Rendering: Original vs Gaussian-Smoothed
 
-![3D CT comparison before and after Gaussian smoothing](docs/images/original_vs_smoothed_ct_color.png)
+![Original CT volume rendered in grayscale](docs/images/ct_volume_3d_grayscale.png)
+
+![3D CT comparison before and after Gaussian smoothing](docs/images/original_vs_smoothed_ct_3d_pseudocolor.png)
+
+Validation details: [3D viewer validation report](docs/results/3d_viewer_validation.md).
 
 This visualization compares an original thoracic CT volume with the same volume after 3D Gaussian smoothing using a standard deviation of σ = 1 mm.
 

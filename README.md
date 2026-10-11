@@ -111,10 +111,16 @@ git clone https://github.com/ghada-59/biomedical-image-denoising-suite.git
 cd biomedical-image-denoising-suite
 
 python -m venv .venv
-# Windows
-.venv\\Scripts\\activate
+
+# Windows PowerShell
+.\\.venv\\Scripts\\Activate.ps1
+
+# Windows Command Prompt
+.venv\\Scripts\\activate.bat
+
 # Linux/macOS
 # source .venv/bin/activate
+
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 

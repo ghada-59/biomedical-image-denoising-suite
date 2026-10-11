@@ -178,25 +178,21 @@ outputs.
 
 ![Synthetic speckle spatial-filter comparison](docs/images/ct_speckle_spatial.png)
 
-### Quantitative Results
+### Quantitative Results — Current Multi-Run Benchmark
 
-Historical pilot metrics from the earlier single-realization version (retained for context; do not compare them directly with the updated multi-realization benchmark). These are not the current multi-run results:
+The table below summarizes the updated benchmark (mean ± standard deviation across repeated synthetic-noise runs). Metrics are computed on CT slices after applying the fixed display window (center = -600 HU, width = 1500 HU) and normalizing intensities to [0, 1]. They are **display-domain image metrics**, not HU-domain accuracy measures.
 
-| Synthetic noise | Noisy PSNR (dB) | Noisy SSIM | Median filter PSNR (dB) | Median filter SSIM |
-|---|---:|---:|---:|---:|
-| Gaussian | 18.376 | 0.1702 | 28.086 | 0.6048 |
-| Salt & Pepper | 21.070 | 0.6259 | 36.007 | 0.9711 |
-| Speckle (synthetic) | 22.450 | 0.4845 | 31.106 | 0.8169 |
+| Synthetic noise | Noisy baseline PSNR (dB) | Noisy baseline SSIM | Spatial median PSNR (dB) | Spatial median SSIM | Frequency Gaussian PSNR (dB) | Frequency Gaussian SSIM |
+|---|---:|---:|---:|---:|---:|---:|
+| Gaussian | 18.385 ± 0.293 | 0.1702 ± 0.0160 | 27.884 ± 0.192 | 0.6074 ± 0.0175 | 23.087 ± 0.373 | 0.6499 ± 0.0185 |
+| Salt & Pepper | 21.033 ± 0.240 | 0.6231 ± 0.0063 | 34.559 ± 0.289 | 0.9714 ± 0.0038 | 24.473 ± 0.525 | 0.7496 ± 0.0173 |
+| Speckle (synthetic) | 22.451 ± 0.619 | 0.4845 ± 0.0559 | 30.661 ± 0.300 | 0.8179 ± 0.0409 | 24.050 ± 0.445 | 0.8155 ± 0.0168 |
 
-In that preliminary pilot, the Median filter achieved the highest mean PSNR among
-the spatial filters for all three noise types. Re-run the updated benchmark after
-downloading this revision before reporting current metrics. Its CSV output records
-each run's seed and reports across-run standard deviations.
+These are selected comparisons, not a claim that either filter is best under every metric. For example, the mean filter has a higher average SSIM than the median filter for the synthetic speckle condition in the spatial-filter results. Filter choice therefore depends on the noise model and the metric being considered.
 
-**Evaluation limitation:** The reference is the original CT slice before
-synthetic noise was added. These results measure recovery under controlled
-synthetic perturbations; they do not establish performance on unknown real
-clinical noise or demonstrate clinical diagnostic benefit.
+**Reproducibility settings:** base seed = 42; up to five spread-out slices from one local CT series; three separately seeded noise realizations per slice and noise type; salt-and-pepper amount = 0.02; Gaussian/synthetic-speckle variance = 0.02; spatial kernel = 5 × 5; frequency cutoff ratio = 0.10; Butterworth order = 2. With five valid slices and three repeats, each filter/noise configuration is summarized over 15 runs.
+
+**Interpretation limits:** Repeats are noise realizations, not additional patients or independent CT studies. The reference is the same CT slice before synthetic noise is added; this is a controlled experiment, not a clean-ground-truth clinical denoising study. Results from one series do not establish generalization to other patients, scanners, acquisition protocols, or real clinical noise, and they do not demonstrate clinical diagnostic benefit.
 
 ### Dataset attribution
 

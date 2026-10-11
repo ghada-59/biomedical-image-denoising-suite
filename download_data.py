@@ -17,8 +17,8 @@ KAGGLE_DATASET = "tawsifurrahman/covid19-radiography-database"
 DEFAULT_IMAGES_PER_CLASS = 3
 
 ORTHANC_SAMPLES = {
-    "brain_mri_clinical.dcm": "https://raw.githubusercontent.com/pydicom/pydicom/main/src/pydicom/data/test_files/MR_small.dcm",
-    "chest_ct_clinical.dcm": "https://raw.githubusercontent.com/pydicom/pydicom/main/src/pydicom/data/test_files/CT_small.dcm",
+    "brain_mri_sample.dcm": "https://raw.githubusercontent.com/pydicom/pydicom/main/src/pydicom/data/test_files/MR_small.dcm",
+    "chest_ct_sample.dcm": "https://raw.githubusercontent.com/pydicom/pydicom/main/src/pydicom/data/test_files/CT_small.dcm",
 }
 
 

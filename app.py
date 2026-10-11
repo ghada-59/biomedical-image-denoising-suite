@@ -64,7 +64,7 @@ def _show_benchmark_table(rows: list[dict], baseline_label: str | None = None) -
         styler = styler.highlight_max(
             subset=pd.IndexSlice[candidates.index, ["SSIM"]], color="#c8e6c9"
         )
-    st.dataframe(styler, use_container_width=True, hide_index=True)
+    st.dataframe(styler, width="stretch", hide_index=True)
 
     if not candidates.empty:
         best_name = candidates.loc[candidates["SSIM"].idxmax(), "Filter"]
@@ -79,7 +79,7 @@ def _show_spectrum(container, spectrum: np.ndarray, title: str, vmin: float, vma
     ax.set_yticks([])
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="log(1 + |F|)")
     fig.tight_layout()
-    container.pyplot(fig, use_container_width=True)
+    container.pyplot(fig, width="stretch")
     plt.close(fig)
 
 
@@ -167,19 +167,19 @@ if image_source is not None:
         p_gauss, s_gauss = calculate_metrics(clean_image, gauss_res)
 
         with col1:
-            st.image(noisy_image, caption="Noisy Image", clamp=True, use_container_width=True)
+            st.image(noisy_image, caption="Noisy Image", clamp=True, width="stretch")
             st.metric("Baseline PSNR", f"{_format_psnr(p_noisy)} dB")
             st.metric("Baseline SSIM", f"{s_noisy}")
         with col2:
-            st.image(mean_res, caption="Mean Filter", clamp=True, use_container_width=True)
+            st.image(mean_res, caption="Mean Filter", clamp=True, width="stretch")
             st.metric("PSNR", f"{_format_psnr(p_mean)} dB")
             st.metric("SSIM", f"{s_mean}")
         with col3:
-            st.image(median_res, caption="Median Filter", clamp=True, use_container_width=True)
+            st.image(median_res, caption="Median Filter", clamp=True, width="stretch")
             st.metric("PSNR", f"{_format_psnr(p_median)} dB")
             st.metric("SSIM", f"{s_median}")
         with col4:
-            st.image(gauss_res, caption="Gaussian Filter", clamp=True, use_container_width=True)
+            st.image(gauss_res, caption="Gaussian Filter", clamp=True, width="stretch")
             st.metric("PSNR", f"{_format_psnr(p_gauss)} dB")
             st.metric("SSIM", f"{s_gauss}")
 
@@ -226,7 +226,7 @@ if image_source is not None:
         with c2:
             _show_spectrum(c2, spec_filt, "Filtered Spectrum (Low-Pass)", vmin, vmax)
         with c3:
-            st.image(fft_res, caption="Reconstructed Image", clamp=True, use_container_width=True)
+            st.image(fft_res, caption="Reconstructed Image", clamp=True, width="stretch")
             p_fft, s_fft = calculate_metrics(clean_image, fft_res)
             st.metric("Reconstructed PSNR", f"{_format_psnr(p_fft)} dB")
             st.metric("Reconstructed SSIM", f"{s_fft}")

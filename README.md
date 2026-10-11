@@ -188,11 +188,26 @@ The table below summarizes the updated benchmark (mean ± standard deviation acr
 | Salt & Pepper | 21.033 ± 0.240 | 0.6231 ± 0.0063 | 34.559 ± 0.289 | 0.9714 ± 0.0038 | 24.473 ± 0.525 | 0.7496 ± 0.0173 |
 | Speckle (synthetic) | 22.451 ± 0.619 | 0.4845 ± 0.0559 | 30.661 ± 0.300 | 0.8179 ± 0.0409 | 24.050 ± 0.445 | 0.8155 ± 0.0168 |
 
+The benchmark snapshot is committed with the repository:
+
+- [Per-run measurements](docs/results/denoising_benchmark.csv)
+- [Aggregated results](docs/results/denoising_summary.csv)
+- [Gaussian-noise spatial comparison](docs/images/benchmark_gaussian_spatial.png)
+- [Salt-and-pepper spatial comparison](docs/images/benchmark_salt_pepper_spatial.png)
+- [Synthetic-speckle spatial comparison](docs/images/benchmark_speckle_spatial.png)
+
+
 These are selected comparisons, not a claim that either filter is best under every metric. For example, the mean filter has a higher average SSIM than the median filter for the synthetic speckle condition in the spatial-filter results. Filter choice therefore depends on the noise model and the metric being considered.
 
 **Reproducibility settings:** base seed = 42; up to five spread-out slices from one local CT series; three separately seeded noise realizations per slice and noise type; salt-and-pepper amount = 0.02; Gaussian/synthetic-speckle variance = 0.02; spatial kernel = 5 × 5; frequency cutoff ratio = 0.10; Butterworth order = 2. With five valid slices and three repeats, each filter/noise configuration is summarized over 15 runs.
 
 **Interpretation limits:** Repeats are noise realizations, not additional patients or independent CT studies. The reference is the same CT slice before synthetic noise is added; this is a controlled experiment, not a clean-ground-truth clinical denoising study. Results from one series do not establish generalization to other patients, scanners, acquisition protocols, or real clinical noise, and they do not demonstrate clinical diagnostic benefit.
+
+### Sample data sources
+
+The small set of chest X-ray examples in `samples/covid19_radiography/` comes from the [COVID-19 Radiography Database on Kaggle](https://www.kaggle.com/tawsifurrahman/covid19-radiography-database), maintained by Tawsifur Rahman and collaborators. These images are included as interface examples only; they are not used in the CT denoising benchmark. The dataset page states that the data files remain © their original authors and describes academic/non-commercial use. Check the current dataset terms and cite the associated publications before reusing or redistributing these images. This repository does not claim ownership of third-party sample data.
+
+The two DICOM test files in `samples/clinical_dicom/` are downloaded from the [pydicom test-file collection](https://github.com/pydicom/pydicom/tree/main/src/pydicom/data/test_files). `samples/synthetic_ct_scan.dcm` is generated locally by `download_data.py` and contains fictional data.
 
 ### Dataset attribution
 

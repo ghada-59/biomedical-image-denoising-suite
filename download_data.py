@@ -16,7 +16,7 @@ SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
 KAGGLE_DATASET = "tawsifurrahman/covid19-radiography-database"
 DEFAULT_IMAGES_PER_CLASS = 3
 
-ORTHANC_SAMPLES = {
+PYDICOM_TEST_SAMPLES = {
     "brain_mri_sample.dcm": "https://raw.githubusercontent.com/pydicom/pydicom/main/src/pydicom/data/test_files/MR_small.dcm",
     "chest_ct_sample.dcm": "https://raw.githubusercontent.com/pydicom/pydicom/main/src/pydicom/data/test_files/CT_small.dcm",
 }
@@ -122,13 +122,13 @@ def generate_synthetic_dicom() -> None:
         print(f"  ✗ {dcm_path.name} skipped ({exc})")
 
 
-def download_orthanc_samples() -> None:
-    """Downloads lightweight public DICOM test samples from pydicom."""
+def download_pydicom_test_samples() -> None:
+    """Download lightweight DICOM test fixtures from the pydicom project."""
     print("→ Public DICOM test samples…")
-    dicom_dir = SAMPLES_DIR / "clinical_dicom"
+    dicom_dir = SAMPLES_DIR / "dicom_test_files"
     dicom_dir.mkdir(parents=True, exist_ok=True)
 
-    for filename, url in ORTHANC_SAMPLES.items():
+    for filename, url in PYDICOM_TEST_SAMPLES.items():
         dest = dicom_dir / filename
         if dest.exists():
             print(f"  ✓ {filename} (already exists)")
@@ -204,7 +204,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generates samples/ for biomedical-image-denoising-suite.")
     parser.add_argument("--skip-skimage", action="store_true", help="Skip scikit-image samples.")
     parser.add_argument("--skip-synthetic-dicom", action="store_true", help="Skip synthetic DICOM.")
-    parser.add_argument("--skip-orthanc", action="store_true", help="Skip real Orthanc clinical DICOMs.")
+    parser.add_argument("--skip-dicom-test-files", "--skip-orthanc", dest="skip_dicom_test_files", action="store_true", help="Skip optional pydicom DICOM test fixtures.")
     parser.add_argument("--skip-kaggle", action="store_true", help="Skip Kaggle dataset download.")
     parser.add_argument(
         "--kaggle-per-class",
@@ -224,8 +224,8 @@ def main() -> None:
         generate_skimage_samples()
     if not args.skip_synthetic_dicom:
         generate_synthetic_dicom()
-    if not args.skip_orthanc:
-        download_orthanc_samples()
+    if not args.skip_dicom_test_files:
+        download_pydicom_test_samples()
     if not args.skip_kaggle:
         download_kaggle_samples(n_per_class=args.kaggle_per_class)
 

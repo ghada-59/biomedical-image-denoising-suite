@@ -1,4 +1,4 @@
-# 🔬 Biomedical Image Denoising Suite
+# Biomedical Image Denoising Suite
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-FF4B4B?logo=streamlit&logoColor=white)
@@ -129,7 +129,11 @@ python -m pip install -r requirements.txt
 ### 2. Sample Generation & Application Launch
 
 ```bash
-# Generate the built-in sample images and DICOM test files
+# Generate local examples without optional third-party downloads
+python download_data.py --skip-kaggle --skip-dicom-test-files
+
+# Optional: also download public pydicom test fixtures and a small
+# Kaggle image subset (check dataset terms before use or redistribution)
 python download_data.py
 
 # Launch the interactive Streamlit dashboard
@@ -211,9 +215,9 @@ These are selected comparisons, not a claim that either filter is best under eve
 
 ### Sample data sources
 
-The small set of chest X-ray examples in `samples/covid19_radiography/` comes from the [COVID-19 Radiography Database on Kaggle](https://www.kaggle.com/tawsifurrahman/covid19-radiography-database), maintained by Tawsifur Rahman and collaborators. These images are included as interface examples only; they are not used in the CT denoising benchmark. The dataset page states that the data files remain © their original authors and describes academic/non-commercial use. Check the current dataset terms and cite the associated publications before reusing or redistributing these images. This repository does not claim ownership of third-party sample data.
+Third-party datasets are **not bundled** in this repository. Running `python download_data.py` optionally downloads a small subset of the [COVID-19 Radiography Database on Kaggle](https://www.kaggle.com/tawsifurrahman/covid19-radiography-database) for the interface only; these images are not used in the CT denoising benchmark. Review the dataset's current terms and associated publications before downloading, using, or redistributing them. The project does not claim ownership of third-party data.
 
-The two DICOM test files in `samples/clinical_dicom/` are downloaded from the [pydicom test-file collection](https://github.com/pydicom/pydicom/tree/main/src/pydicom/data/test_files). `samples/synthetic_ct_scan.dcm` is generated locally by `download_data.py` and contains fictional data.
+Optional DICOM test fixtures are downloaded from the [pydicom test-file collection](https://github.com/pydicom/pydicom/tree/main/src/pydicom/data/test_files) into `samples/dicom_test_files/`. They are software test fixtures, not clinical data. The committed `samples/synthetic_ct_scan.dcm` is generated locally by `download_data.py` and contains fictional data.
 
 ### Dataset attribution
 
@@ -235,7 +239,7 @@ python -m pytest --cov=filters --cov-report=term-missing
 
 PSNR and SSIM are computed against the **loaded reference image**. When synthetic noise is added in the application, that reference is the original image before degradation, so the comparison has a known reference. For an already-noisy real image uploaded without a ground-truth clean counterpart, these metrics measure similarity to the uploaded image rather than objective restoration accuracy.
 
-The included DICOM samples are public test files or locally generated synthetic data. The larger CT dataset used for the 3D experiments is not committed to the repository. Dataset access, attribution, and redistribution terms must be respected.
+The committed DICOM sample is locally generated synthetic data. Optional pydicom test fixtures and Kaggle interface examples can be downloaded separately; the larger CT dataset used for the 3D experiments is not committed to the repository. Dataset access, attribution, and redistribution terms must be respected.
 
 
 ## ⚠️ Scope and limitations

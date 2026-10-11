@@ -113,10 +113,10 @@ cd biomedical-image-denoising-suite
 python -m venv .venv
 
 # Windows PowerShell
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
 # Windows Command Prompt
-.venv\\Scripts\\activate.bat
+.venv\Scripts\activate.bat
 
 # Linux/macOS
 # source .venv/bin/activate

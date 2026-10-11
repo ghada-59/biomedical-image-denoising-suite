@@ -14,7 +14,7 @@ An interactive Streamlit application dedicated to **medical image denoising expe
 
 - [Overview & Architecture](#-overview--architecture)
 - [Scientific Foundations & Algorithms](#-scientific-foundations--algorithms)
-- [Complete DICOM Pipeline](#-complete-dicom-pipeline)
+- [DICOM and 3D CT Pipeline](#-dicom-and-3d-ct-pipeline)
 - [Tech Stack](#-tech-stack)
 - [Installation & Usage](#-installation--usage)
 - [Test Suite & Continuous Integration](#-test-suite--continuous-integration)

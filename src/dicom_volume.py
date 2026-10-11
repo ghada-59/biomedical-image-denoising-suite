@@ -4,7 +4,11 @@ from __future__ import annotations
 from pathlib import Path
 import numpy as np
 import pydicom
-from pydicom.pixels import apply_modality_lut
+
+try:  # pydicom 3.x
+    from pydicom.pixels import apply_modality_lut
+except ImportError:  # pydicom 2.4.x compatibility
+    from pydicom.pixel_data_handlers.util import apply_modality_lut
 
 
 def _header(path: Path):

@@ -36,5 +36,5 @@ reports/
 .ipynb_checkpoints/
 .streamlit/
 
-# Local medical imaging datasets
-data/tcia/
+# Local medical imaging datasets (keep local datasets out of Git)
+data/

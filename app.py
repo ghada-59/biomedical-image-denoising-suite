@@ -33,15 +33,163 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🔬 Biomedical Image Denoising Suite")
-st.caption(
-    "Classical image filtering with seed-controlled synthetic-noise experiments."
+st.markdown(
+    """
+    <style>
+    .stApp { background: #f5f7fa; }
+    [data-testid="stSidebar"] { background: #101d2d; }
+    [data-testid="stSidebar"] * { color: #edf3f8; }
+    .hero-panel { background: linear-gradient(120deg, #14283d, #244a63); padding: 1.6rem 1.8rem; border-radius: 16px; color: #fff; margin: 0 0 1.25rem 0; }
+    .hero-panel h1 { color: #fff; margin: 0 0 .35rem 0; font-size: 2rem; }
+    .hero-panel p { color: #dbe8f1; margin: 0; font-size: 1rem; }
+    .section-kicker { color: #537086; text-transform: uppercase; letter-spacing: .11em; font-size: .76rem; font-weight: 700; margin-bottom: .3rem; }
+    .info-panel { background: #fff; border: 1px solid #e0e7ee; border-radius: 12px; padding: 1rem 1.1rem; height: 100%; }
+    .info-panel h3 { margin-top: 0; font-size: 1.03rem; color: #20364a; }
+    .info-panel p { color: #526477; font-size: .92rem; margin-bottom: 0; }
+    div[data-testid="stMetric"] { background: white; border: 1px solid #e0e7ee; padding: .9rem 1rem; border-radius: 12px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
+st.sidebar.markdown("## BIOMEDICAL LAB")
+st.sidebar.caption("IMAGE ANALYSIS WORKSPACE")
 workspace = st.sidebar.radio(
-    "Workspace",
-    ["2D Image Denoising", "3D CT Volume"],
+    "NAVIGATION",
+    ["Project Overview", "2D Denoising Lab", "3D CT Volume", "Results & Reports", "Project Guide"],
     key="workspace_mode",
+)
+st.sidebar.divider()
+st.sidebar.caption("Research & educational use · Not for diagnosis")
+
+if workspace == "Project Overview":
+    st.markdown(
+        '<div class="hero-panel"><div class="section-kicker" style="color:#a9c8db">BIOMEDICAL IMAGE ANALYSIS</div>'
+        '<h1>Biomedical Image Denoising Suite</h1>'
+        '<p>A reproducible workspace for image filtering, quantitative comparison, and interactive CT volume exploration.</p></div>',
+        unsafe_allow_html=True,
+    )
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Processing workflows", "2D + 3D")
+    metric_cols[1].metric("Filter methods", "6")
+    metric_cols[2].metric("Noise models", str(len(NOISE_TYPES)))
+    metric_cols[3].metric("Evaluation metrics", "PSNR · SSIM")
+    st.markdown("### Workspace at a glance")
+    cards = st.columns(3)
+    card_text = [
+        ("01 · Denoising laboratory", "Load an image, generate controlled synthetic noise, compare spatial filters, and inspect PSNR and SSIM."),
+        ("02 · CT volume explorer", "Load one consistent multi-slice DICOM series and rotate or zoom an interactive 3D volume."),
+        ("03 · Results & reporting", "Review saved benchmark tables, compare filters, inspect exported figures, and find generated HTML reports."),
+    ]
+    for col, (title, description) in zip(cards, card_text):
+        with col:
+            st.markdown(f'<div class="info-panel"><h3>{title}</h3><p>{description}</p></div>', unsafe_allow_html=True)
+    st.markdown("### Analysis workflow")
+    workflow = st.columns(5)
+    workflow_steps = [
+        ("01", "Load", "Image or DICOM series"),
+        ("02", "Degrade", "Reproducible synthetic noise"),
+        ("03", "Filter", "Spatial or frequency domain"),
+        ("04", "Evaluate", "PSNR and SSIM"),
+        ("05", "Report", "Tables and visualizations"),
+    ]
+    for col, (number, title, detail) in zip(workflow, workflow_steps):
+        with col:
+            st.markdown(f'<div class="info-panel"><div class="section-kicker">{number}</div><h3>{title}</h3><p>{detail}</p></div>', unsafe_allow_html=True)
+    st.info("Scientific note: synthetic-noise experiments compare restored images with their original pre-noise reference. This is not evidence of clinical diagnostic performance.")
+    st.stop()
+
+if workspace == "Results & Reports":
+    st.markdown('<div class="hero-panel"><h1>Results & Reports</h1><p>Browse benchmark outputs generated on this machine. No metrics are fabricated when results are absent.</p></div>', unsafe_allow_html=True)
+    project_dir = Path(__file__).resolve().parent
+    reports_dir = project_dir / "reports"
+    summary_path = reports_dir / "denoising_summary.csv"
+    detail_path = reports_dir / "denoising_benchmark.csv"
+    if summary_path.exists():
+        summary_df = pd.read_csv(summary_path)
+        modified = pd.Timestamp(summary_path.stat().st_mtime, unit="s")
+        st.caption(f"Summary file last modified: {modified.strftime('%Y-%m-%d %H:%M')} · {summary_path.name}")
+        if not summary_df.empty:
+            if "Noise" in summary_df.columns:
+                noise_choice = st.selectbox("Noise model", sorted(summary_df["Noise"].dropna().astype(str).unique()))
+                view_df = summary_df[summary_df["Noise"].astype(str) == noise_choice].copy()
+            else:
+                view_df = summary_df.copy()
+            if "Mean_SSIM" in view_df.columns and not view_df.empty:
+                best_row = view_df.loc[view_df["Mean_SSIM"].idxmax()]
+                a, b, c = st.columns(3)
+                a.metric("Filter with highest mean SSIM", str(best_row.get("Filter", "—")))
+                b.metric("Mean SSIM", f"{float(best_row['Mean_SSIM']):.4f}")
+                if "Mean_PSNR_dB" in best_row:
+                    c.metric("Mean PSNR", f"{float(best_row['Mean_PSNR_dB']):.2f} dB")
+            chart_cols = st.columns(2)
+            if "Filter" in view_df.columns and "Mean_SSIM" in view_df.columns:
+                with chart_cols[0]:
+                    st.markdown("#### Mean SSIM by filter")
+                    st.bar_chart(view_df.set_index("Filter")[["Mean_SSIM"]])
+            if "Filter" in view_df.columns and "Mean_PSNR_dB" in view_df.columns:
+                with chart_cols[1]:
+                    st.markdown("#### Mean PSNR by filter")
+                    st.bar_chart(view_df.set_index("Filter")[["Mean_PSNR_dB"]])
+            st.markdown("#### Summary table")
+            st.dataframe(view_df, use_container_width=True, hide_index=True)
+            st.download_button("Download summary CSV", data=summary_df.to_csv(index=False).encode("utf-8"), file_name="denoising_summary.csv", mime="text/csv")
+        else:
+            st.warning("The summary CSV exists but contains no result rows.")
+    else:
+        st.info("No benchmark summary is available yet. Run the reproducible benchmark from the Project Guide to create reports/denoising_summary.csv.")
+    if detail_path.exists():
+        with st.expander("Detailed per-slice benchmark"):
+            detail_df = pd.read_csv(detail_path)
+            st.caption(f"{len(detail_df):,} rows · generated from the local benchmark")
+            st.dataframe(detail_df, use_container_width=True, hide_index=True)
+            st.download_button("Download detailed CSV", data=detail_df.to_csv(index=False).encode("utf-8"), file_name="denoising_benchmark.csv", mime="text/csv")
+    st.markdown("### Generated visual reports")
+    found_visuals = []
+    for visual_dir in [reports_dir / "2D", reports_dir / "3D"]:
+        if visual_dir.exists():
+            found_visuals.extend(sorted(p for p in visual_dir.rglob("*") if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".html"}))
+    if found_visuals:
+        for file_path in found_visuals:
+            with st.expander(f"{file_path.relative_to(project_dir).as_posix()} · {file_path.stat().st_size / 1024:.1f} KB"):
+                st.caption(f"Last modified: {pd.Timestamp(file_path.stat().st_mtime, unit='s').strftime('%Y-%m-%d %H:%M')}")
+                if file_path.suffix.lower() in {".png", ".jpg", ".jpeg"}:
+                    st.image(str(file_path), use_container_width=True)
+                else:
+                    st.write("Interactive HTML report saved locally. Open it in your browser to explore the 3D volume.")
+                    st.code(str(file_path), language="text")
+    else:
+        st.caption("No exported figures or HTML reports were found in reports/2D or reports/3D yet.")
+    st.stop()
+
+if workspace == "Project Guide":
+    st.markdown('<div class="hero-panel"><h1>Project Guide</h1><p>Methods, interpretation, and reproducible execution.</p></div>', unsafe_allow_html=True)
+    method_rows = [
+        {"Domain": "Spatial", "Method": "Mean filter", "Purpose": "Local averaging; may blur edges."},
+        {"Domain": "Spatial", "Method": "Median filter", "Purpose": "Useful for impulse-like salt-and-pepper noise."},
+        {"Domain": "Spatial", "Method": "Gaussian filter", "Purpose": "Weighted smoothing controlled by kernel and sigma."},
+        {"Domain": "Frequency", "Method": "Ideal low-pass", "Purpose": "Sharp frequency cutoff; may cause ringing."},
+        {"Domain": "Frequency", "Method": "Gaussian low-pass", "Purpose": "Smooth attenuation of high frequencies."},
+        {"Domain": "Frequency", "Method": "Butterworth low-pass", "Purpose": "Adjustable transition between passband and stopband."},
+    ]
+    st.markdown("### Methods implemented")
+    st.dataframe(pd.DataFrame(method_rows), use_container_width=True, hide_index=True)
+    st.markdown("### Metrics")
+    m1, m2 = st.columns(2)
+    with m1:
+        st.markdown('<div class="info-panel"><h3>PSNR · Peak Signal-to-Noise Ratio</h3><p>Measures pixel-wise reconstruction error relative to a reference. Higher is generally better for the same evaluation setup.</p></div>', unsafe_allow_html=True)
+    with m2:
+        st.markdown('<div class="info-panel"><h3>SSIM · Structural Similarity</h3><p>Compares local luminance, contrast, and structure. Interpret alongside visual quality and the experimental reference.</p></div>', unsafe_allow_html=True)
+    st.markdown("### Reproducible benchmark")
+    st.code("python evaluate_denoising.py --dicom-series path/to/one_dicom_series --seed 42 --repeats 3", language="bash")
+    st.markdown("This writes reports/denoising_benchmark.csv, reports/denoising_summary.csv, and comparison figures under reports/2D/. The exact benchmark date shown in Results & Reports comes from the generated file timestamp.")
+    st.warning("The source CT slice is a reference only for a controlled synthetic-noise experiment. It is not a claim of noise-free clinical ground truth. This project is for research and education, not diagnosis.")
+    st.stop()
+
+st.markdown(
+    '<div class="hero-panel"><h1>' + ("Interactive 3D CT Volume" if workspace == "3D CT Volume" else "2D Image Denoising Lab") +
+    '</h1><p>' + ("Explore a multi-slice CT series in three dimensions." if workspace == "3D CT Volume" else "Compare classical spatial and frequency-domain filters with reproducible synthetic noise.") + '</p></div>',
+    unsafe_allow_html=True,
 )
 
 
@@ -463,4 +611,4 @@ if image_source is not None:
         _show_benchmark_table(freq_rows)
 
 else:
-    st.info("Please load a medical image (.PNG, .JPG, or DICOM .DCM) to get started.")
+    st.info("Choose an image or sample in the sidebar to begin the denoising experiment.")

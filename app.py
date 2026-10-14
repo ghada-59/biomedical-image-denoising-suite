@@ -12,7 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from src.dicom_volume import load_dicom_volume
-from src.plotly_ct_viewer import create_ct_volume_figure
+from src.plotly_ct_viewer import create_ct_volume_figure, create_ct_html_report
 
 from filters import (
     FREQUENCY_FILTERS,
@@ -259,37 +259,42 @@ if workspace == "3D CT Volume":
             "uses a downsampled voxel grid to remain responsive."
         )
 
+        report_metadata = {
+            "Number of slices": f"{volume.shape[0]:,}",
+            "Volume dimensions (X × Y × Z)": (
+                f"{volume.shape[2]} × {volume.shape[1]} × {volume.shape[0]} voxels"
+            ),
+            "Voxel spacing (X × Y × Z)": (
+                f"{spacing[0]:.3f} × {spacing[1]:.3f} × {spacing[2]:.3f} mm"
+            ),
+            "Displayed intensity range": f"{intensity_min} to {intensity_max}",
+            "Rendering": "Interactive Plotly volume; downsampled for browser performance",
+        }
+        html_report = create_ct_html_report(figure, report_metadata)
+        html_report_bytes = html_report.encode("utf-8")
+
         download_col, save_col = st.columns(2)
         with download_col:
             st.download_button(
                 "Download interactive HTML report",
-                data=lambda: figure.to_html(
-                    full_html=True,
-                    include_plotlyjs=True,
-                    config={"displaylogo": False, "scrollZoom": True},
-                ).encode("utf-8"),
+                data=html_report_bytes,
                 file_name="ct_volume_interactive.html",
                 mime="text/html",
                 on_click="ignore",
                 width="stretch",
-                help="A self-contained HTML report that remains interactive offline.",
+                help="A self-contained interactive 3D report with CT volume metadata; opens offline.",
             )
 
         with save_col:
             if st.button(
                 "Save a copy to reports/3D",
                 width="stretch",
-                help="Save the current interactive view locally. The reports folder is excluded from Git.",
+                help="Save the current interactive report locally. The reports folder is excluded from Git.",
             ):
                 report_dir = Path(__file__).resolve().parent / "reports" / "3D"
                 report_dir.mkdir(parents=True, exist_ok=True)
                 report_path = report_dir / "ct_volume_interactive.html"
-                figure.write_html(
-                    str(report_path),
-                    full_html=True,
-                    include_plotlyjs=True,
-                    config={"displaylogo": False, "scrollZoom": True},
-                )
+                report_path.write_text(html_report, encoding="utf-8")
                 st.success(f"Saved interactive report to {report_path}")
     except (ValueError, ImportError, OSError) as exc:
         st.error("The CT volume could not be rendered or exported.")

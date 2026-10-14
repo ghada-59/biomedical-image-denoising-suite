@@ -118,7 +118,7 @@ def create_ct_html_report(figure: go.Figure, metadata: dict[str, str]) -> str:
         rows.append(
             "<tr><th>" + escape(str(label)) + "</th><td>" + escape(str(value)) + "</td></tr>"
         )
-    table = "\\n".join(rows)
+    table = "\n".join(rows)
     figure_html = figure.to_html(
         full_html=False,
         include_plotlyjs=True,

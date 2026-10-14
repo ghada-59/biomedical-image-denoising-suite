@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
+import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+from src.dicom_volume import load_dicom_volume
+from src.plotly_ct_viewer import create_ct_volume_figure
 
 from filters import (
     FREQUENCY_FILTERS,
@@ -31,6 +36,12 @@ st.set_page_config(
 st.title("🔬 Biomedical Image Denoising Suite")
 st.caption(
     "Classical image filtering with seed-controlled synthetic-noise experiments."
+)
+
+workspace = st.sidebar.radio(
+    "Workspace",
+    ["2D Image Denoising", "3D CT Volume"],
+    key="workspace_mode",
 )
 
 
@@ -81,6 +92,214 @@ def _show_spectrum(container, spectrum: np.ndarray, title: str, vmin: float, vma
     fig.tight_layout()
     container.pyplot(fig, width="stretch")
     plt.close(fig)
+
+
+
+if workspace == "3D CT Volume":
+    st.subheader("Interactive 3D CT Volume")
+    st.caption(
+        "Reconstruct a volume from one DICOM series and explore it interactively."
+    )
+    st.info(
+        "A single 2D CT slice cannot reconstruct a faithful anatomical volume. "
+        "Use a complete set of slices from the same DICOM series."
+    )
+
+    source_mode = st.radio(
+        "CT series source",
+        ["Use a local DICOM folder", "Upload DICOM slices"],
+        horizontal=True,
+        key="ct_source_mode",
+    )
+
+    series_dir = None
+    file_payloads = []
+    signature = hashlib.sha256()
+    signature.update(source_mode.encode("utf-8"))
+
+    if source_mode == "Use a local DICOM folder":
+        local_path_text = st.text_input(
+            "Path to one DICOM series folder",
+            placeholder=r"D:\myprojects\data\ct-series",
+            help="Choose the folder that contains the slices for one CT series.",
+        )
+        if not local_path_text.strip():
+            st.info("Enter a local folder path or switch to uploading DICOM slices.")
+            st.stop()
+
+        series_dir = Path(local_path_text.strip()).expanduser()
+        if not series_dir.exists() or not series_dir.is_dir():
+            st.error("The selected local path is not an existing folder.")
+            st.stop()
+
+        local_files = sorted(path for path in series_dir.rglob("*") if path.is_file())
+        if not local_files:
+            st.error("The selected folder does not contain any files.")
+            st.stop()
+
+        signature.update(str(series_dir.resolve()).encode("utf-8", errors="replace"))
+        for path in local_files:
+            try:
+                stat = path.stat()
+                signature.update(path.name.encode("utf-8", errors="replace"))
+                signature.update(str(stat.st_size).encode("ascii"))
+                signature.update(str(stat.st_mtime_ns).encode("ascii"))
+            except OSError as exc:
+                st.error(f"Could not inspect a file in the selected folder: {exc}")
+                st.stop()
+
+    else:
+        dicom_files = st.file_uploader(
+            "Select all DICOM slices from one CT series",
+            type=["dcm"],
+            accept_multiple_files=True,
+            key="ct_series_upload",
+            help="Do not mix files from different series or different studies.",
+        )
+        if not dicom_files:
+            st.info("Select the DICOM slices to begin.")
+            st.stop()
+
+        for item in dicom_files:
+            payload = item.getvalue()
+            file_payloads.append((Path(item.name).name, payload))
+            signature.update(Path(item.name).name.encode("utf-8", errors="replace"))
+            signature.update(payload)
+
+    series_signature = signature.hexdigest()
+    cached_volume = st.session_state.get("_ct_volume_cache")
+
+    if cached_volume is None or cached_volume["signature"] != series_signature:
+        try:
+            with st.spinner("Reading and assembling the DICOM volume..."):
+                if series_dir is not None:
+                    volume, spacing, origin, direction = load_dicom_volume(series_dir)
+                else:
+                    with tempfile.TemporaryDirectory(prefix="ct-series-") as temp_dir:
+                        temp_path = Path(temp_dir)
+                        for index, (filename, payload) in enumerate(file_payloads):
+                            safe_name = Path(filename).name or "slice.dcm"
+                            target = temp_path / f"{index:05d}_{safe_name}"
+                            target.write_bytes(payload)
+                        volume, spacing, origin, direction = load_dicom_volume(temp_path)
+
+                st.session_state["_ct_volume_cache"] = {
+                    "signature": series_signature,
+                    "volume": volume,
+                    "spacing": spacing,
+                    "origin": origin,
+                    "direction": direction,
+                }
+        except Exception as exc:
+            st.error(
+                "The DICOM series could not be loaded. Check that the files belong "
+                "to one complete series with consistent image geometry and spacing."
+            )
+            st.caption(f"Technical details: {exc}")
+            st.stop()
+
+    cached_volume = st.session_state["_ct_volume_cache"]
+    volume = cached_volume["volume"]
+    spacing = cached_volume["spacing"]
+    origin = cached_volume["origin"]
+    direction = cached_volume["direction"]
+
+    sample_step = max(1, int(np.ceil(max(volume.shape) / 48)))
+    sampled_for_range = volume[::sample_step, ::sample_step, ::sample_step]
+    range_min = int(np.floor(np.percentile(sampled_for_range, 1)))
+    range_max = int(np.ceil(np.percentile(sampled_for_range, 99)))
+    if range_max <= range_min:
+        range_min = int(np.min(volume))
+        range_max = int(np.max(volume))
+    if range_max <= range_min:
+        st.error("The CT volume has no intensity variation to render.")
+        st.stop()
+
+    default_min = int(np.clip(-1000, range_min, range_max - 1))
+    default_max = int(np.clip(400, default_min + 1, range_max))
+    intensity_min, intensity_max = st.slider(
+        "CT intensity display range",
+        min_value=range_min,
+        max_value=range_max,
+        value=(default_min, default_max),
+        help=(
+            "Adjust the visible intensity interval. For conventional CT data, "
+            "modality values are typically expressed in Hounsfield units (HU)."
+        ),
+    )
+
+    metric_a, metric_b, metric_c = st.columns(3)
+    metric_a.metric("DICOM slices", f"{volume.shape[0]:,}")
+    metric_b.metric(
+        "Volume dimensions (X × Y × Z)",
+        f"{volume.shape[2]} × {volume.shape[1]} × {volume.shape[0]}",
+    )
+    metric_c.metric(
+        "Voxel spacing (X × Y × Z)",
+        f"{spacing[0]:.2f} × {spacing[1]:.2f} × {spacing[2]:.2f} mm",
+    )
+
+    try:
+        with st.spinner("Preparing the interactive 3D rendering..."):
+            figure = create_ct_volume_figure(
+                volume=volume,
+                spacing_xyz_mm=spacing,
+                origin_xyz_mm=origin,
+                direction_matrix=direction,
+                intensity_min=intensity_min,
+                intensity_max=intensity_max,
+            )
+        st.plotly_chart(
+            figure,
+            width="stretch",
+            config={"displaylogo": False, "scrollZoom": True},
+        )
+        st.caption(
+            "Rotate by dragging and zoom with the mouse wheel. The browser rendering "
+            "uses a downsampled voxel grid to remain responsive."
+        )
+
+        download_col, save_col = st.columns(2)
+        with download_col:
+            st.download_button(
+                "Download interactive HTML report",
+                data=lambda: figure.to_html(
+                    full_html=True,
+                    include_plotlyjs=True,
+                    config={"displaylogo": False, "scrollZoom": True},
+                ).encode("utf-8"),
+                file_name="ct_volume_interactive.html",
+                mime="text/html",
+                on_click="ignore",
+                width="stretch",
+                help="A self-contained HTML report that remains interactive offline.",
+            )
+
+        with save_col:
+            if st.button(
+                "Save a copy to reports/3D",
+                width="stretch",
+                help="Save the current interactive view locally. The reports folder is excluded from Git.",
+            ):
+                report_dir = Path(__file__).resolve().parent / "reports" / "3D"
+                report_dir.mkdir(parents=True, exist_ok=True)
+                report_path = report_dir / "ct_volume_interactive.html"
+                figure.write_html(
+                    str(report_path),
+                    full_html=True,
+                    include_plotlyjs=True,
+                    config={"displaylogo": False, "scrollZoom": True},
+                )
+                st.success(f"Saved interactive report to {report_path}")
+    except (ValueError, ImportError, OSError) as exc:
+        st.error("The CT volume could not be rendered or exported.")
+        st.caption(f"Technical details: {exc}")
+
+    st.warning(
+        "This visualization is for research and educational use. It is not a "
+        "diagnostic tool. Keep exported reports containing medical-image data private."
+    )
+    st.stop()
 
 
 st.sidebar.header("1. Load an Image")

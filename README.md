@@ -30,7 +30,7 @@ biomedical-image-denoising-suite/
 ├── .github/
 │   └── workflows/
 │       └── pytest.yml       # Automated test workflow on pushes and pull requests
-├── app.py                   # Streamlit interface for 2D experiments
+├── app.py                   # Multi-page Streamlit project dashboard
 ├── filters.py               # 2D image loading, filtering, and metrics
 ├── evaluate_denoising.py    # DICOM CT slice benchmark + 2D figure exports
 ├── download_data.py         # Local sample generation and downloads
@@ -134,6 +134,19 @@ Run the dashboard with streamlit run app.py and choose **3D CT Volume** in the s
 Use **Download interactive HTML report** to save a self-contained report that remains interactive in a browser, including offline. The HTML includes the 3D view plus a metadata table with slice count, volume dimensions, voxel spacing, selected intensity range, and a note that the rendering is downsampled. **Save a copy to reports/3D** writes the same report to the local project folder. The reports directory is Git-ignored, so generated medical-image reports are not committed automatically. The HTML may contain sensitive medical-image information; share it only when authorized.
 
 A single 2D slice cannot reconstruct a faithful anatomical volume; a multi-slice DICOM series is required. The browser rendering is downsampled for responsiveness. The existing VTK desktop viewer remains available for a separate 3D visualization workflow.
+
+
+### Project dashboard
+
+The Streamlit interface is organized as a project workspace with five sections:
+
+- **Project Overview** — summarizes the implemented workflows, methods, metrics, and analysis pipeline.
+- **2D Denoising Lab** — interactive image loading, synthetic-noise experiments, spatial/frequency filtering, and PSNR/SSIM comparisons.
+- **3D CT Volume** — interactive Plotly volume rendering from one consistent multi-slice DICOM series, with standalone HTML export.
+- **Results & Reports** — reads locally generated benchmark CSVs, displays summary charts and tables, and lists saved report files. It shows file modification timestamps rather than inventing experiment dates; if benchmark outputs are absent, it explains how to generate them.
+- **Project Guide** — summarizes the methods, metrics, and reproducible benchmark command.
+
+The overview and report pages do not fabricate performance values. Benchmark charts appear only after the local benchmark has produced its CSV outputs. The displayed PSNR/SSIM values belong to controlled synthetic-noise experiments and should not be interpreted as clinical validation.
 
 ### 2. Sample Generation & Application Launch
 

@@ -1,6 +1,6 @@
 # React Biomedical Imaging Dashboard
 
-This frontend is a React + Vite application with a FastAPI backend. The existing Streamlit application (`app.py`) is retained as a legacy interface while the React dashboard is validated.
+This frontend is a React + Vite application with a FastAPI backend. The original Streamlit application (`app.py`) remains available as an alternative interface.
 
 ## Requirements
 

@@ -10,7 +10,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from filters import (
@@ -114,13 +114,13 @@ async def image_preview(file: UploadFile = File(...)):
 @app.post("/api/denoise")
 async def denoise(
     file: UploadFile = File(...),
-    noise_type: str = "Gaussian",
-    noise_amount: float = 0.02,
-    noise_variance: float = 0.02,
-    seed: int = 42,
-    kernel_size: int = 5,
-    sigma: float = 0.0,
-    cutoff_ratio: float = 0.1,
+    noise_type: str = Form("Gaussian"),
+    noise_amount: float = Form(0.02),
+    noise_variance: float = Form(0.02),
+    seed: int = Form(42),
+    kernel_size: int = Form(5),
+    sigma: float = Form(0.0),
+    cutoff_ratio: float = Form(0.1),
 ):
     payload = await _read_upload(file)
     clean = _decode_image(file.filename or "upload", payload)

@@ -2,7 +2,7 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from src.plotly_ct_viewer import create_ct_volume_figure
+from src.plotly_ct_viewer import create_ct_html_report, create_ct_volume_figure
 
 
 def test_create_ct_volume_figure_returns_interactive_volume():
@@ -52,3 +52,28 @@ def test_invalid_volume_or_display_parameters_raise(volume, spacing, low, high):
             intensity_min=low,
             intensity_max=high,
         )
+
+
+
+def test_html_report_embeds_plot_and_escapes_metadata():
+    volume = np.arange(4 * 5 * 6, dtype=np.float32).reshape(4, 5, 6)
+    figure = create_ct_volume_figure(
+        volume,
+        spacing_xyz_mm=(0.8, 0.8, 1.2),
+        intensity_min=0,
+        intensity_max=float(volume.max()),
+    )
+    html = create_ct_html_report(
+        figure,
+        {
+            "Number of slices": "4",
+            "Study label": "<script>alert('x')</script>",
+        },
+    )
+
+    assert "<!DOCTYPE html>" in html
+    assert "Interactive CT Volume Report" in html
+    assert "Number of slices" in html
+    assert "<script>alert('x')</script>" not in html
+    assert "&lt;script&gt;" in html
+    assert "plotly" in html.lower()

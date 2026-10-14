@@ -101,3 +101,68 @@ def create_ct_volume_figure(
         },
     )
     return figure
+
+
+
+def create_ct_html_report(figure: go.Figure, metadata: dict[str, str]) -> str:
+    """Build a self-contained HTML report with the interactive figure and metadata."""
+    from html import escape
+
+    if not isinstance(figure, go.Figure):
+        raise TypeError("figure must be a Plotly Figure.")
+    if not isinstance(metadata, dict):
+        raise TypeError("metadata must be a dictionary of labels and values.")
+
+    rows = []
+    for label, value in metadata.items():
+        rows.append(
+            "<tr><th>" + escape(str(label)) + "</th><td>" + escape(str(value)) + "</td></tr>"
+        )
+    table = "\n".join(rows)
+    figure_html = figure.to_html(
+        full_html=False,
+        include_plotlyjs=True,
+        config={"displaylogo": False, "scrollZoom": True, "responsive": True},
+    )
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive CT Volume Report</title>
+<style>
+body { margin: 0; background: #f4f6f8; color: #17212b; font-family: Arial, Helvetica, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 28px 22px 40px; }
+header, section { background: #fff; border: 1px solid #dfe5eb; border-radius: 12px; padding: 22px; margin-bottom: 18px; }
+h1 { margin: 0 0 8px; font-size: 26px; }
+.subtitle { color: #536273; margin: 0; }
+h2 { margin-top: 0; font-size: 18px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e8edf2; vertical-align: top; }
+th { width: 38%; color: #34465a; font-weight: 600; }
+tr:last-child th, tr:last-child td { border-bottom: 0; }
+.notice { border-left: 4px solid #d49b32; padding: 10px 14px; background: #fff8e8; color: #624b1d; line-height: 1.5; }
+footer { color: #536273; font-size: 12px; line-height: 1.5; padding: 4px 2px; }
+@media (max-width: 650px) { main { padding: 12px; } header, section { padding: 14px; } th, td { padding: 8px 6px; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Interactive CT Volume Report</h1>
+<p class="subtitle">Biomedical Image Denoising Suite · Interactive 3D visualization</p>
+</header>
+<section>
+<h2>Volume metadata</h2>
+<table><tbody>""" + table + """</tbody></table>
+</section>
+<section>
+<h2>Interactive 3D volume</h2>
+<p class="subtitle">Drag to rotate, scroll to zoom, and use the Plotly controls to explore the rendered volume.</p>
+""" + figure_html + """
+</section>
+<p class="notice"><strong>Research and educational use only.</strong> This visualization is not a diagnostic tool. The displayed volume may contain sensitive medical information; store and share this HTML report securely.</p>
+<footer>Values and geometry are based on the selected DICOM series. The rendering may be downsampled for browser performance; it is intended for visualization and not for diagnostic interpretation.</footer>
+</main>
+</body>
+</html>"""

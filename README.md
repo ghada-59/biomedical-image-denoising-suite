@@ -12,7 +12,7 @@ An interactive Streamlit application dedicated to **medical image denoising expe
 
 ## React dashboard (new interface)
 
-A separate **React + Vite** frontend is being introduced alongside the existing Streamlit interface. It uses a local FastAPI backend to call the repository's image-processing and DICOM functions. The React interface provides explicit light/dark themes, image previews, visible filter outputs, benchmark charts, and a DICOM series workflow that previews a single slice in 2D and requires a consistent multi-slice series for 3D reconstruction.
+A **React + Vite** dashboard is available alongside the original Streamlit interface. It uses a local FastAPI backend to call the repository's image-processing and DICOM functions. The React interface provides light/dark themes, image previews, filter outputs, benchmark charts, and a DICOM series workflow that previews a single slice in 2D and requires a consistent multi-slice series for 3D reconstruction. The frontend build and Python test suite are checked separately in GitHub Actions.
 
 Start the API from the repository root in the Python environment:
 
@@ -29,7 +29,7 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/. See [frontend/README.md](frontend/README.md) for details. The previous Streamlit UI remains available with `streamlit run app.py` while the React version is validated.
+Open http://127.0.0.1:5173/. See [frontend/README.md](frontend/README.md) for details. The original Streamlit UI remains available with `streamlit run app.py`.
 
 ## 📌 Table of Contents
 

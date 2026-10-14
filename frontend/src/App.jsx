@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import Plot from "react-plotly.js";
+import createPlotlyComponent from "react-plotly.js/factory";
+import Plotly from "plotly.js-dist-min";
+const Plot = createPlotlyComponent(Plotly);
 import { Activity, ArrowDownToLine, BarChart3, Check, ChevronRight, CircleHelp, FileImage, FileText, FlaskConical, Layers3, LayoutDashboard, Menu, Moon, ScanLine, Settings2, ShieldCheck, Sun, UploadCloud, Waves, X } from "lucide-react";
 
 const NAV = [

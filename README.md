@@ -131,7 +131,7 @@ python -m pip install -r requirements.txt
 
 Run the dashboard with streamlit run app.py and choose **3D CT Volume** in the sidebar. You can point it to a local folder containing one DICOM series or upload the series slices. The application validates and assembles the slices using the existing geometry-aware DICOM loader, then renders an interactive volume with Plotly. Adjust the intensity range to explore the CT values.
 
-Use **Download interactive HTML report** to save a self-contained report that remains interactive in a browser, including offline. **Save a copy to reports/3D** writes the current view to the local project folder. The reports directory is Git-ignored, so generated medical-image reports are not committed automatically.
+Use **Download interactive HTML report** to save a self-contained report that remains interactive in a browser, including offline. The HTML includes the 3D view plus a metadata table with slice count, volume dimensions, voxel spacing, selected intensity range, and a note that the rendering is downsampled. **Save a copy to reports/3D** writes the same report to the local project folder. The reports directory is Git-ignored, so generated medical-image reports are not committed automatically. The HTML may contain sensitive medical-image information; share it only when authorized.
 
 A single 2D slice cannot reconstruct a faithful anatomical volume; a multi-slice DICOM series is required. The browser rendering is downsampled for responsiveness. The existing VTK desktop viewer remains available for a separate 3D visualization workflow.
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "plotly.js-dist-min";
 const Plot = createPlotlyComponent(Plotly);
@@ -58,6 +58,7 @@ export default function App() {
   const [benchNoise, setBenchNoise] = useState("Gaussian");
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const previewObjectUrl = useRef(null);
   const [denoise, setDenoise] = useState(null);
   const [noiseType, setNoiseType] = useState("Gaussian");
   const [amount, setAmount] = useState(0.02);
@@ -85,12 +86,49 @@ export default function App() {
   const benchRows = useMemo(() => (benchmark.rows || []).filter(row => String(row.Noise) === benchNoise), [benchmark.rows, benchNoise]);
   const best = useMemo(() => benchRows.reduce((a,b) => !a || Number(b.Mean_SSIM)>Number(a.Mean_SSIM) ? b : a, null), [benchRows]);
 
+  useEffect(() => () => {
+    if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+  }, []);
+
   async function selectImage(file) {
     setImageFile(file || null); setPreview(null); setDenoise(null); setError("");
+    if (previewObjectUrl.current) {
+      URL.revokeObjectURL(previewObjectUrl.current);
+      previewObjectUrl.current = null;
+    }
     if (!file) return;
+
+    const isDicom = file.name.toLowerCase().endsWith(".dcm");
+    const isBrowserImage = file.type.startsWith("image/") && !isDicom;
+    if (isBrowserImage) {
+      const localUrl = URL.createObjectURL(file);
+      previewObjectUrl.current = localUrl;
+      setPreview({
+        filename: file.name,
+        preview: localUrl,
+        format: "Selected image",
+        width: null,
+        height: null,
+        local: true,
+      });
+    }
+
     setBusy(true);
-    try { const body = new FormData(); body.append("file", file); setPreview(await api("/api/image/preview", {method:"POST", body})); }
-    catch (e) { setError(e.message); } finally { setBusy(false); }
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await api("/api/image/preview", { method: "POST", body });
+      setPreview(response);
+      if (previewObjectUrl.current) {
+        URL.revokeObjectURL(previewObjectUrl.current);
+        previewObjectUrl.current = null;
+      }
+    } catch (e) {
+      // Keep the browser preview visible for PNG/JPEG files even if the API is offline.
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
   async function runDenoising() {
     if (!imageFile) { setError("Choose an image or DICOM slice first."); return; }

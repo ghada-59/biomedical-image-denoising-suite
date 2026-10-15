@@ -2,7 +2,7 @@ name: React Dashboard Build
 
 on:
   push:
-    branches: ["main", "redesign/react-dashboard"]
+    branches: ["main", "redesign/react-dashboard", "deploy/react-fastapi-render"]
   pull_request:
     branches: ["main"]
 

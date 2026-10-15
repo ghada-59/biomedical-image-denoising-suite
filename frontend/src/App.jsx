@@ -14,8 +14,13 @@ const NAV = [
 const NOISE = ["Gaussian", "Salt & Pepper", "Speckle (synthetic)", "None"];
 const COLORS = ["#7188ff", "#22a699", "#e3a64f", "#b18aff", "#5ca8e8", "#e27d9b", "#8d9aa8"];
 
+const configuredApiBase = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const API_BASE_URL = configuredApiBase
+  ? (configuredApiBase.startsWith("http") ? configuredApiBase : "https://" + configuredApiBase).replace(/\/+$/, "")
+  : "";
+
 async function api(path, options) {
-  const response = await fetch(path, options || {});
+  const response = await fetch(`${API_BASE_URL}${path}`, options || {});
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.detail || "The request could not be completed.");
   return payload;

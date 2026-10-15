@@ -10,26 +10,28 @@ An interactive Streamlit application dedicated to **medical image denoising expe
 
 ---
 
-## React dashboard (new interface)
+## React dashboard
 
-A **React + Vite** dashboard is available alongside the original Streamlit interface. It uses a local FastAPI backend to call the repository's image-processing and DICOM functions. The React interface provides light/dark themes, image previews, filter outputs, benchmark charts, and a DICOM series workflow that previews a single slice in 2D and requires a consistent multi-slice series for 3D reconstruction. The frontend build and Python test suite are checked separately in GitHub Actions.
+The React + Vite dashboard uses the FastAPI API in `api.py`. The original Streamlit interface remains available locally with `streamlit run app.py`.
 
-Start the API from the repository root in the Python environment:
+The React dashboard can be deployed with the included [Render Blueprint](render.yaml), which defines two services:
 
-```bash
-python -m pip install -r requirements.txt
-python -m uvicorn api:app --reload --host 127.0.0.1 --port 8000
-```
+- **Frontend:** static React site built from `frontend/`.
+- **API:** Python web service running FastAPI and the existing image-processing functions.
 
-In a second terminal:
+### Deploy the live dashboard
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+1. Push or merge the deployment configuration into `main`.
+2. Sign in to [Render](https://render.com/) and choose **New → Blueprint**.
+3. Connect this repository and select the `main` branch.
+4. Review the two services defined in `render.yaml`, then create them.
+5. Wait for both services to finish deploying. Open the frontend service's public URL and check that the API status is online.
 
-Open http://127.0.0.1:5173/. See [frontend/README.md](frontend/README.md) for details. The original Streamlit UI remains available with `streamlit run app.py`.
+The Blueprint sets `VITE_API_BASE_URL` from the API service hostname and configures the API's allowed frontend origin. If you rename either service or use a custom domain, update `CORS_ORIGINS` to match the frontend's exact HTTPS origin and redeploy.
+
+For local development, install the packages in `requirements.txt`, run `python -m uvicorn api:app --reload --host 127.0.0.1 --port 8000` from the repository root, then run `npm install` and `npm run dev` from `frontend/`. The Vite development proxy continues to send `/api` requests to the local API.
+
+The hosted API uses the smaller `requirements-api.txt` dependency set and the `/api/health` health check. Free hosting may sleep while idle and take a little time to wake up. This is an educational research interface, not a diagnostic tool; use only authorized, de-identified images and do not upload identifiable patient data to a public demo.
 
 ## 📌 Table of Contents
 

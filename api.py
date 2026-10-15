@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -26,9 +27,21 @@ from src.plotly_ct_viewer import create_ct_volume_figure
 
 ROOT = Path(__file__).resolve().parent
 app = FastAPI(title="Biomedical Imaging API", version="1.0.0")
+def _cors_origins() -> list[str]:
+    origins = {"http://127.0.0.1:5173", "http://localhost:5173"}
+    for value in os.getenv("CORS_ORIGINS", "").split(","):
+        origin = value.strip().rstrip("/")
+        if not origin:
+            continue
+        if not origin.startswith(("http://", "https://")):
+            origin = f"https://{origin}"
+        origins.add(origin)
+    return sorted(origins)
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],

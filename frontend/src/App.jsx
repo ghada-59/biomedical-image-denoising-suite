@@ -16,7 +16,7 @@ const COLORS = ["#7188ff", "#22a699", "#e3a64f", "#b18aff", "#5ca8e8", "#e27d9b"
 
 const configuredApiBase = (import.meta.env.VITE_API_BASE_URL || "").trim();
 const API_BASE_URL = configuredApiBase
-  ? `${/^https?:\\/\\//i.test(configuredApiBase) ? configuredApiBase : `https://${configuredApiBase}`.replace(/\\/+$/, "")}`.replace(/\\/+$/, "")
+  ? `${configuredApiBase.startsWith("http") ? configuredApiBase : `https://${configuredApiBase}`}`.replace(/\/+$/, "")
   : "";
 
 async function api(path, options) {

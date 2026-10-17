@@ -112,7 +112,6 @@ def test_median_filter_beats_mean_filter_on_salt_and_pepper(clean_image):
     assert ssim_median > ssim_mean
 
 
-@pytest.mark.parametrize("filter_type", filters.FREQUENCY_FILTERS)
 def test_gaussian_frequency_filter_improves_synthetic_noise_quality(clean_image):
     noisy = filters.add_noise(clean_image, "Gaussian", var=0.02, seed=1)
     filtered, _, _ = filters.apply_frequency_lowpass(

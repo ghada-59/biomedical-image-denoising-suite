@@ -113,6 +113,18 @@ def test_median_filter_beats_mean_filter_on_salt_and_pepper(clean_image):
 
 
 @pytest.mark.parametrize("filter_type", filters.FREQUENCY_FILTERS)
+def test_gaussian_frequency_filter_improves_synthetic_noise_quality(clean_image):
+    noisy = filters.add_noise(clean_image, "Gaussian", var=0.02, seed=1)
+    filtered, _, _ = filters.apply_frequency_lowpass(
+        noisy, cutoff_ratio=0.15, filter_type="gauss"
+    )
+    noisy_psnr, noisy_ssim = filters.calculate_metrics(clean_image, noisy)
+    filtered_psnr, filtered_ssim = filters.calculate_metrics(clean_image, filtered)
+    assert filtered_psnr > noisy_psnr
+    assert filtered_ssim > noisy_ssim
+
+
+@pytest.mark.parametrize("filter_type", filters.FREQUENCY_FILTERS)
 def test_apply_frequency_lowpass_shapes_and_range(clean_image, filter_type):
     noisy = filters.add_noise(clean_image, "Gaussian", var=0.02, seed=1)
     img_back, spectrum, spectrum_f = filters.apply_frequency_lowpass(

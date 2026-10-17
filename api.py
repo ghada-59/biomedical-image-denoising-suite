@@ -133,7 +133,7 @@ async def denoise(
     seed: int = Form(42),
     kernel_size: int = Form(5),
     sigma: float = Form(0.0),
-    cutoff_ratio: float = Form(0.1),
+    cutoff_ratio: float = Form(0.15),
 ):
     payload = await _read_upload(file)
     clean = _decode_image(file.filename or "upload", payload)

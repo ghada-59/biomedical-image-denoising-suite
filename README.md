@@ -72,6 +72,12 @@ biomedical-image-denoising-suite/
 
 ---
 
+## Recent filtering validation
+
+The default frequency cutoff is `0.15` across the filtering function, Streamlit app, FastAPI API, React dashboard, and benchmark script. This is a starting point intended to reduce the overly aggressive smoothing seen with the former `0.10` default; it is not a universal optimum. A controlled synthetic test found that the Gaussian frequency filter at cutoff `0.15` improved both PSNR and SSIM over cutoff `0.10` on the test fixture. See [frequency cutoff validation](docs/results/frequency_cutoff_validation.md) for the values and limitations.
+
+**Benchmark provenance:** `docs/results/denoising_summary.csv` is a previously generated report using the former `0.10` frequency cutoff. It has not been silently relabeled as a new benchmark. Regenerate the benchmark against the intended local DICOM CT series before interpreting that committed table as evidence for the new setting. Synthetic-image tests do not establish clinical denoising performance.
+
 ## 🔬 Scientific Foundations & Algorithms
 
 ### Low-Pass Filtering Mechanism

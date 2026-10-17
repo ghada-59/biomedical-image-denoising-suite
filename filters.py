@@ -303,7 +303,7 @@ def apply_spatial_filters(
 
 def apply_frequency_lowpass(
     image_noisy: np.ndarray,
-    cutoff_ratio: float = 0.1,
+    cutoff_ratio: float = 0.15,
     filter_type: str = "gauss",
     order: int = 2,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:

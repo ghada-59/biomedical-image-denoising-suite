@@ -36,7 +36,7 @@ DEFAULT_NOISE_AMOUNT = 0.02
 DEFAULT_NOISE_VARIANCE = 0.02
 KERNEL_SIZE = 5
 GAUSSIAN_SIGMA = 0.0
-CUTOFF_RATIO = 0.10
+CUTOFF_RATIO = 0.15
 BUTTERWORTH_ORDER = 2
 DEFAULT_WINDOW_CENTER = -600.0
 DEFAULT_WINDOW_WIDTH = 1500.0
@@ -220,7 +220,7 @@ def _save_frequency_visualization(
             filter_type=filter_name,
             order=BUTTERWORTH_ORDER,
         )
-        images.append((filter_name.capitalize(), filtered))
+        images.append((f"{filter_name.capitalize()} (cutoff={CUTOFF_RATIO:.2f})", filtered))
 
     fig, axes = plt.subplots(1, len(images), figsize=(18, 3.8))
     for axis, (title, image) in zip(axes, images):

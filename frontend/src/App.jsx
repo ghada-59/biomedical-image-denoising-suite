@@ -170,7 +170,7 @@ export default function App() {
       <nav className="main-nav">{NAV.map(({id,label,icon:Icon}) => <button key={id} className={"nav-item"+(page===id?" active":"")} onClick={() => {setPage(id);setSidebarOpen(false);}}><Icon size={18}/><span>{label}</span>{page===id && <ChevronRight className="nav-chevron" size={15}/>}</button>)}</nav>
       <div className="sidebar-spacer"/>
       <div className="sidebar-status"><div className="status-head"><span className={"status-dot "+(health==="online"?"online":health==="offline"?"offline":"")}/> API {health.toUpperCase()}</div><p>Image analysis · CT volume rendering</p><div className="privacy-note"><ShieldCheck size={16}/><span>Research and education only. Not for diagnosis.</span></div></div>
-      <div className="sidebar-footer"><span>BIOMEDICAL IMAGE DENOISING SUITE</span><span>v1.0</span></div>
+      <div className="sidebar-footer"><span>BIOMEDICAL IMAGE DENOISING AND BENCHMARKING</span><span>v1.0</span></div>
     </aside>
 
     <main className="main-area">
@@ -216,7 +216,7 @@ export default function App() {
 
         {page==="guide"&&<Guide/>}
       </div>
-      <footer className="main-footer"><span>MEDLAB · BIOMEDICAL IMAGE DENOISING SUITE</span><span>RESEARCH SOFTWARE <b>/</b> NOT FOR DIAGNOSIS</span></footer>
+      <footer className="main-footer"><span>MEDLAB · BIOMEDICAL IMAGE DENOISING AND BENCHMARKING</span><span>RESEARCH SOFTWARE <b>/</b> NOT FOR DIAGNOSIS</span></footer>
     </main>
   </div>;
 }

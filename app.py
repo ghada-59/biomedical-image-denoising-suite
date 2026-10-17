@@ -28,7 +28,7 @@ SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
 SAMPLE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".dcm"}
 
 st.set_page_config(
-    page_title="Biomedical Image Denoising Suite",
+    page_title="Biomedical Image Denoising and Benchmarking",
     page_icon="🔬",
     layout="wide"
 )
@@ -65,7 +65,7 @@ st.sidebar.caption("Research & educational use · Not for diagnosis")
 if workspace == "Project Overview":
     st.markdown(
         '<div class="hero-panel"><div class="section-kicker" style="color:#a9c8db">BIOMEDICAL IMAGE ANALYSIS</div>'
-        '<h1>Biomedical Image Denoising Suite</h1>'
+        '<h1>Biomedical Image Denoising and Benchmarking</h1>'
         '<p>A reproducible workspace for image filtering, quantitative comparison, and interactive CT volume exploration.</p></div>',
         unsafe_allow_html=True,
     )

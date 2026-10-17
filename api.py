@@ -90,11 +90,11 @@ def health():
 
 @app.get("/api/results")
 def results():
-    candidates = [
-        ROOT / "reports" / "denoising_summary.csv",
-        ROOT / "docs" / "results" / "denoising_summary.csv",
-    ]
-    summary = next((path for path in candidates if path.is_file()), None)
+    # Only serve a freshly generated runtime report. The committed CSV under
+    # docs/results is a historical snapshot with different benchmark settings.
+    summary = ROOT / "reports" / "denoising_summary.csv"
+    if not summary.is_file():
+        summary = None
     if summary is None:
         return {"available": False, "source": None, "rows": [], "noise_types": list(NOISE_TYPES)}
     try:

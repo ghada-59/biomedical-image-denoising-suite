@@ -521,7 +521,7 @@ if image_source is not None:
         "Gaussian Standard Deviation (0 = auto)", 0.0, 5.0, 0.0, 0.1,
         help="0 lets OpenCV calculate the standard deviation from kernel size.",
     )
-    cutoff_ratio = st.sidebar.slider("FFT Cutoff Frequency", 0.01, 0.5, 0.1, 0.01)
+    cutoff_ratio = st.sidebar.slider("FFT Cutoff Frequency", 0.01, 0.5, 0.15, 0.01)
 
     tab1, tab2 = st.tabs(["📊 Spatial Domain", "🌊 Frequency Domain (2D FFT)"])
 

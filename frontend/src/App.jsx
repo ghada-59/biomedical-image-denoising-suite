@@ -70,7 +70,7 @@ export default function App() {
   const [variance, setVariance] = useState(0.02);
   const [kernel, setKernel] = useState(5);
   const [sigma, setSigma] = useState(0);
-  const [cutoff, setCutoff] = useState(0.1);
+  const [cutoff, setCutoff] = useState(0.15);
   const [seed, setSeed] = useState(42);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

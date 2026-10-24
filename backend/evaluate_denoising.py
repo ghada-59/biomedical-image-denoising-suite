@@ -12,7 +12,6 @@ import argparse
 import re
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -161,11 +160,18 @@ def _add_noise(
     )
 
 
+def _pyplot():
+    """Import matplotlib on first use so that importing this module (e.g. from the API) does not require it."""
+    import matplotlib.pyplot as plt
+
+    return plt
+
+
 def _save_figure(fig, path: Path) -> None:
     """Save a figure and close it to release memory."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=160, bbox_inches="tight")
-    plt.close(fig)
+    _pyplot().close(fig)
 
 
 def _save_spatial_visualization(
@@ -188,7 +194,7 @@ def _save_spatial_visualization(
         ("Gaussian filter", gaussian_img),
     ]
 
-    fig, axes = plt.subplots(1, len(images), figsize=(16, 3.8))
+    fig, axes = _pyplot().subplots(1, len(images), figsize=(16, 3.8))
     for axis, (title, image) in zip(axes, images):
         axis.imshow(image, cmap="gray", vmin=0.0, vmax=1.0)
         axis.set_title(title)
@@ -222,7 +228,7 @@ def _save_frequency_visualization(
         )
         images.append((f"{filter_name.capitalize()} (cutoff={CUTOFF_RATIO:.2f})", filtered))
 
-    fig, axes = plt.subplots(1, len(images), figsize=(18, 3.8))
+    fig, axes = _pyplot().subplots(1, len(images), figsize=(18, 3.8))
     for axis, (title, image) in zip(axes, images):
         axis.imshow(image, cmap="gray", vmin=0.0, vmax=1.0)
         axis.set_title(title)

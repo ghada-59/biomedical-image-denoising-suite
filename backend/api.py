@@ -29,6 +29,7 @@ from filters import (
     calculate_metrics,
     load_medical_image,
 )
+from api_v2 import router as benchmark_v2_router
 from provenance import results_provenance
 from src.dicom_volume import load_dicom_volume
 from src.plotly_ct_viewer import create_ct_volume_figure
@@ -77,6 +78,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+app.include_router(benchmark_v2_router)
 
 
 @app.exception_handler(RequestValidationError)

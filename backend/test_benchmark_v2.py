@@ -1390,3 +1390,80 @@ def test_the_grid_version_and_bracketing_summary_are_recorded_in_the_metadata(tm
     assert "never select" in meta["grid_note"]
     assert len(pd.read_csv(out / "tuning_grid.csv")) == len(B.CONDITIONS) * sum(len(v) for v in B.parameter_grid("v1").values())
     assert {"grid_bracketing.csv", "tuning_criteria_comparison.csv"} <= {p.name for p in out.iterdir()}
+
+
+# --- metric definitions on inputs whose result is known in closed form --------------------------------
+
+
+def _pair(shape=(12, 12), value=-300.0):
+    reference = np.full(shape, value)
+    return reference, np.ones(shape, dtype=bool)
+
+
+def test_identical_images_give_zero_hu_errors_and_infinite_psnr():
+    reference, mask = _pair()
+    assert B.hu_errors(reference, reference.copy(), mask) == (0.0, 0.0)
+    assert math.isinf(B.masked_psnr(B.display(reference), B.display(reference.copy()), mask))
+
+
+@pytest.mark.parametrize("offset", [-37.5, 4.0, 120.0])
+def test_a_constant_offset_gives_rmse_and_mae_equal_to_its_magnitude(offset):
+    reference, mask = _pair()
+    rmse, mae = B.hu_errors(reference, reference + offset, mask)
+    assert rmse == pytest.approx(abs(offset)) and mae == pytest.approx(abs(offset))
+
+
+def test_rmse_and_mae_differ_for_unequal_errors_as_the_formulas_require():
+    reference, mask = _pair((2, 2))
+    output = reference + np.array([[0.0, 0.0], [0.0, 10.0]])
+    rmse, mae = B.hu_errors(reference, output, mask)
+    assert rmse == pytest.approx(np.sqrt(100.0 / 4)) and mae == pytest.approx(10.0 / 4)
+
+
+def test_psnr_uses_the_peak_value_one_of_the_displayed_images():
+    reference, mask = _pair((8, 8))
+    displayed = np.full((8, 8), 0.5)
+    assert B.masked_psnr(displayed, displayed + 0.1, mask) == pytest.approx(20.0)            # 10 log10(1 / 0.1^2)
+    assert B.masked_psnr(displayed, displayed + 0.01, mask) == pytest.approx(40.0)
+
+
+def test_a_constant_image_has_ssim_one_against_itself_and_the_scores_ignore_the_mask_outside():
+    image = np.full((30, 30), 0.4)
+    mask = np.zeros((30, 30), bool)
+    mask[5:25, 5:25] = True
+    assert B.masked_ssim(image, image.copy(), mask) == pytest.approx(1.0)
+    assert B.masked_ssim(image, image.copy(), mask, wang=True) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf])
+def test_non_finite_values_are_rejected_not_propagated(bad):
+    reference, mask = _pair()
+    output = reference.copy()
+    output[3, 3] = bad
+    with pytest.raises(ValueError, match="finite"):
+        B.hu_errors(reference, output, mask)
+    with pytest.raises(ValueError, match="finite"):
+        B.masked_psnr(B.display(reference), output, mask)
+    with pytest.raises(ValueError, match="finite"):
+        B.hu_errors(output, reference, mask)
+
+
+def test_images_of_different_shape_or_dimension_are_rejected():
+    reference, mask = _pair((12, 12))
+    with pytest.raises(ValueError, match="same shape"):
+        B.hu_errors(reference, reference[:1], mask)                     # would otherwise broadcast silently
+    with pytest.raises(ValueError, match="same shape"):
+        B.hu_errors(reference[None], reference[None], mask[None])       # 3D input
+    with pytest.raises(ValueError, match="mask shape"):
+        B.hu_errors(reference, reference, mask[:6])
+
+
+def test_evaluate_masks_rejects_a_non_finite_output():
+    volume = phantom_volume(n=8, size=48)
+    case = B.make_case(volume[4], B.CONDITIONS[1], seed=1)
+    bad = case.noisy_hu.copy()
+    bad[10, 10] = np.nan
+    with pytest.raises(ValueError, match="finite"):
+        B.evaluate_masks(case, bad)
+    with pytest.raises(ValueError, match="same shape"):
+        B.evaluate_masks(case, case.noisy_hu[:, :-1])

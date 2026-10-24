@@ -460,8 +460,23 @@ def filter_hu(noisy_hu: np.ndarray, family: str, params: dict) -> np.ndarray:
 # --- metrics ---------------------------------------------------------------------------
 
 
+def check_image_pair(reference: np.ndarray, output: np.ndarray, mask: np.ndarray | None = None) -> None:
+    """Reject inputs that would silently give a wrong metric: other shapes, other dimensions, NaN or Inf.
+
+    Broadcasting a (1, N) array against an (N, N) image, or a NaN in one pixel, would otherwise give a
+    plausible-looking number or a NaN that propagates into the aggregation.
+    """
+    if reference.ndim != 2 or reference.shape != output.shape:
+        raise ValueError(f"reference and output must be 2D arrays of the same shape, got {reference.shape} and {output.shape}")
+    if mask is not None and mask.shape != reference.shape:
+        raise ValueError(f"the mask shape {mask.shape} differs from the image shape {reference.shape}")
+    if not (np.isfinite(reference).all() and np.isfinite(output).all()):
+        raise ValueError("the images must contain only finite values (no NaN or Inf)")
+
+
 def hu_errors(reference_hu: np.ndarray, output_hu: np.ndarray, mask: np.ndarray) -> tuple[float, float]:
     """RMSE and MAE in HU between ``output_hu`` and ``reference_hu`` over the mask."""
+    check_image_pair(reference_hu, output_hu, mask)
     if not mask.any():
         return float("nan"), float("nan")
     diff = (output_hu - reference_hu)[mask]
@@ -475,6 +490,7 @@ def windowed_errors(reference_display: np.ndarray, output_display: np.ndarray, m
 
 def masked_psnr(reference_display: np.ndarray, output_display: np.ndarray, mask: np.ndarray) -> float:
     """PSNR (peak 1) over the mask; infinite for a perfect reconstruction."""
+    check_image_pair(reference_display, output_display, mask)
     mse = float(np.mean((output_display - reference_display)[mask] ** 2))
     return float("inf") if mse == 0.0 else float(10.0 * np.log10(1.0 / mse))
 
@@ -514,6 +530,7 @@ def evaluate_masks(case: Case, output_hu: np.ndarray, mask_names: tuple[str, ...
     Primary SSIM columns (``SSIM_skimage_default``, ``SSIM_Wang2004``) use windows fully inside the
     mask; ``*_allpixels`` columns hold the earlier definition (sensitivity only).
     """
+    check_image_pair(case.reference_hu, output_hu)
     reference_display, output_display = display(case.reference_hu), display(output_hu)
     maps = {wang: ssim_map(reference_display, output_display, wang) for wang in (False, True)}
     results = {}

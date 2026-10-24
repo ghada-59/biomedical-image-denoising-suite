@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from provenance import results_provenance
 from src.dicom_volume import load_dicom_volume
 from src.plotly_ct_viewer import create_ct_volume_figure, create_ct_html_report
 
@@ -100,13 +101,18 @@ if workspace == "Project Overview":
     st.stop()
 
 if workspace == "Results & Reports":
-    st.markdown('<div class="hero-panel"><h1>Results & Reports</h1><p>Browse benchmark outputs generated on this machine. No metrics are fabricated when results are absent.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-panel"><h1>Results & Reports</h1><p>Browse the benchmark files found on this machine. No metrics are fabricated when results are absent.</p></div>', unsafe_allow_html=True)
     project_dir = Path(__file__).resolve().parent
     reports_dir = project_dir / "reports"
     summary_path = reports_dir / "denoising_summary.csv"
     detail_path = reports_dir / "denoising_benchmark.csv"
     if summary_path.exists():
         summary_df = pd.read_csv(summary_path)
+        provenance = results_provenance(reports_dir)
+        if provenance["status"] == "documented_run":
+            st.success(f"{provenance['label']} (generated {provenance['metadata']['generated_at']}, commit {provenance['metadata']['git_commit']}).")
+        else:
+            st.warning(f"{provenance['label']}. {provenance['reason']}")
         modified = pd.Timestamp(summary_path.stat().st_mtime, unit="s")
         st.caption(f"Summary file last modified: {modified.strftime('%Y-%m-%d %H:%M')} · {summary_path.name}")
         if not summary_df.empty:

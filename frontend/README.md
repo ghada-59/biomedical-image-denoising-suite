@@ -4,9 +4,9 @@ This frontend is a React + Vite application with a FastAPI backend. The original
 
 ## Local development
 
-Requirements: Python and the packages in the repository's `requirements.txt`, plus Node.js 20+ and npm.
+Requirements: Python and the packages in `backend/requirements.txt`, plus Node.js 20+ and npm.
 
-From the repository root, start the API:
+From the `backend/` directory, start the API:
 
 ```bash
 python -m pip install -r requirements.txt

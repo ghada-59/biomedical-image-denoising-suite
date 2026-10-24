@@ -312,6 +312,82 @@ def _evaluate_one_slice(
     return rows
 
 
+def aggregate_results(results_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Add baseline-relative gains and summarise every noise/domain/filter group.
+
+    Each row is compared with the unfiltered noisy image of the same series, slice,
+    repeat and noise type. Aggregation uses the full-precision values; only the
+    returned summary is rounded for display. Returns ``(detail, summary)``.
+    """
+    baseline = (
+        results_df[results_df["Filter"] == "Noisy (Unfiltered)"]
+        [["Series", "Slice Index", "Repeat", "Noise", "PSNR (dB)", "SSIM"]]
+        .drop_duplicates(["Series", "Slice Index", "Repeat", "Noise"])
+        .rename(
+            columns={
+                "PSNR (dB)": "Baseline PSNR (dB)",
+                "SSIM": "Baseline SSIM",
+            }
+        )
+    )
+    detail = results_df.merge(
+        baseline,
+        on=["Series", "Slice Index", "Repeat", "Noise"],
+        how="left",
+    )
+    detail["PSNR Gain (dB)"] = detail["PSNR (dB)"] - detail["Baseline PSNR (dB)"]
+    detail["SSIM Gain"] = detail["SSIM"] - detail["Baseline SSIM"]
+
+    summary = (
+        detail.groupby(
+            ["Noise", "Noise Parameter", "Domain", "Filter"],
+            as_index=False,
+        )
+        .agg(
+            Slices_Evaluated=("Slice Index", "nunique"),
+            Runs_Evaluated=("Repeat", "size"),
+            Mean_PSNR_dB=("PSNR (dB)", "mean"),
+            Std_PSNR_dB=("PSNR (dB)", "std"),
+            Mean_SSIM=("SSIM", "mean"),
+            Std_SSIM=("SSIM", "std"),
+            Mean_PSNR_Gain_dB=("PSNR Gain (dB)", "mean"),
+            Mean_SSIM_Gain=("SSIM Gain", "mean"),
+        )
+    )
+    summary["Mean_PSNR_dB"] = summary["Mean_PSNR_dB"].round(3)
+    summary["Std_PSNR_dB"] = summary["Std_PSNR_dB"].fillna(0).round(3)
+    summary["Mean_SSIM"] = summary["Mean_SSIM"].round(4)
+    summary["Std_SSIM"] = summary["Std_SSIM"].fillna(0).round(4)
+    summary["Mean_PSNR_Gain_dB"] = summary["Mean_PSNR_Gain_dB"].round(3)
+    summary["Mean_SSIM_Gain"] = summary["Mean_SSIM_Gain"].round(4)
+    return detail, summary
+
+
+def write_reports(
+    results_df: pd.DataFrame,
+    reports_dir: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, Path, Path]:
+    """Write the detailed and summary CSV files into ``reports_dir``.
+
+    Returns ``(detail, summary, detail_path, summary_path)``; ``detail`` is the
+    full-precision table, while the detailed CSV is rounded for display.
+    """
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    detail, summary = aggregate_results(results_df)
+
+    display_detail = detail.copy()
+    for column in ("PSNR (dB)", "Baseline PSNR (dB)", "PSNR Gain (dB)"):
+        display_detail[column] = display_detail[column].round(3)
+    for column in ("SSIM", "Baseline SSIM", "SSIM Gain"):
+        display_detail[column] = display_detail[column].round(4)
+
+    detail_path = reports_dir / "denoising_benchmark.csv"
+    summary_path = reports_dir / "denoising_summary.csv"
+    display_detail.to_csv(detail_path, index=False, encoding="utf-8")
+    summary.to_csv(summary_path, index=False, encoding="utf-8")
+    return detail, summary, detail_path, summary_path
+
+
 def main() -> None:
     """Benchmark classical filters on representative slices from a DICOM CT series."""
     parser = argparse.ArgumentParser(
@@ -417,62 +493,9 @@ def main() -> None:
                     )
                 )
 
-    results_df = pd.DataFrame(all_results)
-    baseline = (
-        results_df[results_df["Filter"] == "Noisy (Unfiltered)"]
-        [["Series", "Slice Index", "Repeat", "Noise", "PSNR (dB)", "SSIM"]]
-        .drop_duplicates(["Series", "Slice Index", "Repeat", "Noise"])
-        .rename(
-            columns={
-                "PSNR (dB)": "Baseline PSNR (dB)",
-                "SSIM": "Baseline SSIM",
-            }
-        )
+    results_df, summary, detail_path, summary_path = write_reports(
+        pd.DataFrame(all_results), REPORTS_DIR
     )
-    results_df = results_df.merge(
-        baseline,
-        on=["Series", "Slice Index", "Repeat", "Noise"],
-        how="left",
-    )
-    results_df["PSNR Gain (dB)"] = (
-        results_df["PSNR (dB)"] - results_df["Baseline PSNR (dB)"]
-    )
-    results_df["SSIM Gain"] = results_df["SSIM"] - results_df["Baseline SSIM"]
-
-    detail_path = REPORTS_DIR / "denoising_benchmark.csv"
-    display_results_df = results_df.copy()
-    for column in ("PSNR (dB)", "Baseline PSNR (dB)", "PSNR Gain (dB)"):
-        display_results_df[column] = display_results_df[column].round(3)
-    for column in ("SSIM", "Baseline SSIM", "SSIM Gain"):
-        display_results_df[column] = display_results_df[column].round(4)
-    display_results_df.to_csv(detail_path, index=False, encoding="utf-8")
-
-    # Aggregate from full-precision values; only round the displayed summary below.
-    summary = (
-        results_df.groupby(
-            ["Noise", "Noise Parameter", "Domain", "Filter"],
-            as_index=False,
-        )
-        .agg(
-            Slices_Evaluated=("Slice Index", "nunique"),
-            Runs_Evaluated=("Repeat", "size"),
-            Mean_PSNR_dB=("PSNR (dB)", "mean"),
-            Std_PSNR_dB=("PSNR (dB)", "std"),
-            Mean_SSIM=("SSIM", "mean"),
-            Std_SSIM=("SSIM", "std"),
-            Mean_PSNR_Gain_dB=("PSNR Gain (dB)", "mean"),
-            Mean_SSIM_Gain=("SSIM Gain", "mean"),
-        )
-    )
-    summary["Mean_PSNR_dB"] = summary["Mean_PSNR_dB"].round(3)
-    summary["Std_PSNR_dB"] = summary["Std_PSNR_dB"].fillna(0).round(3)
-    summary["Mean_SSIM"] = summary["Mean_SSIM"].round(4)
-    summary["Std_SSIM"] = summary["Std_SSIM"].fillna(0).round(4)
-    summary["Mean_PSNR_Gain_dB"] = summary["Mean_PSNR_Gain_dB"].round(3)
-    summary["Mean_SSIM_Gain"] = summary["Mean_SSIM_Gain"].round(4)
-
-    summary_path = REPORTS_DIR / "denoising_summary.csv"
-    summary.to_csv(summary_path, index=False, encoding="utf-8")
 
     print("\nDICOM CT benchmark completed.")
     print(f"Detailed results: {detail_path}")

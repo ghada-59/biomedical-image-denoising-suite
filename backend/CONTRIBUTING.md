@@ -4,7 +4,7 @@
 
 ```bash
 git clone https://github.com/ghada-59/biomedical-image-denoising-suite.git
-cd biomedical-image-denoising-suite
+cd biomedical-image-denoising-suite/backend
 python -m venv .venv
 
 # Windows PowerShell
@@ -27,7 +27,7 @@ python -m pip install -r requirements.txt
 
 ## Tests
 
-Run the test suite before submitting a change:
+Run the test suite from the `backend/` directory before submitting a change:
 
 ```bash
 python -m pytest -q

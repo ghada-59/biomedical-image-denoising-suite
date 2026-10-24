@@ -58,34 +58,39 @@ For an uploaded image without a clean ground-truth counterpart, PSNR/SSIM cannot
 
 ```text
 .
-├── app.py                         # Streamlit interface
-├── api.py                         # FastAPI endpoints for the React dashboard
-├── filters.py                     # 2D image loading, noise, filters, and metrics
-├── evaluate_denoising.py          # Reproducible 2D CT benchmark
-├── download_data.py               # Local synthetic examples and optional downloads
-├── frontend/                      # React + Vite dashboard
-├── src/
-│   ├── dicom_volume.py             # DICOM series validation and volume loading
-│   ├── volume_denoising.py         # 3D Gaussian smoothing
-│   └── ...                         # Additional visualization and evaluation modules
-├── tests and test_*.py             # Automated tests
-├── docs/images/                    # Selected figures for documentation
-├── docs/results/                   # Validation notes and historical result snapshots
-├── requirements.txt
-├── requirements-api.txt
-├── render.yaml
-└── .github/workflows/pytest.yml    # CI test workflow
+├── backend/                        # Python code, tests, documentation assets (run commands from here)
+│   ├── app.py                      # Streamlit interface
+│   ├── api.py                      # FastAPI endpoints for the React dashboard
+│   ├── filters.py                  # 2D image loading, noise, filters, and metrics
+│   ├── evaluate_denoising.py       # Reproducible 2D CT benchmark
+│   ├── download_data.py            # Local synthetic examples and optional downloads
+│   ├── src/
+│   │   ├── dicom_volume.py         # DICOM series validation and volume loading
+│   │   ├── volume_denoising.py     # 3D Gaussian smoothing
+│   │   └── ...                     # Additional visualization and evaluation modules
+│   ├── test_*.py                   # Automated tests
+│   ├── samples/                    # Small example images and a synthetic DICOM file
+│   ├── docs/images/                # Selected figures for documentation
+│   ├── docs/results/               # Validation notes and historical result snapshots
+│   ├── requirements.txt            # Full development / Streamlit / test dependencies
+│   └── requirements-api.txt        # Runtime dependencies of the hosted API
+├── frontend/                       # React + Vite dashboard
+├── render.yaml                     # Render deployment (API uses rootDir: backend)
+└── .github/workflows/              # pytest and frontend build workflows
 ```
+
+Local datasets (`backend/data/`) and generated outputs (`backend/reports/`, `backend/outputs/`) are ignored by Git.
 
 ## Setup
 
-The commands below are intended to be run from the repository root. Python 3.10 or 3.12 is covered by the configured GitHub Actions matrix; other environments may work but are not covered by that workflow.
+Unless stated otherwise, the Python commands below are run from the `backend/` directory. Python 3.10 or 3.12 is covered by the configured GitHub Actions matrix; other environments may work but are not covered by that workflow.
 
 ### 1. Create an environment and install dependencies
 
 **Windows (Anaconda Prompt or Command Prompt):**
 
 ```bat
+cd backend
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install --upgrade pip
@@ -95,6 +100,7 @@ python -m pip install -r requirements.txt
 **macOS/Linux:**
 
 ```bash
+cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -112,13 +118,13 @@ The example-generation command avoids the optional Kaggle and pydicom-fixture do
 
 ### 3. Run the React dashboard locally
 
-Keep the FastAPI process running in one terminal:
+Keep the FastAPI process running in one terminal (from `backend/`):
 
 ```bash
 python -m uvicorn api:app --reload --host 127.0.0.1 --port 8000
 ```
 
-In a second terminal:
+In a second terminal (from the repository root):
 
 ```bash
 cd frontend
@@ -136,15 +142,15 @@ The benchmark uses a **local DICOM CT series**; the larger series is not bundled
 python evaluate_denoising.py --dicom-series "path/to/one_dicom_series" --repeats 3 --seed 42
 ```
 
-The script selects up to five spread-out slices by default and creates local outputs under `reports/`, including per-run metrics, a summary CSV, and comparison figures. Generated reports are ignored by Git.
+The script selects up to five spread-out slices by default and creates local outputs under `backend/reports/` (when run from `backend/`), including per-run metrics, a summary CSV, and comparison figures. Generated reports are ignored by Git.
 
-Current benchmark configuration in `evaluate_denoising.py` includes a frequency cutoff ratio of `0.15`. The committed files `docs/results/denoising_benchmark.csv` and `docs/results/denoising_summary.csv` are **historical snapshots from the earlier `0.10` cutoff configuration**. They must not be presented as results from the current default. Regenerate the benchmark against the intended local series before publishing updated numerical claims.
+Current benchmark configuration in `evaluate_denoising.py` includes a frequency cutoff ratio of `0.15`. The committed files `backend/docs/results/denoising_benchmark.csv` and `backend/docs/results/denoising_summary.csv` are **historical snapshots from the earlier `0.10` cutoff configuration**. They must not be presented as results from the current default. Regenerate the benchmark against the intended local series before publishing updated numerical claims.
 
-A controlled synthetic test of a separate fixture is documented in [frequency cutoff validation](docs/results/frequency_cutoff_validation.md). It is a small parameter check, not evidence that `0.15` is optimal for all CT images.
+A controlled synthetic test of a separate fixture is documented in [frequency cutoff validation](backend/docs/results/frequency_cutoff_validation.md). It is a small parameter check, not evidence that `0.15` is optimal for all CT images.
 
 ## Optional 3D CT workflow
 
-The 3D tools require a consistent multi-slice DICOM series with usable geometry metadata. Example commands from the repository root:
+The 3D tools require a consistent multi-slice DICOM series with usable geometry metadata. Example commands, run from `backend/`:
 
 ```bash
 python -m src.slice_viewer "path/to/one_dicom_series"
@@ -157,7 +163,7 @@ The loader checks series identity, slice orientation, image dimensions, and slic
 
 ## Tests
 
-Run the test suite from the repository root:
+Run the test suite from `backend/`:
 
 ```bash
 python -m pytest -q
@@ -187,20 +193,20 @@ The following figures are committed examples from earlier experiments. Check the
 
 ### Spatial filtering
 
-![Gaussian synthetic noise with spatial filters](docs/images/ct_gaussian_spatial.png)
+![Gaussian synthetic noise with spatial filters](backend/docs/images/ct_gaussian_spatial.png)
 
-![Salt-and-pepper synthetic noise with spatial filters](docs/images/ct_salt_pepper_spatial.png)
+![Salt-and-pepper synthetic noise with spatial filters](backend/docs/images/ct_salt_pepper_spatial.png)
 
-![Synthetic speckle with spatial filters](docs/images/ct_speckle_spatial.png)
+![Synthetic speckle with spatial filters](backend/docs/images/ct_speckle_spatial.png)
 
 ### Frequency-domain filtering
 
-![Salt-and-pepper synthetic noise with frequency filters](docs/images/ct_salt_pepper_frequency.png)
+![Salt-and-pepper synthetic noise with frequency filters](backend/docs/images/ct_salt_pepper_frequency.png)
 
 ### 3D visualization
 
-![Original CT volume in grayscale](docs/images/ct_volume_3d_grayscale.png)
+![Original CT volume in grayscale](backend/docs/images/ct_volume_3d_grayscale.png)
 
-![Original and Gaussian-smoothed CT volume](docs/images/original_vs_smoothed_ct_3d_pseudocolor.png)
+![Original and Gaussian-smoothed CT volume](backend/docs/images/original_vs_smoothed_ct_3d_pseudocolor.png)
 
-See the [3D viewer validation report](docs/results/3d_viewer_validation.md) for the recorded data source and interpretation limits.
+See the [3D viewer validation report](backend/docs/results/3d_viewer_validation.md) for the recorded data source and interpretation limits.

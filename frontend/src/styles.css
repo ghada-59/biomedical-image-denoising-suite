@@ -205,3 +205,25 @@ button:disabled { opacity: .58; cursor: not-allowed; }
   .bar-row { grid-template-columns: 95px minmax(30px,1fr) 38px; gap: 7px; }.bar-label, .bar-row > strong { font-size: 9px; }.image-panel-large .result-image { height: 260px; }.result-image, .image-placeholder { height: 180px; min-height: 180px; }
   .main-footer { padding: 15px 14px; flex-direction: column; font-size: 7px; }.page-heading .pill { white-space: normal; }
 }
+
+/* Benchmark V2 page */
+.v2-page { display: flex; flex-direction: column; gap: 16px; }
+.v2-section .v2-body { padding: 16px 18px 18px; }
+.v2-controls { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 12px 16px; margin-bottom: 12px; }
+.v2-controls label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.v2-controls select, .v2-controls input[type="number"] { min-height: 36px; padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface-raised); color: var(--text); font-size: 11px; }
+.v2-controls input[type="range"] { width: 100%; accent-color: var(--accent); }
+.v2-notice { display: flex; align-items: flex-start; gap: 9px; padding: 11px 14px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 11px; line-height: 1.6; }
+.v2-warn { border-left-color: var(--warning); } .v2-ok { border-left-color: var(--success); }
+.v2-facts, .v2-caveats, .v2-statements { margin: 8px 0; padding-left: 18px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+.v2-facts strong { color: var(--text); margin-right: 6px; }
+.v2-chart-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(420px,1fr)); gap: 14px; }
+.v2-chart { min-width: 0; }
+.v2-image-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: 12px; margin: 14px 0 6px; }
+.v2-image-grid figure { margin: 0; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); overflow: hidden; }
+.v2-image-grid figcaption { padding: 8px 10px; color: var(--text); font-size: 10px; font-weight: 700; line-height: 1.4; }
+.v2-image-grid figcaption small { color: var(--muted); font-weight: 500; }
+.v2-image-grid img { display: block; width: 100%; height: auto; background: #000; image-rendering: auto; }
+.v2-h3 { margin: 16px 0 8px; font-size: 12px; }
+.v2-download { margin-top: 8px; width: fit-content; text-decoration: none; }
+@media (max-width: 900px) { .v2-chart-grid { grid-template-columns: 1fr; } }

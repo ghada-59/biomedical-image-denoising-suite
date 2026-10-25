@@ -101,8 +101,8 @@ def load_dicom_volume(series_dir: str | Path):
     if len(uids) != 1 or not next(iter(uids), ""):
         raise ValueError("Expected exactly one DICOM SeriesInstanceUID. Use a single-series folder.")
     files = sort_dicom_slices(discovered)
-    datasets = [pydicom.dcmread(p) for p in files]
-    first = datasets[0]
+    # Geometry comes from headers; slice pixels are read one at a time below so the whole series is never held twice.
+    first = pydicom.dcmread(files[0], stop_before_pixels=True)
     rows, cols = int(first.Rows), int(first.Columns)
     pixel_spacing = np.asarray(first.PixelSpacing, dtype=float)
     if pixel_spacing.shape != (2,) or not np.isfinite(pixel_spacing).all() or np.any(pixel_spacing <= 0):
@@ -112,7 +112,8 @@ def load_dicom_volume(series_dir: str | Path):
     slices, positions = [], []
     uid = str(first.SeriesInstanceUID)
     photometric = str(getattr(first, "PhotometricInterpretation", "MONOCHROME2"))
-    for path, ds in zip(files, datasets):
+    for path in files:
+        ds = pydicom.dcmread(path)
         if str(getattr(ds, "SeriesInstanceUID", "")) != uid:
             raise ValueError("Multiple SeriesInstanceUID values were found.")
         if int(ds.Rows) != rows or int(ds.Columns) != cols:

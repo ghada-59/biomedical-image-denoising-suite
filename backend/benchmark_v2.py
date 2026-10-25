@@ -1033,14 +1033,20 @@ def git_state(cwd: Path) -> str:
 
 
 def package_versions() -> dict[str, str]:
-    import numpy, pandas, scipy, skimage, cv2 as _cv2, pydicom
+    import cv2 as _cv2
+    import numpy
+    import pandas
+    import pydicom
+    import scipy
+    import skimage
+
     versions = {"python": sys.version.split()[0], "numpy": numpy.__version__, "scipy": scipy.__version__,
                 "scikit-image": skimage.__version__, "opencv": _cv2.__version__, "pandas": pandas.__version__,
                 "pydicom": pydicom.__version__}
     try:                        # only the wavelet family needs it; the distribution's version, because pywt.__version__ lags behind
-        from importlib.metadata import version
+        from importlib.metadata import PackageNotFoundError, version
         versions["pywavelets"] = version("PyWavelets")
-    except Exception:
+    except PackageNotFoundError:
         pass
     return versions
 

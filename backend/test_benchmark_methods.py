@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import shutil
 
 import numpy as np
 import pandas as pd

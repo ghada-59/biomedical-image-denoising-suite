@@ -77,8 +77,6 @@ def _normalize_dynamic_range(
             raise ValueError("DICOM WindowWidth must be at least 1.")
         if window_width == 1.0:
             return (image > window_center - 0.5).astype(np.float64)
-        lower = window_center - 0.5 - (window_width - 1.0) / 2.0
-        upper = window_center - 0.5 + (window_width - 1.0) / 2.0
         scaled = (image - (window_center - 0.5)) / (window_width - 1.0) + 0.5
         return np.clip(scaled, 0.0, 1.0)
 

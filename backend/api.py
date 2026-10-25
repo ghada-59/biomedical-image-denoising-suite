@@ -440,5 +440,5 @@ def ct_volume(files: list[UploadFile] = File(...)):
             reason = _scrub(str(exc), temp_name) if isinstance(exc, ValueError) else "unexpected processing error"
             raise HTTPException(
                 status_code=400,
-                detail=f"Could not reconstruct this CT series. Select all slices from one consistent series. Details: {reason}",
+                detail=f"Could not reconstruct this CT series. Select all slices from one consistent series. Details: {reason}",  # nosec B608 - message text, not SQL
             ) from exc

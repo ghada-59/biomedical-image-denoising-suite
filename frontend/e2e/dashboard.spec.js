@@ -141,18 +141,21 @@ test.describe("2D lab against the real backend", () => {
 });
 
 test.describe("connection states", () => {
-  test("reports an unreachable API and recovers on retry", async ({ page }) => {
+  // Here only the browser's /api requests fail while the page's own server still answers, so the page cannot name a cause beyond
+  // "the request failed". The named causes (API down behind a running dashboard server, dashboard server down) are
+  // covered with the real services in connection.spec.js.
+  test("reports API requests that fail, and reloads the data by itself once they work again", async ({ page }) => {
     await page.route("**/api/**", route => route.abort("connectionrefused"));
     await page.goto("/");
     await expect(page.getByTestId("api-status")).toContainText("API OFFLINE");
     await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /2D Denoising Lab/ }).click();
-    await expect(page.getByText(/Cannot reach the API/).first()).toBeVisible();
+    await expect(page.getByTestId("api-banner")).toContainText("failed before the server answered");
     await expect(page.getByTestId("lab-run")).toBeDisabled();
     await page.unroute("**/api/**");
     await page.getByRole("button", { name: /check the api connection again/i }).click();
     await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
-    await page.getByRole("button", { name: /retry/i }).click();
-    await expect(page.getByRole("checkbox", { name: "Mean", exact: true })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Mean", exact: true })).toBeVisible();   // no Retry press is needed
+    await expect(page.getByTestId("api-banner")).toHaveCount(0);
   });
 
   test("Benchmark V2 says plainly that no run is configured", async ({ page }) => {

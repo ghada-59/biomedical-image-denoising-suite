@@ -18,7 +18,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "dev.ps1"
 TEXT_SUFFIXES = {".py", ".js", ".jsx", ".mjs", ".json", ".md", ".css", ".html", ".yml", ".yaml", ".toml", ".ps1", ".cmd", ".txt", ".ini"}
-SKIPPED_DIRECTORIES = {"node_modules", ".git", ".venv", "dist", "data", "reports", "outputs", "__pycache__", ".pytest_cache", "test-results", ".claude", "results"}
+SKIPPED_DIRECTORIES = {"node_modules", ".git", ".venv", "dist", "data", "reports", "outputs", "__pycache__", ".pytest_cache", "test-results", "results"}
 
 
 def text_files():
@@ -52,7 +52,7 @@ def test_the_readme_documents_the_helper_the_way_it_is_actually_invoked():
         assert f".\\dev.cmd {action}" in readme, action
     for switch in re.findall(r"\[switch\]\$(\w+)", script):
         assert f"-{switch}" in readme, switch
-    code_lines = [line.strip() for block in re.findall(r"```bat\n(.*?)```", readme, re.S) for line in block.splitlines()]
+    code_lines = [line.strip() for block in re.findall(r"```(?:bat|bash)\n(.*?)```", readme, re.S) for line in block.splitlines()]
     assert not [line for line in code_lines if re.match(r"dev\.cmd\b", line)]            # a bare `dev.cmd` is "not recognized" when the current folder is not searched
     assert "python -m uvicorn api:app --host 127.0.0.1 --port 8000" in code_lines          # the documented command is the one the helper runs
     started = script.replace("`", "").replace('"$python" ', "python ").replace("$apiPort", "8000").replace(' --app-dir "$backend"', "")    # --app-dir only names the folder
@@ -113,11 +113,11 @@ def test_the_process_patterns_match_the_real_command_lines_and_nothing_loose():
     api_pattern = re.search(r"Test-ProjectApi.*?-match '([^']+)'\) \}", script, re.S).group(1)
     vite_pattern = re.search(r"Test-ProjectDashboard.*?-match '([^']+)'\) \}", script, re.S).group(1)
     window_pattern = re.search(r"-match '(title Denoising \(API\|dashboard\) &)'", script).group(1)
-    real_vite = '"node"   "D:\\myprojects\\x\\frontend\\node_modules\\.bin\\\\..\\vite\\bin\\vite.js" --host 127.0.0.1'
-    real_api = '"D:\\venvs\\python.exe"   -m uvicorn api:app --host 127.0.0.1 --port 8000 '
+    real_vite = '"node"   "C:\\work\\project\\frontend\\node_modules\\.bin\\\\..\\vite\\bin\\vite.js" --host 127.0.0.1'
+    real_api = '"C:\\envs\\api\\python.exe"   -m uvicorn api:app --host 127.0.0.1 --port 8000 '
     assert re.search(vite_pattern, real_vite) and re.search(vite_pattern, real_vite.replace("\\", "/"))
     assert re.search(api_pattern, real_api)
-    assert re.search(window_pattern, 'cmd.exe /k "title Denoising API & cd /d "D:\\x" & python')
+    assert re.search(window_pattern, 'cmd.exe /k "title Denoising API & cd /d "C:\\work" & python')
     # looser text must not match: a tool whose command line merely mentions the words
     assert not re.search(vite_pattern, 'bash -c "npm run dev"') and not re.search(api_pattern, "bash -c npm run dev")
     assert not re.search(window_pattern, 'cmd.exe /k "title Something else & dir"')

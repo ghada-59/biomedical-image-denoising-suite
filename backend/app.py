@@ -274,7 +274,7 @@ if workspace == "3D CT Volume":
     if source_mode == "Use a local DICOM folder":
         local_path_text = st.text_input(
             "Path to one DICOM series folder",
-            placeholder=r"D:\myprojects\data\ct-series",
+            placeholder="path/to/one_dicom_series",
             help="Choose the folder that contains the slices for one CT series.",
         )
         if not local_path_text.strip():

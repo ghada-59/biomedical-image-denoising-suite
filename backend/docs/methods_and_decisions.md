@@ -98,7 +98,7 @@ What would make a model scientifically meaningful here: many patients, real low-
 
 ## 6. References
 
-The bibliographic records below (title, authors, year, venue, volume, pages, DOI) were checked against Crossref, PubMed and the publishers' pages on 2026-10-25. **No full text was read**; what is said about each method comes from the libraries' official documentation (scikit-image 0.26, OpenCV 5.0) and from the code. A reference is listed to credit the method, not as evidence about this data. The verification log is kept with the final report.
+The bibliographic records below (title, authors, year, venue, volume, pages, DOI) were checked against Crossref, PubMed and the publishers' pages on 2026-10-25. **No full text was read**; what is said about each method comes from the libraries' official documentation (scikit-image 0.26, OpenCV 5.0) and from the code. A reference is listed to credit the method, not as evidence about this data. The verification log (what was checked for each reference, and what was not) is [references_verification.md](references_verification.md).
 
 Methods and software
 
@@ -129,4 +129,4 @@ Learned denoisers (proposed future work, not implemented)
 - Krull A, Buchholz T-O, Jug F. Noise2Void – learning denoising from single noisy images. *Proc. CVPR*, 2019, pp. 2124–2132. doi:10.1109/CVPR.2019.00223
 - Lehtinen J, Munkberg J, Hasselgren J, et al. Noise2Noise: learning image restoration without clean data. *Proc. 35th ICML*, PMLR 80:2965–2974, 2018 (no DOI).
 
-Limits of the review: targeted, not systematic; PubMed, Elicit and Context7 connectors were not available in the session, so Crossref and PubMed records were read through web requests; the identity of the local DICOM series with the public TCIA release is still unverified.
+Limits of the review: targeted, not systematic; the Crossref and PubMed records were read through their public web interfaces; the identity of the local DICOM series with the public TCIA release is still unverified.

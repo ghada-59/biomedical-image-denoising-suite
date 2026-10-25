@@ -1191,7 +1191,7 @@ def main(argv: list[str] | None = None) -> None:
 
     parser = argparse.ArgumentParser(description="Run benchmark V2 (HU-defined noise, tuning/test split, bootstrap CIs).")
     parser.add_argument("--dicom-series", type=Path, required=True, help="Directory of ONE DICOM series (local data only).")
-    parser.add_argument("--out", type=Path, required=True, help="Output directory, e.g. D:/biomed_runs/benchmark_v2_<date>.")
+    parser.add_argument("--out", type=Path, required=True, help="Output directory outside the repository, e.g. ../../benchmark_v2_<date>.")
     parser.add_argument("--n-tune", type=int, default=3)
     parser.add_argument("--n-test", type=int, default=8)
     parser.add_argument("--min-gap", type=int, default=3)

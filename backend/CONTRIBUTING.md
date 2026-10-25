@@ -2,6 +2,8 @@
 
 ## Development setup
 
+The root [README](../README.md#quick-start-dashboard) explains how the two programs (API and dashboard server) are installed and run; this is the short version for backend work.
+
 ```bash
 git clone https://github.com/ghada-59/biomedical-image-denoising-suite.git
 cd biomedical-image-denoising-suite/backend

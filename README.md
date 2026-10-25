@@ -35,84 +35,148 @@ The project does **not** claim that one filter is best for every image or noise 
 
 ## Quick start (dashboard)
 
-Requirements: Python 3.10 to 3.12 and Node.js 22.12 or newer. The dashboard is **two programs that both have to run**: the **API** (FastAPI, `http://127.0.0.1:8000`) and the **dashboard server** (Vite, `http://127.0.0.1:5173`). The browser talks only to the dashboard server, which forwards every `/api/...` request to the API, so start the API first. The commands were run on Windows 11 in Command Prompt (`cmd.exe`) and are the same in an Anaconda Prompt. Replace `D:\myprojects\biomedical-image-denoising-suite` by the folder you cloned into.
+Requirements: **Python 3.10 to 3.12** and **Node.js 22.12 or newer** (with npm). The commands work on Windows, macOS and Linux; where a command differs by shell it is shown for each. The measurements reported in this README were made on Windows 11 only.
 
-### Option A: one command (Windows)
+The dashboard is **two programs that both have to run**: the **API** (FastAPI, `http://127.0.0.1:8000`) and the **dashboard server** (Vite, `http://127.0.0.1:5173`). The browser talks only to the dashboard server, which forwards every `/api/...` request to the API, so start the API first.
 
-```bat
-cd /d D:\myprojects\biomedical-image-denoising-suite
-.\dev.cmd start
+### 1. Install (once)
+
+```bash
+git clone https://github.com/ghada-59/biomedical-image-denoising-suite.git
+cd biomedical-image-denoising-suite
 ```
 
-Type the `.\`. A bare `dev.cmd` is answered with *'dev.cmd' is not recognized* in PowerShell and in Command Prompts where Windows does not search the current folder (the `NoDefaultCurrentDirectoryInExePath` setting, which is on for the machine this was tested on).
+**Backend.** Create a virtual environment and install the API's runtime requirements:
 
-`start` chooses the Python (the variable `DENOISING_PYTHON` if set, else `backend\.venv`, else the `python` of the active environment), checks that the API's packages import, starts the API, **waits until `/api/health` answers**, then starts the dashboard server, checks that the dashboard really forwards to the API, and opens the browser; it takes about 15 seconds. **Both services run in the background without any window**, so closing the Command Prompt that ran `start` (or any other terminal) does not stop them, and there is no service window that could be closed by mistake. Their output goes to `logs\dev\api.log` and `logs\dev\dashboard.log` (the previous run's logs are kept as `*.previous.log`); when a start fails, the last lines of the log are printed. Two more commands:
-
-```bat
-.\dev.cmd status
-.\dev.cmd stop
-```
-
-`status` shows what listens on ports 8000 and 5173, which Python is used, whether PyWavelets is installed and whether `127.0.0.1` and `localhost` answer for both services, and changes nothing. `stop` ends only this project's processes: a program that listens on port 8000 or 5173 **and** is `uvicorn api:app` or the Vite server, plus the launcher processes directly above it (npm, the venv's `python.exe`, the shell that redirects the log). Anything else on those ports, and the services of another clone of the project, is reported and left alone; `.\dev.cmd stop -DryRun` lists what would be stopped. `start` also takes `-NoBrowser`. Background services keep running until `stop`, a sign-out or a restart; a service you start by hand (Option B) stops when its window is closed, which is the reason to prefer `.\dev.cmd start` when the dashboard has to stay available.
-
-### Option B: two windows by hand
-
-**0. Environment (once).** Command Prompt with a virtual environment:
-
-```bat
-cd /d D:\myprojects\biomedical-image-denoising-suite\backend
+```bash
+cd backend
 python -m venv .venv
-.venv\Scripts\activate
+```
+
+Activate the environment (in every new terminal that runs backend commands):
+
+| Shell | Command |
+| --- | --- |
+| Windows Command Prompt | `.venv\Scripts\activate` |
+| Windows PowerShell | `.venv\Scripts\Activate.ps1` |
+| macOS / Linux | `source .venv/bin/activate` |
+
+```bash
 python -m pip install --upgrade pip
 python -m pip install -r requirements-api.txt
 ```
 
-Anaconda Prompt with an existing environment: `conda activate biomedical-denoising` (or `conda activate D:\path\to\environment`), then `cd /d D:\myprojects\biomedical-image-denoising-suite\backend` and `python -m pip install -r requirements-api.txt`. That last line is safe to repeat; it adds what is missing. One package matters: without PyWavelets the API still starts, but the wavelet method is marked *unavailable* (with the reason) in the lab, in `/api/health` and in `/api/methods`, and the helper prints a warning. On macOS/Linux use `source .venv/bin/activate`.
+`requirements-api.txt` is all the dashboard needs. For the test suite, the Streamlit app and the 3D tools install `requirements.txt` instead; it contains the API's packages plus pytest, Streamlit, VTK and matplotlib. Any other Python environment (for example a Conda environment) works the same way: activate it and run the `pip install` line. If PyWavelets is missing the API still starts, but the wavelet method is marked *unavailable* (with the reason) in the lab, in `/api/health` and in `/api/methods`.
 
-**1. Window 1: the API.** Activate the environment, then:
+**Frontend.**
 
-```bat
-cd /d D:\myprojects\biomedical-image-denoising-suite\backend
-set BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25
+```bash
+cd frontend
+npm ci
+```
+
+`npm ci` installs exactly the versions in `package-lock.json`.
+
+### 2. Run the dashboard (two terminals, API first)
+
+**Terminal 1: the API**, from `backend/` with the environment activated:
+
+```bash
+cd backend
 python -m uvicorn api:app --host 127.0.0.1 --port 8000
 ```
 
-It is ready when the window prints `Uvicorn running on http://127.0.0.1:8000`. Check it in a browser: http://127.0.0.1:8000/ answers with a short JSON note saying that this is the API and where the dashboard and the documentation are, http://127.0.0.1:8000/docs lists every route, http://127.0.0.1:8000/api/health answers `{"status":"ok",...}`. `requirements-api.txt` is enough for the dashboard; `requirements.txt` adds Streamlit, VTK, matplotlib and the test tools. `BENCHMARK_RUN_DIRS` exposes the recorded benchmark run that ships with the repository; without it the Benchmark V2 page reports that no run is configured. (macOS/Linux: `export BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25`.)
+It is ready when it prints `Uvicorn running on http://127.0.0.1:8000`. Check it in a browser: http://127.0.0.1:8000/ answers with a short JSON note saying that this is the API, http://127.0.0.1:8000/docs lists every route, and http://127.0.0.1:8000/api/health answers `{"status":"ok",...}`.
 
-**2. Window 2: the dashboard server.**
+To make the recorded benchmark run that ships with the repository visible on the *Benchmark V2* page, set `BENCHMARK_RUN_DIRS` before starting the API (without it that page says that no run is configured):
 
-```bat
-cd /d D:\myprojects\biomedical-image-denoising-suite\frontend
-npm ci
+| Shell | Command |
+| --- | --- |
+| Windows Command Prompt | `set BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25` |
+| Windows PowerShell | `$env:BENCHMARK_RUN_DIRS = "docs/results/benchmark_v2_methods_2026-10-25"` |
+| macOS / Linux | `export BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25` |
+
+**Terminal 2: the dashboard server**, from `frontend/`:
+
+```bash
+cd frontend
 npm run dev
 ```
 
-It is ready when the window prints `Local: http://127.0.0.1:5173/`. If port 5173 is taken it stops with an error instead of choosing another port, so the address stays the one in this document.
+It is ready when it prints `Local: http://127.0.0.1:5173/`. If port 5173 is taken it stops with an error instead of choosing another port, so the address stays the one in this document.
 
-**3. Open the dashboard:** http://127.0.0.1:5173/ (http://localhost:5173/ works as well; both were tested). The bottom of the sidebar must say **API ONLINE** with the API's address. If it does not, see the next section.
+**Open the dashboard:** http://127.0.0.1:5173/ (http://localhost:5173/ works as well). The bottom of the sidebar must say **API ONLINE** with the page's address. If it does not, see [If the dashboard shows an error](#if-the-dashboard-shows-an-error).
 
-**4. Stop:** press `Ctrl+C` in each window (answer `Y` if asked), or run `.\dev.cmd stop` from the repository root.
+**Stop** each program with `Ctrl+C` in its terminal. A program started this way ends when its terminal is closed.
 
 If the API is started later than the dashboard, or is stopped and started again, the open page notices within a few seconds and loads its data by itself; nothing has to be reloaded. A stopped dashboard server needs a restart and a reload of the page.
+
+### Optional: Windows launcher (`dev.cmd`)
+
+`dev.cmd` is a convenience for Windows only; nothing depends on it, and the two commands above are the standard way to run the project. From the repository root, in Command Prompt or PowerShell (type the `.\`; a bare `dev.cmd` is "not recognized" in PowerShell and wherever Windows does not search the current folder):
+
+```bat
+.\dev.cmd start
+.\dev.cmd status
+.\dev.cmd stop
+```
+
+`start` chooses the Python (the variable `DENOISING_PYTHON` if set, else `backend\.venv`, else the `python` on the `PATH`), checks that the API's packages import, starts the API, **waits until `/api/health` answers**, then starts the dashboard server, checks that the dashboard really forwards to the API, and opens the browser (`-NoBrowser` skips that); it takes about 15 seconds. Both services run in the background **without a console window**, so closing the terminal that ran `start` does not stop them. Their output goes to `logs\dev\api.log` and `logs\dev\dashboard.log` (ignored by Git; the previous run's logs are kept as `*.previous.log`), and when a start fails the last lines of the log are printed.
+
+`status` shows what listens on ports 8000 and 5173, which Python is used, whether PyWavelets is installed, and whether `127.0.0.1` and `localhost` answer for both services; it changes nothing. `stop` ends only this project's processes: a program that listens on port 8000 or 5173 **and** is `uvicorn api:app` or the Vite server, plus the launcher processes directly above it (npm, the venv's `python.exe`, the shell that redirects the log). Anything else on those ports, and the services of another clone of the project, is reported and left alone; `.\dev.cmd stop -DryRun` lists what would be stopped. Background services keep running until `stop`, a sign-out or a restart. The helper is `scripts/dev.ps1`; it runs on the Windows PowerShell 5.1 that ships with Windows (no other version was tested).
+
+### Configuration
+
+Everything is configured with environment variables; none is required for a local run.
+
+| Variable | Read by | Default | Purpose |
+| --- | --- | --- | --- |
+| `BENCHMARK_RUN_DIRS` | API | none | Benchmark V2 run directories to serve (relative to the API's working directory or absolute; several are separated by `;` on Windows and `:` elsewhere). |
+| `CT_SERIES_DIR` | API | none | A local CT series; lets the Benchmark V2 page recompute images. Its path is never sent to, or accepted from, the browser. |
+| `CORS_ORIGINS` | API | the two development origins (`127.0.0.1:5173`, `localhost:5173`) | Extra browser origins allowed to call the API, comma-separated. Needed only when the page and the API have different origins (a hosted dashboard). |
+| `MAX_UPLOAD_MB`, `MAX_IMAGE_PIXELS`, `MAX_ADVANCED_PIXELS`, `MAX_CONCURRENT_JOBS`, `MAX_CT_FILES`, `MAX_CT_TOTAL_MB` | API | 25, 4,194,304, 1,048,576, 2, 400, 200 | Request limits (see the API section). |
+| `VITE_DEV_API_TARGET` | dashboard server (`npm run dev`, `npm run preview`) | `http://127.0.0.1:8000` | Where `/api` is forwarded. |
+| `VITE_API_BASE_URL` | dashboard **build** (`npm run build`) | unset: the page calls its own origin | The API's address, baked into a production build served by something that does not forward `/api`. |
+| `E2E_PYTHON`, `E2E_BROWSER_CHANNEL`, `E2E_BENCHMARK_RUN_DIR` | browser tests | `python`, `chrome`, unset | Python for the API, browser (`chrome`, `msedge`, `chromium`), optional run directory (see [Tests and checks](#tests-and-checks)). |
+| `DENOISING_PYTHON` | `dev.cmd` only | see above | Python used by the Windows helper. |
+
+The ports (8000 for the API, 5173 for the dashboard) and the use of `127.0.0.1` instead of `localhost` are development defaults, not requirements: `localhost` also works in the browser, and every address can be changed with the commands' `--host` / `--port` options and the variables above. `127.0.0.1` is used on purpose, because `localhost` resolves to `::1` first on some machines while the documented servers listen on IPv4.
 
 ### If the dashboard shows an error
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| **The API is not reachable** — *The dashboard server is running but cannot reach the API at http://127.0.0.1:8000 (ECONNREFUSED)* | The dashboard server is up; nothing answers on port 8000 (the API was not started, is still starting, stopped, or crashed). | Start the API (step 1, or `.\dev.cmd start`). Read the API window for an error. The page reconnects by itself every 2 seconds. |
-| **The dashboard server is not responding** — *The dashboard server at http://localhost:5173 is not responding* | The page is an old tab; the Vite server behind it was closed or stopped, so no request can leave the browser. The usual cause is closing the terminal window that was running `npm run dev` (a program started by hand ends with its window). | Start it again with `.\dev.cmd start`, which keeps it running when its terminal is closed (or step 2 by hand), then reload the page. |
+| **The API is not reachable** — *The dashboard server is running but cannot reach the API at http://127.0.0.1:8000 (ECONNREFUSED)* | The dashboard server is up; nothing answers on port 8000 (the API was not started, is still starting, stopped, or crashed). | Start the API (terminal 1 above). Read its terminal for an error. The page reconnects by itself every 2 seconds. |
+| **The dashboard server is not responding** — *The dashboard server at http://localhost:5173 is not responding* | The page is an old tab; the Vite server behind it stopped, so no request can leave the browser. The usual cause is closing the terminal that was running `npm run dev`. | Start it again (terminal 2 above), then reload the page. |
 | *… answered /api/… with HTTP 404, but not as the API* | Something other than the dashboard server answers on the page's address (a static host, another program on the port), or a production build was made without `VITE_API_BASE_URL`. | Open the page through `npm run dev` or `npm run preview`; for a separately hosted build, set `VITE_API_BASE_URL` when building (and `CORS_ORIGINS` on the API). |
 | *Cannot reach the API at … check VITE_API_BASE_URL and the API's CORS_ORIGINS* | A build that calls a fixed API address cannot reach it. | Start the API at that address, or rebuild with the right `VITE_API_BASE_URL`. |
 | A method is greyed out as *unavailable* | An optional package (PyWavelets) is missing in the Python that runs the API. | `python -m pip install -r requirements-api.txt` in that environment, then restart the API. |
 | `http://127.0.0.1:8000/` shows JSON, not the dashboard | That is the API. The dashboard is on port 5173. | Open http://127.0.0.1:5173/. |
-| `Errno 10048` / *port already in use* | Another program (often an earlier run) holds port 8000 or 5173. | `.\dev.cmd status` shows who; `.\dev.cmd stop` ends this project's own processes. |
-| *'dev.cmd' is not recognized* | See Option A: the current folder is not searched. | Use `.\dev.cmd`, and run it from the repository root. |
+| `Errno 10048` / `Address already in use` | Another program (often an earlier run) holds port 8000 or 5173. | Stop it, or start on another port. On Windows `.\dev.cmd status` shows who holds the ports and `.\dev.cmd stop` ends this project's own processes. |
+| *'dev.cmd' is not recognized* | Windows does not search the current folder for commands. | Use `.\dev.cmd` from the repository root. |
 
-`.\dev.cmd status` answers most of these in one screen. To see what the browser sends, open the developer tools (F12), tab *Network*, and filter by `api`: every request goes to the page's own address (port 5173) and is forwarded to port 8000. Details of the proxy and of the error messages are in [frontend/README.md](frontend/README.md).
+To see what the browser sends, open the developer tools (F12), tab *Network*, and filter by `api`: every request goes to the page's own address (port 5173) and is forwarded to port 8000. Details of the proxy and of the error messages are in [frontend/README.md](frontend/README.md).
 
 ### Using the lab
 
 Open the **2D Denoising Lab**: choose *Cell in saline* or *Brain MRI slice* from the sample list (or upload a PNG, JPEG or DICOM slice), tick the methods to compare, press *Run denoising*, and use the divider to compare the outputs. The table shows the scores the API computed for that run, the parameters actually used and each method's measured runtime. Interface details are in [frontend/README.md](frontend/README.md).
+
+### Production build
+
+```bash
+cd frontend
+npm run build          # writes frontend/dist/
+npm run preview        # serves dist/ on http://127.0.0.1:4173 and forwards /api like the development server
+```
+
+`dist/` is a static site. It calls `/api/...` on its own origin unless it was built with `VITE_API_BASE_URL`. There are two ways to deploy it, and both were exercised by the browser tests with the real API (`frontend/e2e/production.spec.js`):
+
+- **Different origins** (what `render.yaml` does): build with `VITE_API_BASE_URL=https://your-api.example` and start the API with `CORS_ORIGINS=https://your-dashboard.example`.
+- **Same origin**: build without `VITE_API_BASE_URL` and serve `dist/` from a web server that also forwards `/api/` to the API (`vite preview` does exactly that, for local checks only; it is not a production web server, and no other web server was tested).
+
+A static host that serves `index.html` for every path and has no API behind it is detected: the page shows *The API is not reachable* instead of looking healthy.
+
+The API in production: `uvicorn api:app --host 0.0.0.0 --port $PORT` from `backend/` with `requirements-api.txt` installed, as in `render.yaml`. It has no authentication or rate limiting; see [Deployment](#deployment-render).
 
 ## Interfaces
 
@@ -189,32 +253,47 @@ Definitions, assumptions, implementations and the parameter-selection rules are 
 │   ├── test_*.py                   # pytest suite
 │   ├── samples/                    # Small example images and a synthetic DICOM file
 │   ├── docs/methods_and_decisions.md  # Methods, metrics, protocol, decision on deep learning, references
+│   ├── docs/references_verification.md  # What was checked, and what was not, for each cited reference
 │   ├── docs/results/               # Historical snapshots + the shipped recorded benchmark run (byte-exact)
+│   ├── CONTRIBUTING.md             # Development setup, checks, how to add a method or a benchmark run
 │   ├── requirements.txt            # Full development / Streamlit / test dependencies
 │   ├── requirements-api.txt        # Runtime dependencies of the hosted API
 │   └── ruff.toml                   # Lint configuration
 ├── frontend/                       # React + Vite dashboard (src/test: Vitest, e2e: Playwright)
+├── dev.cmd, scripts/dev.ps1        # Optional Windows launcher (start / status / stop); not needed to run the project
 ├── render.yaml                     # Render deployment (not deployed)
 ├── .gitattributes                  # Keeps recorded runs byte-exact
 └── .github/workflows/              # Python tests + lint, frontend lint/test/build, browser tests
 ```
 
-Local datasets (`backend/data/`) and generated outputs (`backend/reports/`, `backend/outputs/`) are ignored by Git.
+Local datasets (`backend/data/`), generated outputs (`backend/reports/`, `backend/outputs/`), the launcher's `logs/`, virtual environments, `node_modules/` and build output are ignored by Git; the recorded benchmark runs under `backend/docs/results/` are tracked on purpose.
 
-## Setup for development
+## Development
 
-Unless stated otherwise, Python commands are run from `backend/`. Python 3.10, 3.11 (API-only) and 3.12 were exercised locally; the GitHub workflow is configured for 3.10 and 3.12 but has not run.
+Python 3.10, 3.11 (API-only) and 3.12 were exercised; the GitHub workflow is configured for 3.10 and 3.12 but has not run. Install the full development environment once (from `backend/`, with a virtual environment activated as in the quick start):
 
 ```bash
 cd backend
-python -m venv .venv                 # then activate it (see Quick start)
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python download_data.py --skip-kaggle --skip-dicom-test-files   # optional: regenerates the local examples
-streamlit run app.py                 # optional: the Streamlit interface
+python -m pip install -r requirements.txt            # API + Streamlit + VTK + pytest + httpx
+python -m pip install "ruff==0.17.2"                 # the linter version CI uses
+cd ../frontend && npm ci
 ```
 
-The example-generation command avoids the optional Kaggle and pydicom-fixture downloads. Optional external downloads have separate terms and are not required.
+Everyday commands:
+
+| Task | Command (from) |
+| --- | --- |
+| Run the API with reload | `python -m uvicorn api:app --reload --host 127.0.0.1 --port 8000` (`backend/`) |
+| Run the dashboard server | `npm run dev` (`frontend/`) |
+| Backend tests | `python -m pytest -q` (`backend/`) |
+| Python lint | `ruff check .` (`backend/`) |
+| Frontend lint / unit tests | `npm run lint` / `npm test` (`frontend/`) |
+| Browser tests (real API, real servers, installed Chrome) | `E2E_PYTHON=<python with the API requirements> npm run e2e` (`frontend/`; in PowerShell `$env:E2E_PYTHON = "..."` first) |
+| Production build | `npm run build` (`frontend/`) |
+| Streamlit app (optional) | `streamlit run app.py` (`backend/`) |
+| Regenerate the local examples (optional) | `python download_data.py --skip-kaggle --skip-dicom-test-files` (`backend/`) |
+
+The example-generation command avoids the optional Kaggle and pydicom-fixture downloads. Optional external downloads have separate terms and are not required. How to add a method or a benchmark run, and what the checks cover, is in [backend/CONTRIBUTING.md](backend/CONTRIBUTING.md).
 
 ## Exploratory benchmark V2
 
@@ -430,4 +509,4 @@ See the [3D viewer validation report](backend/docs/results/3d_viewer_validation.
 
 ## References
 
-Bibliographic records were checked against Crossref and PubMed on 2026-10-25; full texts were not read. The complete list, with DOIs, is in [methods_and_decisions.md](backend/docs/methods_and_decisions.md#6-references). Key sources: Tomasi and Manduchi 1998 (bilateral); Buades, Coll and Morel 2005 (non-local means); Donoho and Johnstone 1994, Chang, Yu and Vetterli 2000 and Coifman and Donoho 1995 (wavelet shrinkage, BayesShrink, shift averaging); Wang et al. 2004 (SSIM); Armato et al. 2011 and the TCIA data citation (LIDC-IDRI); Eulig et al. 2024 (fair benchmarking of low-dose CT denoisers).
+Bibliographic records were checked against Crossref and PubMed on 2026-10-25; full texts were not read. The complete list, with DOIs, is in [methods_and_decisions.md](backend/docs/methods_and_decisions.md#6-references), and what was checked for each entry is in [references_verification.md](backend/docs/references_verification.md). Key sources: Tomasi and Manduchi 1998 (bilateral); Buades, Coll and Morel 2005 (non-local means); Donoho and Johnstone 1994, Chang, Yu and Vetterli 2000 and Coifman and Donoho 1995 (wavelet shrinkage, BayesShrink, shift averaging); Wang et al. 2004 (SSIM); Armato et al. 2011 and the TCIA data citation (LIDC-IDRI); Eulig et al. 2024 (fair benchmarking of low-dose CT denoisers).

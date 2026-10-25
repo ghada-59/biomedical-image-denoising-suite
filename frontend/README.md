@@ -18,7 +18,7 @@ npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/ (`localhost` works as well). The Windows commands for the whole start-up, the one-command helper (`.\dev.cmd start`, `status`, `stop` from the repository root) and the list of error messages are in the [root README](../README.md#quick-start-dashboard).
+Open http://127.0.0.1:5173/ (`localhost` works as well). The complete installation, the configuration variables, the list of error messages and the optional Windows launcher (`.\dev.cmd`) are in the [root README](../README.md#quick-start-dashboard).
 
 ### How the page reaches the API
 

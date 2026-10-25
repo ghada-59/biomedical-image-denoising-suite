@@ -130,9 +130,9 @@ function GainChart({ summary, metric, condition }) {
   return <Plot data={traces} layout={baseLayout(`Change of ${def.label} versus the unfiltered noisy image — ${condition}`, "Tuned filter", `Filtered minus unfiltered${def.unit ? " (" + def.unit + ")" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: 380 }}/>;
 }
 
-function DataTable({ rows, columns }) {
+function DataTable({ rows, columns, label }) {
   if (!rows || !rows.length) return <p className="footnote">No rows for this selection.</p>;
-  return <div className="table-wrap"><table><thead><tr>{columns.map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
+  return <div className="table-wrap" tabIndex={0} role="region" aria-label={label}><table><thead><tr>{columns.map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
     <tbody>{rows.map((row, i) => <tr key={i}>{columns.map(c => <td key={c.key}>{c.render ? c.render(row) : (row[c.key] ?? "—")}</td>)}</tr>)}</tbody></table></div>;
 }
 
@@ -194,7 +194,7 @@ function SliceViewer({ run, conditions }) {
       </div>
       <p className="footnote">Difference maps show the filtered (or noisy) image minus the reference in HU on a grey scale where mid-grey is zero; they are not maps of clinical change. A smoother image is not by itself a more faithful one.</p>
       <h3 className="v2-h3">Metrics of this realisation</h3>
-      <DataTable rows={data.outputs} columns={[
+      <DataTable label="Metrics of this noise realisation" rows={data.outputs} columns={[
         { key: "family", label: "Method" },
         { key: "p", label: "Parameters", render: o => paramText(o.params) },
         { key: "m", label: "RMSE principal (HU)", render: o => o.metrics.main.RMSE_HU.toFixed(2) },
@@ -289,7 +289,7 @@ export default function BenchmarkV2() {
     </Section>
 
     <Section title={`Tuned parameters — ${condition}`} badge="CHOSEN ON 3 TUNING SLICES" note="'identity' means no smoothing scored best under RMSE_HU on the principal mask; it does not show that smoothing is useless elsewhere in the image. 'interior' means both neighbours in the grid scored worse.">
-      <DataTable rows={(selected.rows || []).filter(r => r.condition === condition)} columns={[
+      <DataTable label="Tuned parameters" rows={(selected.rows || []).filter(r => r.condition === condition)} columns={[
         { key: "family", label: "Family" }, { key: "params", label: "Selected parameters", render: r => paramText(r.params) },
         { key: "tuning_score", label: "Tuning RMSE (HU)", render: r => Number(r.tuning_score).toFixed(2) },
         { key: "status", label: "Grid position", render: r => bracketByKey[`${r.condition}|${r.family}`]?.status ?? "—" },
@@ -299,7 +299,7 @@ export default function BenchmarkV2() {
     </Section>
 
     {gridCmp.rows && <Section title="Expanded grid versus the first grid" badge="FILTERED VS FILTERED" note="Each cell compares the tuned result of this run with the tuned result of the first run. 'identical' means the same setting was selected. This is not a comparison with the unfiltered image, and it is not an independent validation: test slices were inspected before the grid was expanded.">
-      <DataTable rows={summariseGridChanges(gridCmp.rows)} columns={[
+      <DataTable label="Expanded grid compared with the first grid" rows={summariseGridChanges(gridCmp.rows)} columns={[
         { key: "metric", label: "Metric" }, { key: "mask", label: "Mask", render: r => (r.mask === "main" ? "principal" : "inner") },
         { key: "improved", label: "Improved" }, { key: "worse", label: "Worse" }, { key: "identical", label: "Identical setting" }, { key: "unresolved", label: "Unresolved" }]}/>
       <p className="footnote">An improvement in RMSE_HU on the principal mask (the tuning criterion) does not carry over to the inner mask or to SSIM; read the rows together.</p>

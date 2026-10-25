@@ -71,7 +71,7 @@ export default function Results({ benchmark }) {
           </div>
           <div className="panel results-table-panel">
             <div className="panel-heading"><span>Benchmark data</span><span className="mini-badge">{rows.length} rows</span></div>
-            <DataTable rows={rows} />
+            <DataTable label="Older 2D benchmark data" rows={rows} />
             <button type="button" className="secondary-button download-button" onClick={() => downloadJson(rows)}><ArrowDownToLine size={16} aria-hidden="true" /> Export filtered data (JSON)</button>
           </div>
           <p className="footnote">Benchmark values are from controlled experiments with synthetic noise on CT slices. Repeated noise realizations are not independent patients and do not establish clinical performance.</p>

@@ -44,13 +44,13 @@ export function MetricCard({ label, value, hint, icon: Icon }) {
   );
 }
 
-export function DataTable({ rows }) {
+export function DataTable({ rows, label = "Data table" }) {
   if (!rows || !rows.length) {
     return <EmptyState icon={BarChart3} title="No measurements yet" detail="Run an experiment or load a benchmark to populate this table." />;
   }
   const keys = Object.keys(rows[0]);
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0} role="region" aria-label={label}>
       <table>
         <thead><tr>{keys.map(k => <th key={k} scope="col">{k.replaceAll("_", " ")}</th>)}</tr></thead>
         <tbody>{rows.map((row, i) => <tr key={i}>{keys.map(k => <td key={k}>{row[k] === null || row[k] === undefined ? "—" : String(row[k])}</td>)}</tr>)}</tbody>

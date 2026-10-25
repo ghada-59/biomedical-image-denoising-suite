@@ -74,8 +74,10 @@ function Test-Packages($python) {
     return $ready
 }
 
+# The comma keeps a single listener an array: without it PowerShell hands back the bare CimInstance, which has no Count, so `.Count -gt 0` was
+# false for a port with exactly one listener and the helper reported a port in use as free.
 function Get-Listener($port) {
-    return @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
+    return , @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
 }
 
 function Get-OwnedProcess($processId) {
@@ -189,16 +191,44 @@ function Show-LogTail($file) {
 
 # Starts a service in a console of its own that has no window, so it belongs to no terminal: closing the window that ran this helper
 # (or any other) leaves it running. cmd only redirects the service's output to a log file; the previous log is kept as *.previous.log.
+#
+# CreateProcess is called directly, with handle inheritance off: System.Diagnostics.Process always inherits every inheritable handle of this
+# window, and a service holding this window's output pipe (`.\dev.cmd start | more`, a CI log, a tool that captures output) keeps that pipe open
+# for as long as it runs, so the helper would seem to hang. CREATE_NO_WINDOW gives the service a console without a window.
 function Start-Detached($workingDirectory, $command, $logFile) {
     New-Item -ItemType Directory -Force $logDir | Out-Null
     if (Test-Path $logFile) { Move-Item -Force $logFile ([System.IO.Path]::ChangeExtension($logFile, 'previous.log')) }
-    $info = New-Object System.Diagnostics.ProcessStartInfo
-    $info.FileName = $env:ComSpec
-    $info.Arguments = "/c `"$command > `"$logFile`" 2>&1`""
-    $info.WorkingDirectory = $workingDirectory
-    $info.UseShellExecute = $false
-    $info.CreateNoWindow = $true
-    return [System.Diagnostics.Process]::Start($info)
+    if (-not ('DevLauncher' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class DevLauncher {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct STARTUPINFO {
+        public int cb; public string lpReserved; public string lpDesktop; public string lpTitle;
+        public int dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags;
+        public short wShowWindow, cbReserved2; public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PROCESS_INFORMATION { public IntPtr hProcess; public IntPtr hThread; public int dwProcessId; public int dwThreadId; }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern bool CreateProcessW(string application, string commandLine, IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles,
+        uint creationFlags, IntPtr environment, string currentDirectory, ref STARTUPINFO startup, out PROCESS_INFORMATION information);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    public static int Start(string commandLine, string workingDirectory) {
+        var startup = new STARTUPINFO(); startup.cb = Marshal.SizeOf(typeof(STARTUPINFO));
+        PROCESS_INFORMATION information;
+        if (!CreateProcessW(null, commandLine, IntPtr.Zero, IntPtr.Zero, false, 0x08000000, IntPtr.Zero, workingDirectory, ref startup, out information))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        CloseHandle(information.hThread); CloseHandle(information.hProcess);
+        return information.dwProcessId;
+    }
+}
+'@
+    }
+    $line = "`"$env:ComSpec`" /c `"$command > `"$logFile`" 2>&1`""
+    return Get-Process -Id ([DevLauncher]::Start($line, $workingDirectory))
 }
 
 if ($Action -eq 'status') {
@@ -244,7 +274,7 @@ else {
     $health = Wait-For "$apiUrl/api/health" 90 { param($b) $b.status -eq 'ok' } $apiProcess
     if (-not $health) {
         Show-LogTail $apiLog
-        Fail "The API did not answer $apiUrl/api/health$(if ($apiProcess.HasExited) { ' (it ended with exit code ' + $apiProcess.ExitCode + ')' } else { ' within 90 seconds' }). Read its log above, or $apiLog."
+        Fail "The API did not answer $apiUrl/api/health$(if ($apiProcess.HasExited) { ' (the process ended)' } else { ' within 90 seconds' }). Read its log above, or $apiLog."
     }
     Write-Ok "The API is ready (version $($health.version))."
 }
@@ -266,7 +296,7 @@ else {
     $seen = Wait-For "$webUrl/api/health" 90 { param($b) $b.status -eq 'ok' } $webProcess
     if (-not $seen) {
         Show-LogTail $webLog
-        Fail "The dashboard did not forward $webUrl/api/health to the API$(if ($webProcess.HasExited) { ' (it ended with exit code ' + $webProcess.ExitCode + ')' } else { ' within 90 seconds' }). Read its log above, or $webLog; run: .\dev.cmd status"
+        Fail "The dashboard did not forward $webUrl/api/health to the API$(if ($webProcess.HasExited) { ' (the process ended)' } else { ' within 90 seconds' }). Read its log above, or $webLog; run: .\dev.cmd status"
     }
 }
 

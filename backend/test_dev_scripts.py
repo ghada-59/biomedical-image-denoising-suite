@@ -64,10 +64,31 @@ def test_the_services_are_started_without_a_terminal_window_that_could_be_closed
     page then said 'The dashboard server is not responding'. The services must run in a console without a window, with output in log files.
     Checked for real on Windows by starting from a console window, closing it and probing both services (see the README)."""
     script = SCRIPT.read_text(encoding="utf-8")
-    assert "$info.CreateNoWindow = $true" in script and "$info.UseShellExecute = $false" in script
+    assert "0x08000000" in script and "false, 0x08000000" in script            # CREATE_NO_WINDOW, handle inheritance off (a service must not hold this window's output pipe)
     assert not re.search(r"Start-Process[^\n]*cmd(\.exe)?'?\s+[^\n]*'?/k", script) and "cmd.exe /k" not in script       # no console window per service
     assert "Start-Detached $backend" in script and "Start-Detached $frontend" in script
     assert "logs\\dev" in script and "/logs/" in (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_a_single_listener_on_a_port_is_still_counted():
+    """`return @(Get-NetTCPConnection ...)` hands back a bare object for one listener; it has no Count, so a port in use looked free."""
+    script = SCRIPT.read_text(encoding="utf-8")
+    assert re.search(r"function Get-Listener\(\$port\) \{\s*return , @\(Get-NetTCPConnection", script)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the helper is a Windows PowerShell script")
+def test_powershell_counts_one_listener_as_one():
+    """The behaviour behind the test above, on the real PowerShell and the real network stack."""
+    import socket
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen()
+        port = server.getsockname()[1]
+        command = (f"function Plain($p) {{ return @(Get-NetTCPConnection -State Listen -LocalPort $p -ErrorAction SilentlyContinue) }}; "
+                   f"function Safe($p) {{ return , @(Get-NetTCPConnection -State Listen -LocalPort $p -ErrorAction SilentlyContinue) }}; "
+                   f"'plain=' + (Plain {port}).Count; 'safe=' + (Safe {port}).Count")
+        result = subprocess.run(["powershell", "-NoProfile", "-Command", command], capture_output=True, text=True, timeout=60)
+    assert "safe=1" in result.stdout, result.stdout + result.stderr
 
 
 def test_the_helper_exists_and_is_reachable_from_the_repository_root():

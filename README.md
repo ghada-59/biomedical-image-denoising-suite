@@ -16,7 +16,7 @@ A biomedical image-processing project for **comparing classical denoising method
 | Benchmark | Synthetic noise in Hounsfield units on one public CT series; parameters tuned on 3 slices, results on 8 other slices; two evaluation masks; bootstrap intervals. **Exploratory: one patient, noisy reference, not an independent validation.** |
 | Reproducibility | The recorded run was produced from a clean commit with source-file hashes and the input manifest recorded. A second full run from a clean clone gave byte-identical result files, and the six original filters reproduce an earlier recorded run byte for byte. |
 | Dashboard | React + FastAPI. The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes; the Benchmark V2 page reads recorded results and says when none are configured. |
-| Tests | Backend 739 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, as installed on the host) 672 passed / 1 skipped; frontend 56 unit/component tests; 12 browser tests against the real API (1 skipped without a configured run). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies. |
+| Tests | Backend 758 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, as installed on the host) 691 passed / 1 skipped; frontend 72 unit/component tests (5 of them start the real Vite server); 21 browser tests against the real API and real servers (1 skipped without a configured run). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies. |
 | Deployment | `render.yaml` is configured and checked against the code; **it has not been deployed**, so there is no public URL. |
 
 ## What the project does
@@ -357,15 +357,17 @@ The loader checks series identity, slice orientation, image dimensions, and slic
 
 | Check | Command | Last result (2026-10-25) |
 | --- | --- | --- |
-| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 739 passed, 1 skipped, 43 s |
-| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 739 passed, 1 skipped, 45 s |
-| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 13 API-related test files | 672 passed, 1 skipped, 42 s |
+| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 758 passed, 1 skipped, 69 s |
+| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 758 passed, 1 skipped, 88 s |
+| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 15 API-related test files | 691 passed, 1 skipped, 91 s |
 | Python lint | `cd backend && ruff check .` | All checks passed |
 | Frontend lint | `cd frontend && npm run lint` | No problems (`--max-warnings 0`) |
-| Frontend unit and component tests | `npm test` | 56 passed |
-| Browser tests (real Chrome, real API) incl. axe-core in both themes | `npm run e2e` | 12 passed, 1 skipped (the skipped one needs `E2E_BENCHMARK_RUN_DIR`; with it set, that test runs and passes and the "no run configured" test is skipped) |
+| Frontend unit and component tests | `npm test` | 72 passed (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend) |
+| Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 21 passed, 1 skipped (the skipped one needs `E2E_BENCHMARK_RUN_DIR`; with it set, that test runs and passes and the "no run configured" test is skipped) |
 | Production build | `npm run build` | Succeeds; entry chunk 222 kB (Plotly, 4.7 MB, loads on demand) |
 | Dependency vulnerabilities | `pip-audit`; `npm audit` | None known (Python environment of the full requirements; npm 0 findings) |
+
+**Checked by hand on Windows 11 (not automated):** `.\dev.cmd start` run from a real console window, that window closed the way the X button does, then both services probed on `127.0.0.1` and `localhost` (API health, dashboard page, `/api/health` through the dashboard): all six answers were HTTP 200 before and after, with the same process ids. The previous design, which gave each service its own terminal window, stopped a service when *that* window was closed. A stop issued from another clone of the project leaves the services of this one alone. The console used for the test was a classic console window; a Windows Terminal tab was not closed in the test, but the services have no terminal of any kind (no console window, no Windows Terminal session), so there is nothing for it to close.
 
 The one skipped backend test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). The frontend tests mock the API with fixtures generated from the real backend, and a backend test fails if those fixtures drift. The GitHub Actions workflows run the same checks on pushes and pull requests to `main`; **they have not been executed on GitHub**, so the existence of a workflow does not confirm that the latest commit passed there.
 

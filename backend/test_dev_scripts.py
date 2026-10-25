@@ -55,7 +55,19 @@ def test_the_readme_documents_the_helper_the_way_it_is_actually_invoked():
     code_lines = [line.strip() for block in re.findall(r"```bat\n(.*?)```", readme, re.S) for line in block.splitlines()]
     assert not [line for line in code_lines if re.match(r"dev\.cmd\b", line)]            # a bare `dev.cmd` is "not recognized" when the current folder is not searched
     assert "python -m uvicorn api:app --host 127.0.0.1 --port 8000" in code_lines          # the documented command is the one the helper runs
-    assert "python -m uvicorn api:app --host 127.0.0.1 --port 8000" in script.replace("`", "").replace('"$python" ', "python ").replace("$apiPort", "8000")
+    started = script.replace("`", "").replace('"$python" ', "python ").replace("$apiPort", "8000").replace(' --app-dir "$backend"', "")    # --app-dir only names the folder
+    assert "python -m uvicorn api:app --host 127.0.0.1 --port 8000" in started
+
+
+def test_the_services_are_started_without_a_terminal_window_that_could_be_closed():
+    """Each service used to get its own console window (a Windows Terminal window on many machines); closing it ended the service and the open
+    page then said 'The dashboard server is not responding'. The services must run in a console without a window, with output in log files.
+    Checked for real on Windows by starting from a console window, closing it and probing both services (see the README)."""
+    script = SCRIPT.read_text(encoding="utf-8")
+    assert "$info.CreateNoWindow = $true" in script and "$info.UseShellExecute = $false" in script
+    assert not re.search(r"Start-Process[^\n]*cmd(\.exe)?'?\s+[^\n]*'?/k", script) and "cmd.exe /k" not in script       # no console window per service
+    assert "Start-Detached $backend" in script and "Start-Detached $frontend" in script
+    assert "logs\\dev" in script and "/logs/" in (ROOT / ".gitignore").read_text(encoding="utf-8")
 
 
 def test_the_helper_exists_and_is_reachable_from_the_repository_root():

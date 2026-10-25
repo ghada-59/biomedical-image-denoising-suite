@@ -38,3 +38,6 @@ reports/
 
 # Local medical imaging datasets (keep local datasets out of Git)
 data/
+
+# Output of the Windows development helper (.\dev.cmd start)
+/logs/

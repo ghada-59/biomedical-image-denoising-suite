@@ -206,7 +206,7 @@ At 50 HU the same 3 × 3 mean filter looks almost useless on the principal mask 
 - **Bootstrap intervals** use 8 slices of one patient. In simulation with 8 slices the nominal 95 % interval covered the true mean in about 79–89 % of cases, so intervals are somewhat too narrow; read them as descriptive spread. No correction for multiple comparisons was applied.
 - Of the 48 selections, 35 are interior minima and 13 are "no filter" choices; 11 of the 35 have a neighbour within 0.1 HU, so several optima are flat. Agreement of the chosen setting with a held-out tuning slice's own best is 86 % (124 of 144) in a leave-one-slice-out check.
 - **Not comparable with the historical results** in `backend/docs/results/` (different noise, clipping before filtering, fixed settings, no split).
-- **Provenance.** The recorded runs (2026-10-24) come from an uncommitted working tree (`d788e0c` plus local changes) and are stored outside the repository; the run metadata records no source-file hashes. Re-running 2 of the 8 conditions with the committed code reproduced the recorded test rows of both runs exactly (difference 0.0), but a complete clean-clone re-run of all conditions has not been done. Future runs should record source hashes and the series UID.
+- **Provenance.** The recorded runs (2026-10-24) come from an uncommitted working tree (`d788e0c` plus local changes) and are stored outside the repository; the run metadata records no source-file hashes. A complete re-run of all 8 conditions from a clean clone of commit `55337b8` (2026-10-25, both grids, command-line entry point) reproduced the recorded results: for the extended grid all 12 CSV files are byte-identical (7,475 rows); for the first grid 9 of 10 files are byte-identical and `tuning_grid.csv` is identical on its common columns (the recorded file predates two added columns). The Python and package versions of the recorded and the repeated runs differed slightly (NumPy 2.5.4 versus 2.5.3, pandas 3.1.0 versus 3.0.6) without changing any value. This shows the committed code reproduces the numbers on this machine and series; it does not validate them on other data, and the recorded metadata still stores no source hashes (an external provenance record was written for the repeat). Future runs should record source hashes and the series UID.
 
 ### Dashboard (Benchmark V2 page)
 
@@ -232,7 +232,7 @@ python benchmark_v2.py --dicom-series "path/to/LIDC-IDRI-0709" --out "path/outsi
 python benchmark_v2.py --dicom-series "path/to/LIDC-IDRI-0709" --out "path/outside/repo/benchmark_v2_run" --grid-version expanded
 ```
 
-Status of these commands: the argument names were checked against the parser, and the benchmark functions were run on two of the eight conditions through a script (see above); **the command-line entry point itself was not executed end to end**, and runtime and memory were not measured. `--grid-version v1` selects the first run's grid.
+Status of these commands: both full runs and `--plan-only` were executed from a clean clone of commit `55337b8` with exit code 0. Elapsed time with the two runs in parallel on a 16-thread laptop: about 22 minutes (extended grid, 1,314 s) and 19 minutes (first grid, 1,157 s). Memory use was not measured. `--grid-version v1` selects the first run's grid. The command refuses a series that is not CT or has no modality rescale.
 
 ## Historical 2D benchmark (`evaluate_denoising.py`)
 
@@ -269,7 +269,7 @@ Run the test suite from `backend/`:
 python -m pytest -q
 ```
 
-Last local runs (2026-10-24, no GitHub Actions run): 503 passed and 1 skipped with Python 3.12.15 (Conda environment); with Python 3.10.21 an earlier state of the suite passed (491 passed, 1 skipped) before 12 metric tests were added. The skipped test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). The GitHub Actions workflow is configured to run pytest on pushes and pull requests targeting `main`, using Python 3.10 and 3.12. The existence of a workflow does not by itself confirm that the latest commit passed; check the current Actions status on GitHub.
+Last local runs (2026-10-24/25, no GitHub Actions run): 511 passed and 1 skipped with Python 3.12.15 (Conda environment); 502 passed and 2 skipped in a clean clone of the previous commit (the extra skip needs a local reports folder); with Python 3.10.21 an earlier state of the suite passed (491 passed, 1 skipped); the API tests (167) also pass in a Python 3.11 environment that has only `requirements-api.txt` plus pytest and httpx. The skipped test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). The GitHub Actions workflow is configured to run pytest on pushes and pull requests targeting `main`, using Python 3.10 and 3.12. The existence of a workflow does not by itself confirm that the latest commit passed; check the current Actions status on GitHub.
 
 ## Data and privacy
 

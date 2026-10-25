@@ -195,9 +195,28 @@ def _decode_image(filename: str, payload: bytes) -> np.ndarray:
     return image
 
 
+@app.get("/", include_in_schema=False)
+def root():
+    """A signpost for anyone who opens the API address in a browser (the dashboard itself runs on another port)."""
+    return {
+        "service": "Biomedical Imaging API",
+        "status": "ok",
+        "message": "This is the API, not the dashboard. Open the dashboard (default http://127.0.0.1:5173/) to use the application.",
+        "links": {"health": "/api/health", "methods": "/api/methods", "samples": "/api/samples", "benchmark_runs": "/api/v2/runs",
+                  "interactive_documentation": "/docs", "openapi_schema": "/openapi.json"},
+    }
+
+
+def _unavailable_methods() -> list[dict]:
+    return [{"id": m.id, "label": m.label, "reason": m.unavailable_reason()} for m in method_registry.METHODS if m.unavailable_reason()]
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "Biomedical Imaging API"}
+    """Liveness plus anything that stops part of the API from working in this environment (for example a missing package)."""
+    unavailable = _unavailable_methods()
+    return {"status": "ok", "service": "Biomedical Imaging API", "version": app.version, "unavailable_methods": unavailable,
+            "problems": [f"{item['label']}: {item['reason']}" for item in unavailable]}
 
 
 @app.get("/api/results")
@@ -289,6 +308,9 @@ def denoise(
         selected = [method_registry.BY_ID[method_id] for method_id in method_registry.parse_method_ids(methods)]
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    for method in selected:
+        if method.unavailable_reason():
+            raise HTTPException(status_code=422, detail=method.unavailable_reason())
     payload = _read_upload(file)
     clean = _decode_image(file.filename or "upload", payload)
     if clean.size > MAX_ADVANCED_PIXELS:

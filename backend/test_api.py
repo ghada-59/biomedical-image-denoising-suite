@@ -45,7 +45,9 @@ def _assert_detail_is_text(response):
 def test_health_reports_ok(client):
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "Biomedical Imaging API"}
+    body = response.json()
+    assert (body["status"], body["service"]) == ("ok", "Biomedical Imaging API")
+    assert set(body) == {"status", "service", "version", "unavailable_methods", "problems"}
 
 
 def test_results_unavailable_when_no_report_exists(client, tmp_path, monkeypatch):

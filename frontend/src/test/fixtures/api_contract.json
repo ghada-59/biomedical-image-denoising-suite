@@ -17,6 +17,7 @@
     "methods": [
       {
         "assumption": "Noise is independent between pixels and the image is smooth at the window scale; edges and small structures are blurred.",
+        "available": true,
         "family": "Spatial",
         "heavy": false,
         "id": "mean",
@@ -37,10 +38,12 @@
           }
         ],
         "reference": "Textbook definition; see docs/methods_and_decisions.md",
-        "summary": "Box average over a square window."
+        "summary": "Box average over a square window.",
+        "unavailable_reason": null
       },
       {
         "assumption": "Suited to impulse (salt-and-pepper) noise; non-linear and can flatten thin structures.",
+        "available": true,
         "family": "Spatial",
         "heavy": false,
         "id": "median",
@@ -61,10 +64,12 @@
           }
         ],
         "reference": "Textbook definition; see docs/methods_and_decisions.md",
-        "summary": "Median of a square window."
+        "summary": "Median of a square window.",
+        "unavailable_reason": null
       },
       {
         "assumption": "Like the mean filter but with smoother weights; edges are blurred in proportion to sigma.",
+        "available": true,
         "family": "Spatial",
         "heavy": false,
         "id": "gaussian",
@@ -98,10 +103,12 @@
           }
         ],
         "reference": "Textbook definition; see docs/methods_and_decisions.md",
-        "summary": "Gaussian-weighted average."
+        "summary": "Gaussian-weighted average.",
+        "unavailable_reason": null
       },
       {
         "assumption": "High frequencies are noise. The sharp cutoff rings near edges and the transform assumes periodic borders.",
+        "available": true,
         "family": "Frequency",
         "heavy": false,
         "id": "fft_ideal",
@@ -122,10 +129,12 @@
           }
         ],
         "reference": "Textbook definition; formulas in docs/methods_and_decisions.md",
-        "summary": "Hard cutoff low-pass in the Fourier domain."
+        "summary": "Hard cutoff low-pass in the Fourier domain.",
+        "unavailable_reason": null
       },
       {
         "assumption": "Smooth roll-off, no ringing; blurs like a spatial Gaussian under periodic borders.",
+        "available": true,
         "family": "Frequency",
         "heavy": false,
         "id": "fft_gauss",
@@ -146,10 +155,12 @@
           }
         ],
         "reference": "Textbook definition; formulas in docs/methods_and_decisions.md",
-        "summary": "Gaussian low-pass in the Fourier domain."
+        "summary": "Gaussian low-pass in the Fourier domain.",
+        "unavailable_reason": null
       },
       {
         "assumption": "Intermediate roll-off between the ideal and Gaussian filters.",
+        "available": true,
         "family": "Frequency",
         "heavy": false,
         "id": "fft_butterworth",
@@ -170,10 +181,12 @@
           }
         ],
         "reference": "Textbook definition; formulas in docs/methods_and_decisions.md",
-        "summary": "Order-2 Butterworth low-pass in the Fourier domain."
+        "summary": "Order-2 Butterworth low-pass in the Fourier domain.",
+        "unavailable_reason": null
       },
       {
         "assumption": "Noise is small compared with the edges to keep; flat regions are smoothed, but noise on an edge is not.",
+        "available": true,
         "family": "Edge-preserving",
         "heavy": true,
         "id": "bilateral",
@@ -207,10 +220,12 @@
           }
         ],
         "reference": "Tomasi and Manduchi, ICCV 1998, doi:10.1109/ICCV.1998.710815",
-        "summary": "Averages only pixels that are close in space and similar in intensity."
+        "summary": "Averages only pixels that are close in space and similar in intensity.",
+        "unavailable_reason": null
       },
       {
         "assumption": "Image structures repeat; noise is independent and roughly Gaussian. The noise level is not supplied, only the strength h.",
+        "available": true,
         "family": "Edge-preserving",
         "heavy": true,
         "id": "nlm",
@@ -231,10 +246,12 @@
           }
         ],
         "reference": "Buades, Coll and Morel, CVPR 2005, doi:10.1109/CVPR.2005.38",
-        "summary": "Averages pixels whose surrounding patches look alike, wherever they are."
+        "summary": "Averages pixels whose surrounding patches look alike, wherever they are.",
+        "unavailable_reason": null
       },
       {
         "assumption": "Noise is Gaussian and white; the image is sparse in the wavelet basis. Correlated noise is only partly removed.",
+        "available": true,
         "family": "Wavelet",
         "heavy": true,
         "id": "wavelet",
@@ -255,7 +272,8 @@
           }
         ],
         "reference": "Chang, Yu and Vetterli, IEEE TIP 2000, doi:10.1109/83.862633",
-        "summary": "Soft-thresholds wavelet coefficients, averaged over circular shifts."
+        "summary": "Soft-thresholds wavelet coefficients, averaged over circular shifts.",
+        "unavailable_reason": null
       }
     ],
     "noise_types": [

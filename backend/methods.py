@@ -11,6 +11,7 @@ All methods take a grayscale image in [0, 1] and return an image clipped to [0, 
 
 from __future__ import annotations
 
+import importlib.util
 from dataclasses import dataclass
 from typing import Callable
 
@@ -89,10 +90,28 @@ class Method:
     run: Runner
     reference: str
     heavy: bool = False          # limited to MAX_ADVANCED_PIXELS by the API
+    requires: tuple[tuple[str, str], ...] = ()      # (importable module, pip package name) this method cannot run without
+
+    def missing_packages(self) -> list[str]:
+        return [package for module, package in self.requires if not package_available(module)]
+
+    def unavailable_reason(self) -> str | None:
+        missing = self.missing_packages()
+        if not missing:
+            return None
+        return (f"{self.label} needs the Python package {', '.join(missing)}, which is not installed in this environment. "
+                f"Install it with: python -m pip install -r requirements-api.txt")
 
     def as_dict(self) -> dict:
+        reason = self.unavailable_reason()
         return {"id": self.id, "label": self.label, "family": self.family, "summary": self.summary, "assumption": self.assumption,
-                "reference": self.reference, "heavy": self.heavy, "parameters": [p.as_dict() for p in self.params]}
+                "reference": self.reference, "heavy": self.heavy, "parameters": [p.as_dict() for p in self.params],
+                "available": reason is None, "unavailable_reason": reason}
+
+
+def package_available(module: str) -> bool:
+    """True when ``module`` can be imported here (checked without importing it)."""
+    return importlib.util.find_spec(module) is not None
 
 
 def _odd(kernel_size: int) -> int:
@@ -176,7 +195,8 @@ METHODS: tuple[Method, ...] = (
            (NLM_H,), _nlm, "Buades, Coll and Morel, CVPR 2005, doi:10.1109/CVPR.2005.38", heavy=True),
     Method("wavelet", "Wavelet (BayesShrink)", "Wavelet", "Soft-thresholds wavelet coefficients, averaged over circular shifts.",
            "Noise is Gaussian and white; the image is sparse in the wavelet basis. Correlated noise is only partly removed.",
-           (WAVELET_SIGMA,), _wavelet, "Chang, Yu and Vetterli, IEEE TIP 2000, doi:10.1109/83.862633", heavy=True),
+           (WAVELET_SIGMA,), _wavelet, "Chang, Yu and Vetterli, IEEE TIP 2000, doi:10.1109/83.862633", heavy=True,
+           requires=(("pywt", "PyWavelets"),)),
 )
 
 BY_ID = {method.id: method for method in METHODS}

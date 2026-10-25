@@ -285,9 +285,10 @@ def test_the_noise_estimate_of_correlated_noise_is_below_its_standard_deviation(
 
 
 def test_the_noise_estimate_needs_enough_pixels_and_valid_shapes():
-    hu = np.zeros((40, 40))
-    assert math.isnan(B.estimate_noise_hu(hu, np.ones((40, 40), dtype=bool)))              # 38 x 38 interior pixels < 2000
-    assert not math.isnan(B.estimate_noise_hu(hu, np.ones((40, 40), dtype=bool), min_pixels=100))
+    hu = np.zeros((30, 30))
+    assert math.isnan(B.estimate_noise_hu(hu, np.ones((30, 30), dtype=bool)))              # 28 x 28 interior pixels < 1000
+    assert not math.isnan(B.estimate_noise_hu(hu, np.ones((30, 30), dtype=bool), min_pixels=100))
+    assert not math.isnan(B.estimate_noise_hu(np.zeros((40, 40)), np.ones((40, 40), dtype=bool)))   # 38 x 38 = 1444 interior pixels
     with pytest.raises(ValueError):
         B.estimate_noise_hu(hu, np.ones((10, 10), dtype=bool))
     with pytest.raises(ValueError):
@@ -314,6 +315,35 @@ def test_the_reference_noise_context_reports_each_slice_and_the_spread():
     assert all(v == pytest.approx(2.0, rel=0.1) for v in values)               # the phantom texture is white noise of 2 HU
     assert context["median_hu"] == pytest.approx(np.median(values)) and context["range_hu"] == [min(values), max(values)]
     assert "ADDED to this existing noise" in context["interpretation"]
+
+
+def test_slices_without_enough_soft_tissue_are_reported_as_null_not_nan():
+    volume = phantom_volume(n=24, size=64)                     # the 64 px phantom's soft tissue is too small for the estimate
+    context = B.reference_noise_context(volume, [6, 11])
+    assert [r["white_noise_equivalent_sd_hu"] for r in context["per_slice"]] == [None, None]
+    assert context["median_hu"] is None and context["range_hu"] is None
+    json.dumps(context, allow_nan=False)                      # must be strict JSON
+
+
+def test_json_safe_replaces_nan_and_infinity_everywhere_and_keeps_everything_else():
+    nested = {"a": float("nan"), "b": [1, float("inf"), (float("-inf"), "x")], "c": {"d": np.float64("nan"), "e": np.float32(1.5), "f": True, "g": None}}
+    safe = B.json_safe(nested)
+    assert safe == {"a": None, "b": [1, None, [None, "x"]], "c": {"d": None, "e": 1.5, "f": True, "g": None}}
+    json.dumps(safe, allow_nan=False)
+
+
+def test_written_metadata_is_strict_json_even_when_a_value_is_nan(tmp_path):
+    tables = {"t": pd.DataFrame({"x": [1.0]})}
+    B.write_outputs(tables, tmp_path, {"estimate": float("nan"), "values": [1.0, float("inf")]})
+    text = (tmp_path / "run_metadata.json").read_text(encoding="utf-8")
+    assert "NaN" not in text and "Infinity" not in text
+    assert json.loads(text, parse_constant=lambda token: pytest.fail(f"non-standard JSON constant {token}"))["estimate"] is None
+
+
+def test_the_pywavelets_version_comes_from_the_installed_distribution():
+    from importlib.metadata import version
+
+    assert B.package_versions()["pywavelets"] == version("PyWavelets")
 
 
 # --- provenance records ------------------------------------------------------------------------------------
@@ -360,7 +390,8 @@ def test_the_command_line_run_with_the_methods_grid_records_the_full_provenance(
     out = tmp_path / "out"
     B.main(["--dicom-series", str(series), "--out", str(out), "--n-tune", "1", "--n-test", "3", "--min-gap", "2",
             "--tune-repeats", "1", "--test-repeats", "1", "--n-boot", "50", "--grid-version", "methods"])
-    meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
+    meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"),
+                      parse_constant=lambda token: pytest.fail(f"non-standard JSON constant {token} in run_metadata.json"))
     assert meta["parameters"]["grid_version"] == "methods"
     assert set(meta["parameters"]["grid"]) == set(B.ALL_FAMILIES)
     added = meta["protocol"]["added_denoisers"]

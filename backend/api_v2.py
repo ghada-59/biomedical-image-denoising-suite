@@ -89,7 +89,7 @@ def _signature(run_dir: Path) -> tuple:
 
 @lru_cache(maxsize=16)
 def _metadata_cached(run_dir: str, signature: tuple) -> dict:
-    return json.loads((Path(run_dir) / "run_metadata.json").read_text(encoding="utf-8"))
+    return B.json_safe(json.loads((Path(run_dir) / "run_metadata.json").read_text(encoding="utf-8")))   # NaN -> null
 
 
 def load_metadata(run_dir: Path) -> dict:
@@ -120,6 +120,15 @@ def integrity(run_dir: Path) -> dict:
     return _integrity_cached(str(run_dir), _signature(run_dir))
 
 
+def _families_of(run_dir: Path) -> list[str]:
+    """Denoiser families that were tuned in a run, in benchmark order (empty if the table is absent or unreadable)."""
+    try:
+        present = set(read_table(run_dir, "selected_parameters")["family"])
+    except (HTTPException, KeyError, OSError, ValueError):
+        return []
+    return [family for family in B.ALL_FAMILIES if family in present]
+
+
 def _summary_of(run_id: str, run_dir: Path) -> dict:
     meta = load_metadata(run_dir)
     params = meta.get("parameters", {})
@@ -136,6 +145,7 @@ def _summary_of(run_id: str, run_dir: Path) -> dict:
         "tune_repeats": params.get("tune_repeats"),
         "test_repeats": params.get("test_repeats"),
         "conditions": [c.get("name") for c in params.get("conditions", [])],
+        "families": _families_of(run_dir),
         "integrity": integrity(run_dir),
         "tables": [n for n in TABLES if (run_dir / f"{n}.csv").is_file()],
         "limitations": meta.get("limitations"),

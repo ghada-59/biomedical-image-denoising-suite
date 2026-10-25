@@ -912,6 +912,17 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
+def json_safe(value):
+    """Copy of ``value`` in which NaN and infinities are ``None``: they are not valid JSON and a browser cannot parse them."""
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    if isinstance(value, (float, np.floating)):
+        return float(value) if math.isfinite(float(value)) else None
+    return value
+
+
 def write_outputs(tables: dict[str, pd.DataFrame], out_dir: Path, metadata: dict) -> dict[str, Path]:
     """Write every table as CSV (full precision) plus ``run_metadata.json`` with file hashes."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -922,7 +933,7 @@ def write_outputs(tables: dict[str, pd.DataFrame], out_dir: Path, metadata: dict
         paths[name] = path
     metadata = dict(metadata)
     metadata["files_sha256"] = {path.name: sha256_of(path) for path in paths.values()}
-    (out_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
+    (out_dir / "run_metadata.json").write_text(json.dumps(json_safe(metadata), indent=2, sort_keys=True, allow_nan=False), encoding="utf-8")
     return paths
 
 
@@ -964,10 +975,10 @@ def series_input_record(series_dir: Path) -> dict:
 
 NOISE_KERNEL = np.array([[1.0, -2.0, 1.0], [-2.0, 4.0, -2.0], [1.0, -2.0, 1.0]])   # Immerkaer (1996); noise gain 6
 SOFT_TISSUE_HU = (0.0, 100.0)
-SOFT_TISSUE_EROSION_PX = 5
+SOFT_TISSUE_EROSION_PX = 3
 
 
-def estimate_noise_hu(hu: np.ndarray, region: np.ndarray, min_pixels: int = 2000) -> float:
+def estimate_noise_hu(hu: np.ndarray, region: np.ndarray, min_pixels: int = 1000) -> float:
     """White-noise-equivalent standard deviation (HU) of ``hu`` inside ``region``.
 
     The image is filtered with the Laplacian-like mask of Immerkaer (1996), whose response to white noise of
@@ -998,8 +1009,10 @@ def reference_noise_context(volume: np.ndarray, slices: Iterable[int]) -> dict:
     for index in sorted(set(int(i) for i in slices)):
         hu = volume[index].astype(np.float64)
         region = soft_tissue_region(hu)
-        rows.append({"slice": index, "soft_tissue_pixels": int(region.sum()), "white_noise_equivalent_sd_hu": estimate_noise_hu(hu, region)})
-    values = [r["white_noise_equivalent_sd_hu"] for r in rows if math.isfinite(r["white_noise_equivalent_sd_hu"])]
+        estimate = estimate_noise_hu(hu, region)
+        rows.append({"slice": index, "soft_tissue_pixels": int(region.sum()),
+                     "white_noise_equivalent_sd_hu": estimate if math.isfinite(estimate) else None})   # None: too few soft-tissue pixels
+    values = [r["white_noise_equivalent_sd_hu"] for r in rows if r["white_noise_equivalent_sd_hu"] is not None]
     return {
         "method": ("median-based Immerkaer (1996) estimate on soft tissue (0 to 100 HU, body interior, eroded by "
                    f"{SOFT_TISSUE_EROSION_PX} px) of the clean reference slices"),
@@ -1024,10 +1037,10 @@ def package_versions() -> dict[str, str]:
     versions = {"python": sys.version.split()[0], "numpy": numpy.__version__, "scipy": scipy.__version__,
                 "scikit-image": skimage.__version__, "opencv": _cv2.__version__, "pandas": pandas.__version__,
                 "pydicom": pydicom.__version__}
-    try:
-        import pywt
-        versions["pywavelets"] = pywt.__version__
-    except ImportError:         # only the wavelet family needs it
+    try:                        # only the wavelet family needs it; the distribution's version, because pywt.__version__ lags behind
+        from importlib.metadata import version
+        versions["pywavelets"] = version("PyWavelets")
+    except Exception:
         pass
     return versions
 

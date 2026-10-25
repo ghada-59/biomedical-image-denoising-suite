@@ -283,3 +283,14 @@ def test_the_api_can_be_imported_without_matplotlib():
             "sys.modules['matplotlib'] = None; sys.modules['matplotlib.pyplot'] = None; import api; print('imported')")
     result = subprocess.run([sys.executable, "-c", code, folder], capture_output=True, text=True)
     assert result.returncode == 0 and "imported" in result.stdout, result.stderr[-500:]
+
+
+def test_a_run_whose_metadata_contains_nan_is_still_served_as_valid_json(client, run):
+    path = run / "run_metadata.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["reference_noise_context"] = {"per_slice": [{"slice": 1, "white_noise_equivalent_sd_hu": float("nan")}]}
+    path.write_text(json.dumps(document), encoding="utf-8")                          # Python writes the token NaN here
+    assert "NaN" in path.read_text(encoding="utf-8")
+    response = client.get("/api/v2/runs/phantom_run")
+    assert response.status_code == 200
+    assert response.json()["metadata"]["reference_noise_context"]["per_slice"][0]["white_noise_equivalent_sd_hu"] is None

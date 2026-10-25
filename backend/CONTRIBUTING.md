@@ -35,6 +35,24 @@ python -m pytest -q
 
 Add or update tests when changing filtering, metric calculations, DICOM loading, volume geometry, or rendering behavior. For numerical changes, include tests for invalid inputs as well as expected outputs.
 
+Other checks, all of which the GitHub workflows also run (they have not been executed on GitHub yet):
+
+```bash
+python -m pip install "ruff==0.17.2"
+ruff check .                      # from backend/: pyflakes-class errors (configuration in ruff.toml)
+
+cd ../frontend                    # Node.js 22.12 or newer
+npm ci
+npm run lint                      # ESLint with the React hook rules
+npm test                          # Vitest + Testing Library, API mocked with fixtures taken from the real backend
+npm run build                     # production build
+E2E_PYTHON=path/to/python npm run e2e   # Playwright: real Chrome, real API (needs Chrome and the API requirements installed)
+```
+
+Adding a denoising method to the lab means one entry in `backend/methods.py` (label, parameters with limits and defaults, assumptions, reference) and, if the endpoint needs a new form field, the same limits in `api.py`; a test fails if the catalogue and the endpoint disagree. If the response of `/api/methods` or `/api/samples` changes, regenerate `frontend/src/test/fixtures/api_contract.json` (the command is printed by `test_frontend_contract.py`). Adding a method to the benchmark also needs a tuning grid fixed on the tuning slices, tests, and a new run in a new directory.
+
+Recorded benchmark runs under `backend/docs/results/benchmark_v2_*` are byte-exact records: their SHA-256 values are stored in `run_metadata.json` and verified by a test and by the API. Do not edit, re-save or re-wrap them; add a new run directory instead.
+
 ## Pull requests
 
 Include a short description of the change, the reason for it, and the tests you ran. For changes to benchmark results, state the dataset/series used, selected slices, noise settings, random seed, and how the reported metrics were calculated. Do not commit local datasets, private medical data, virtual environments, or generated reports unless there is a clear reason and the data's terms permit redistribution.

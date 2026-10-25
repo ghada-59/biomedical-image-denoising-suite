@@ -293,6 +293,7 @@ button:disabled { opacity: .58; cursor: not-allowed; }
   .compare-controls { grid-template-columns: auto minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
+  .hero-visual { display: none; }   /* decorative; its floating chips overlapped the main button on phones */
   .output-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .compare { padding: 10px; }
   .lab-preview .result-image { height: 240px; }
@@ -300,3 +301,11 @@ button:disabled { opacity: .58; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ---- contrast fixes (WCAG AA, measured from the theme variables) ---- */
+:root { --warning-text: var(--warning); }
+:root[data-theme="light"] { --warning-text: #8a5a14; }
+.primary-button { color: #0e1913; box-shadow: 0 5px 18px rgba(0, 0, 0, .18); }          /* dark text on the light-green accent: about 8:1 (white was 2.3:1) */
+:root[data-theme="light"] .primary-button { color: #fff; }
+.primary-button:hover { background: var(--accent-strong); filter: brightness(1.1); }
+.sample-caution, .field-warning { color: var(--warning-text); }

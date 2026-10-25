@@ -362,7 +362,7 @@ def _case_bundle(run_id: str, signature: tuple, slice_index: int, condition: str
     masks = B.reference_masks(reference.astype(np.float64))
     case = B.make_case(reference, request.condition, request.seed, masks=masks)
     outputs = {B.BASELINE: case.noisy_hu}
-    for family in B.FAMILIES:
+    for family in B.ALL_FAMILIES:
         if family in request.params:
             outputs[family] = B.filter_hu(case.noisy_hu, family, request.params[family])
     return request, case, outputs

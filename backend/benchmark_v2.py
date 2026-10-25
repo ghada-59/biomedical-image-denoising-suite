@@ -70,6 +70,7 @@ from scipy import ndimage
 from skimage.metrics import structural_similarity
 
 from evaluate_denoising import window_ct_slice
+from filters import bilateral_filter, non_local_means_filter, wavelet_shrinkage_filter
 
 SCHEMA_VERSION = 2
 BODY_THRESHOLD_HU = -500.0
@@ -211,6 +212,12 @@ def display(hu: np.ndarray) -> np.ndarray:
     return window_ct_slice(hu, DISPLAY_WINDOW_CENTER, DISPLAY_WINDOW_WIDTH)
 
 
+def hu_span() -> float:
+    """Width of the normalisation range: one HU is ``1 / hu_span()`` in the normalised image."""
+    low, high = NORMALISATION_RANGE_HU
+    return high - low
+
+
 def hu_to_unit(hu: np.ndarray) -> np.ndarray:
     """Linear normalisation of HU to (0, 1) over ``NORMALISATION_RANGE_HU``; refuses to clip."""
     low, high = NORMALISATION_RANGE_HU
@@ -323,7 +330,24 @@ def make_case(hu: np.ndarray, condition: Condition, seed: int, masks: dict[str, 
 
 
 FREQUENCY_FAMILIES = {"FFT ideal": "ideal", "FFT Gaussian": "gauss", "FFT Butterworth": "butterworth"}
-FAMILIES = ("Mean", "Median", "Gaussian", *FREQUENCY_FAMILIES)
+FAMILIES = ("Mean", "Median", "Gaussian", *FREQUENCY_FAMILIES)   # the six families of the "v1" and "expanded" grids
+# Three further denoisers, added in the "methods" grid. Each has ONE tuned strength parameter, in HU, so every family
+# is tuned with the same budget of one scalar; the other hyper-parameters are fixed and recorded in the parameters of
+# each selected configuration. ``None`` for the strength parameter is the identity.
+#   Bilateral (Tomasi and Manduchi, 1998)      strength: intensity scale sigma_color_hu; spatial scale fixed
+#   Non-local means (Buades et al., 2005)      strength: filtering parameter h_hu; patch and search window fixed
+#   Wavelet BayesShrink (Chang et al., 2000)   strength: ASSUMED noise level sigma_hu (a strength control, not a
+#                                              measurement); sym4, 3 levels, soft thresholds, 16 circular shifts
+ADVANCED_FAMILIES = {"Bilateral": "sigma_color_hu", "Non-local means": "h_hu", "Wavelet BayesShrink": "sigma_hu"}
+ALL_FAMILIES = (*FAMILIES, *ADVANCED_FAMILIES)       # every family any grid version can contain
+BILATERAL_SIGMA_SPACE_PX = 1.5
+NLM_PATCH_SIZE, NLM_PATCH_DISTANCE = 5, 6
+WAVELET_NAME, WAVELET_LEVELS, WAVELET_MAX_SHIFTS = "sym4", 3, 3
+# Strength grids in HU, fixed from sweeps on the three TUNING slices only (no test slice was scored). Ascending
+# strength after the identity, so an exact tie goes to the weaker smoothing.
+BILATERAL_SIGMA_COLOR_GRID_HU = (5, 8, 12, 16, 20, 25, 32, 40, 50, 65, 80, 100, 130, 160, 200, 260, 320, 500, 800)
+NLM_H_GRID_HU = (3, 5, 8, 12, 16, 20, 25, 32, 40, 50, 65, 80, 100, 130, 160, 200, 260)
+WAVELET_SIGMA_GRID_HU = (5, 8, 12, 16, 20, 30, 40, 50, 65, 80, 100, 130, 160, 200, 260, 320, 400, 500)
 # Grid of the first V2 run ("v1"). Kept unchanged so that run stays reproducible.
 KERNEL_GRID_V1 = (3, 5, 7, 9, 11)
 GAUSSIAN_SIGMA_GRID_V1 = (0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
@@ -340,7 +364,19 @@ CUTOFF_GRID_V1 = (0.05, 0.08, 0.10, 0.15, 0.20, 0.30, 0.40)
 KERNEL_GRID = (1, 3, 5, 7, 9, 11)
 GAUSSIAN_SIGMA_GRID = (0.0, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
 CUTOFF_GRID = (0.05, 0.08, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.80, 1.0, 1.5, 2.0, 3.0, 4.0)
-GRID_VERSIONS = ("v1", "expanded")
+GRID_VERSIONS = ("v1", "expanded", "methods")
+
+
+def advanced_configs(family: str) -> list[dict]:
+    """Configurations of one added denoiser, from the identity to the strongest setting."""
+    if family == "Bilateral":
+        return [{"sigma_color_hu": s, "sigma_space_px": BILATERAL_SIGMA_SPACE_PX} for s in (None, *BILATERAL_SIGMA_COLOR_GRID_HU)]
+    if family == "Non-local means":
+        return [{"h_hu": h, "patch_size": NLM_PATCH_SIZE, "patch_distance": NLM_PATCH_DISTANCE} for h in (None, *NLM_H_GRID_HU)]
+    if family == "Wavelet BayesShrink":
+        return [{"sigma_hu": s, "wavelet": WAVELET_NAME, "levels": WAVELET_LEVELS, "max_shifts": WAVELET_MAX_SHIFTS}
+                for s in (None, *WAVELET_SIGMA_GRID_HU)]
+    raise ValueError(f"Unknown denoiser family: {family!r}")
 
 
 def parameter_grid(grid_version: str = "expanded") -> dict[str, list[dict]]:
@@ -348,6 +384,8 @@ def parameter_grid(grid_version: str = "expanded") -> dict[str, list[dict]]:
 
     ``"expanded"`` lists every family from the WEAKEST smoothing (identity) to the strongest, so an exact
     tie in the tuning score goes to the weaker smoothing. ``"v1"`` is the first run's grid, unchanged.
+    ``"methods"`` is the expanded grid plus the bilateral, non-local-means and wavelet families; the six
+    original families keep exactly their expanded configurations.
     """
     if grid_version == "v1":
         grid: dict[str, list[dict]] = {
@@ -358,7 +396,7 @@ def parameter_grid(grid_version: str = "expanded") -> dict[str, list[dict]]:
         for family in FREQUENCY_FAMILIES:
             grid[family] = [{"cutoff_ratio": c} for c in CUTOFF_GRID_V1]
         return grid
-    if grid_version != "expanded":
+    if grid_version not in ("expanded", "methods"):
         raise ValueError(f"grid_version must be one of {GRID_VERSIONS}.")
     grid = {
         "Mean": [{"kernel_size": k} for k in KERNEL_GRID],
@@ -367,6 +405,9 @@ def parameter_grid(grid_version: str = "expanded") -> dict[str, list[dict]]:
     }
     for family in FREQUENCY_FAMILIES:
         grid[family] = [{"cutoff_ratio": None}] + [{"cutoff_ratio": c} for c in sorted(CUTOFF_GRID, reverse=True)]
+    if grid_version == "methods":
+        for family in ADVANCED_FAMILIES:
+            grid[family] = advanced_configs(family)
     return grid
 
 
@@ -376,6 +417,8 @@ def is_identity(family: str, params: dict) -> bool:
         return int(params["kernel_size"]) == 1
     if family == "Gaussian":
         return float(params["sigma"]) == 0.0
+    if family in ADVANCED_FAMILIES:
+        return params[ADVANCED_FAMILIES[family]] is None
     return params["cutoff_ratio"] is None
 
 
@@ -387,6 +430,8 @@ def smoothing_strength(family: str, params: dict) -> float:
         return float(params["kernel_size"])
     if family == "Gaussian":
         return float(params["sigma"])
+    if family in ADVANCED_FAMILIES:
+        return float(params[ADVANCED_FAMILIES[family]])    # a larger tolerance or assumed noise level smooths more
     return 1.0 / float(params["cutoff_ratio"])             # a larger FFT cutoff keeps more frequencies
 
 
@@ -435,6 +480,17 @@ def apply_filter(image: np.ndarray, family: str, params: dict, clip: bool = True
             out = image
         else:
             out = fft_lowpass(image, float(params["cutoff_ratio"]), FREQUENCY_FAMILIES[family])
+    elif family in ADVANCED_FAMILIES:
+        strength = params[ADVANCED_FAMILIES[family]]
+        if strength is None:
+            out = image
+        elif family == "Bilateral":
+            out = bilateral_filter(image, float(strength) / hu_span(), float(params["sigma_space_px"]))
+        elif family == "Non-local means":
+            out = non_local_means_filter(image, float(strength) / hu_span(), int(params["patch_size"]), int(params["patch_distance"]))
+        else:
+            out = wavelet_shrinkage_filter(image, float(strength) / hu_span(), str(params["wavelet"]),
+                                           int(params["levels"]), int(params["max_shifts"]))
     elif family == BASELINE:
         out = image
     else:
@@ -789,7 +845,7 @@ def pairwise_differences(per_slice: pd.DataFrame, n_boot: int, metrics: tuple[st
     rows = []
     for (condition, mask), cond_group in per_slice.groupby(["condition", "mask"], sort=False):
         wide = {m: cond_group.pivot(index="slice", columns="family", values=m) for m in metrics}
-        families = [f for f in FAMILIES if f in cond_group["family"].unique()]
+        families = [f for f in ALL_FAMILIES if f in cond_group["family"].unique()]
         for i, a in enumerate(families):
             for b in families[i + 1:]:
                 for metric in metrics:
@@ -870,6 +926,90 @@ def write_outputs(tables: dict[str, pd.DataFrame], out_dir: Path, metadata: dict
     return paths
 
 
+SOURCE_FILES = ("benchmark_v2.py", "filters.py", "evaluate_denoising.py", "src/dicom_volume.py",
+                "requirements.txt", "requirements-api.txt")
+
+
+SOURCE_HASH_RULE = "SHA-256 of the file bytes with CRLF replaced by LF (the form Git stores), so the value does not depend on the checkout's line endings"
+
+
+def sha256_lf_normalised(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def source_file_hashes(root: Path, names: Iterable[str] = SOURCE_FILES) -> dict[str, str]:
+    """Line-ending-independent SHA-256 of the source files that define a run, so a result can be tied to the exact code."""
+    return {name: sha256_lf_normalised(root / name) for name in names if (root / name).is_file()}
+
+
+def series_input_record(series_dir: Path) -> dict:
+    """Identity of the input series: instance UID, file count and a SHA-256 manifest of every file.
+
+    The manifest is the text ``<sha256>  <path relative to the series directory>`` per file, sorted by path
+    and joined with LF; ``manifest_sha256`` hashes that text. No patient identifiers are recorded.
+    """
+    import pydicom
+    from src.dicom_volume import discover_dicom_files
+
+    root = Path(series_dir)
+    instances = discover_dicom_files(root)
+    files = sorted(p for p in root.rglob("*") if p.is_file())
+    hashes = {p.relative_to(root).as_posix(): sha256_of(p) for p in files}
+    manifest = "".join(f"{digest}  {name}\n" for name, digest in sorted(hashes.items()))
+    header = pydicom.dcmread(instances[0], stop_before_pixels=True)
+    return {"series_instance_uid": str(getattr(header, "SeriesInstanceUID", "")), "dicom_instances": len(instances),
+            "files_in_directory": len(files), "manifest_format": "<sha256>  <relative path>\\n per file, sorted by path, LF",
+            "manifest_sha256": hashlib.sha256(manifest.encode("utf-8")).hexdigest(), "files_sha256": hashes}
+
+
+NOISE_KERNEL = np.array([[1.0, -2.0, 1.0], [-2.0, 4.0, -2.0], [1.0, -2.0, 1.0]])   # Immerkaer (1996); noise gain 6
+SOFT_TISSUE_HU = (0.0, 100.0)
+SOFT_TISSUE_EROSION_PX = 5
+
+
+def estimate_noise_hu(hu: np.ndarray, region: np.ndarray, min_pixels: int = 2000) -> float:
+    """White-noise-equivalent standard deviation (HU) of ``hu`` inside ``region``.
+
+    The image is filtered with the Laplacian-like mask of Immerkaer (1996), whose response to white noise of
+    standard deviation s has standard deviation 6 s, and the scale is taken from the median absolute response
+    (1.4826 times the median is the robust standard deviation), so isolated structures barely matter. Real CT
+    noise is correlated and the region still holds some anatomy, so this is a rough, white-noise-equivalent
+    figure for the reference slice, not a measurement of its true noise power. ``nan`` if too few pixels qualify.
+    """
+    if hu.ndim != 2 or region.shape != hu.shape:
+        raise ValueError("hu and region must be 2D arrays of the same shape.")
+    response = ndimage.correlate(hu.astype(np.float64), NOISE_KERNEL, mode="nearest")
+    valid = ndimage.binary_erosion(region, structure=np.ones((3, 3), dtype=bool))   # the whole 3x3 window lies inside
+    if int(valid.sum()) < min_pixels:
+        return float("nan")
+    return float(1.4826 * np.median(np.abs(response[valid])) / 6.0)
+
+
+def soft_tissue_region(hu: np.ndarray) -> np.ndarray:
+    """Body pixels between 0 and 100 HU, away from the body edge, lungs and bone (eroded)."""
+    tissue = body_mask(hu) & (hu >= SOFT_TISSUE_HU[0]) & (hu <= SOFT_TISSUE_HU[1])
+    side = 2 * SOFT_TISSUE_EROSION_PX + 1
+    return ndimage.binary_erosion(tissue, structure=np.ones((side, side), dtype=bool))
+
+
+def reference_noise_context(volume: np.ndarray, slices: Iterable[int]) -> dict:
+    """Rough noise level of the clinical reference slices, to put the synthetic levels in context."""
+    rows = []
+    for index in sorted(set(int(i) for i in slices)):
+        hu = volume[index].astype(np.float64)
+        region = soft_tissue_region(hu)
+        rows.append({"slice": index, "soft_tissue_pixels": int(region.sum()), "white_noise_equivalent_sd_hu": estimate_noise_hu(hu, region)})
+    values = [r["white_noise_equivalent_sd_hu"] for r in rows if math.isfinite(r["white_noise_equivalent_sd_hu"])]
+    return {
+        "method": ("median-based Immerkaer (1996) estimate on soft tissue (0 to 100 HU, body interior, eroded by "
+                   f"{SOFT_TISSUE_EROSION_PX} px) of the clean reference slices"),
+        "interpretation": ("white-noise-equivalent, rough: real CT noise is correlated and the region contains anatomy; "
+                           "the synthetic noise below is ADDED to this existing noise"),
+        "per_slice": rows, "median_hu": float(np.median(values)) if values else None,
+        "range_hu": [float(min(values)), float(max(values))] if values else None,
+    }
+
+
 def git_state(cwd: Path) -> str:
     try:
         commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()
@@ -881,15 +1021,44 @@ def git_state(cwd: Path) -> str:
 
 def package_versions() -> dict[str, str]:
     import numpy, pandas, scipy, skimage, cv2 as _cv2, pydicom
-    return {"python": sys.version.split()[0], "numpy": numpy.__version__, "scipy": scipy.__version__,
-            "scikit-image": skimage.__version__, "opencv": _cv2.__version__, "pandas": pandas.__version__,
-            "pydicom": pydicom.__version__}
+    versions = {"python": sys.version.split()[0], "numpy": numpy.__version__, "scipy": scipy.__version__,
+                "scikit-image": skimage.__version__, "opencv": _cv2.__version__, "pandas": pandas.__version__,
+                "pydicom": pydicom.__version__}
+    try:
+        import pywt
+        versions["pywavelets"] = pywt.__version__
+    except ImportError:         # only the wavelet family needs it
+        pass
+    return versions
 
 
-def protocol_description() -> dict:
+def added_denoisers_description() -> dict:
+    """What the three added families are, which hyper-parameters are fixed and which one is tuned."""
+    return {
+        "status": "classical, non-learned; one tuned strength parameter per family, chosen on the tuning slices only",
+        "Bilateral": {"implementation": "cv2.bilateralFilter (float32), reflected borders", "tuned": "sigma_color_hu (HU)",
+                      "fixed": {"sigma_space_px": BILATERAL_SIGMA_SPACE_PX, "window_diameter_px": 2 * math.ceil(3 * BILATERAL_SIGMA_SPACE_PX) + 1},
+                      "fixed_choice": "sigma_space fixed on sweeps over the tuning slices only; the best value differs between noise types"},
+        "Non-local means": {"implementation": "skimage.restoration.denoise_nl_means, fast_mode=True, sigma=0 (noise level not supplied)",
+                            "tuned": "h_hu (HU)", "fixed": {"patch_size": NLM_PATCH_SIZE, "patch_distance": NLM_PATCH_DISTANCE}},
+        "Wavelet BayesShrink": {"implementation": "skimage.restoration.denoise_wavelet, soft thresholds, averaged over circular shifts (cycle spinning)",
+                                "tuned": "sigma_hu (HU): the noise level ASSUMED by BayesShrink, used as a strength control, not a measurement",
+                                "fixed": {"wavelet": WAVELET_NAME, "levels": WAVELET_LEVELS, "max_shifts": WAVELET_MAX_SHIFTS,
+                                          "shifts_averaged": (WAVELET_MAX_SHIFTS + 1) ** 2}},
+        "grids_hu": {"Bilateral": list(BILATERAL_SIGMA_COLOR_GRID_HU), "Non-local means": list(NLM_H_GRID_HU),
+                     "Wavelet BayesShrink": list(WAVELET_SIGMA_GRID_HU)},
+        "grid_design": "fixed from sweeps on the three tuning slices only; no test slice was scored before the run; the run was executed once",
+        "not_included": {"BM3D": "assumes white Gaussian noise of known variance and needs an extra compiled dependency; not tested here",
+                         "learned_denoisers": "see docs/methods_and_decisions.md"},
+    }
+
+
+def protocol_description(grid_version: str = "expanded") -> dict:
     """Machine-readable statement of the mask, the windows and what is (not) comparable."""
     lower, upper = window_bounds()
+    extra = {"added_denoisers": added_denoisers_description()} if grid_version == "methods" else {}
     return {
+        **extra,
         "evaluation_mask": {
             "rule": (f"largest connected region of the CLEAN reference slice above {BODY_THRESHOLD_HU:g} HU, holes filled; "
                      "computed once per slice from the reference only"),
@@ -1029,7 +1198,7 @@ def main(argv: list[str] | None = None) -> None:
         "schema_version": SCHEMA_VERSION, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git_commit": git_state(repo), "benchmark": "V2", "series_directory_name": args.dicom_series.name,
         "voxel_spacing_xyz_mm": list(spacing), "volume_shape_zyx": list(volume.shape),
-        "protocol": protocol_description(),
+        "protocol": protocol_description(args.grid_version),
         "mask_pixel_counts_by_slice": tables["mask_summary"].drop(columns=["main_mask_sha256", "inner_mask_sha256"]).to_dict(orient="records"),
         "mask_sha256_by_slice": {int(r["slice"]): {"main": r["main_mask_sha256"], "inner": r["inner_mask_sha256"]}
                                  for r in tables["mask_summary"].to_dict(orient="records")},
@@ -1054,6 +1223,10 @@ def main(argv: list[str] | None = None) -> None:
                       "bracketed. PSNR and SSIM on the tuning slices are recorded in tuning_grid.csv and compared in "
                       "tuning_criteria_comparison.csv but never select a parameter."),
         "packages": package_versions(),
+        "source_files_sha256": source_file_hashes(Path(__file__).resolve().parent),
+        "source_files_hash_rule": SOURCE_HASH_RULE,
+        "input_series": series_input_record(args.dicom_series),
+        "reference_noise_context": reference_noise_context(volume, [*tune, *test]),
         "limitations": ("Synthetic-noise experiment on one clinical series; the reference is a noisy clinical slice, not ground "
                         "truth; noise levels are scenarios; correlated noise is unvalidated; no clinical validation."),
     }

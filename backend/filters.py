@@ -345,3 +345,141 @@ def apply_frequency_lowpass(
     spectrum = np.log1p(np.abs(fshift))
     spectrum_filtered = np.log1p(np.abs(filtered_shift))
     return image_back, spectrum, spectrum_filtered
+
+
+# --- edge-preserving and wavelet denoisers ------------------------------------------------
+#
+# These three functions work on any finite 2D float image and are expressed in the image's own
+# intensity units: ``sigma_color``, ``h`` and ``sigma`` must be given in those units (for a
+# [0, 1] image, a fraction of the full range; the HU benchmark converts HU to this scale).
+# They do not clip; callers that need [0, 1] clip afterwards.
+
+WAVELETS = ("haar", "db2", "db4", "sym4", "sym8", "coif2")
+BILATERAL_MAX_SIGMA_SPACE = 10.0
+MIN_ADVANCED_SIZE = 8
+
+
+def _check_float_image(image: np.ndarray, name: str = "image") -> None:
+    if not isinstance(image, np.ndarray) or image.ndim != 2:
+        raise ValueError(f"{name} must be a 2D grayscale NumPy array.")
+    if min(image.shape) < MIN_ADVANCED_SIZE:
+        raise ValueError(f"{name} must be at least {MIN_ADVANCED_SIZE} x {MIN_ADVANCED_SIZE} pixels.")
+    if not np.isfinite(image).all():
+        raise ValueError(f"{name} must contain only finite values.")
+
+
+def _positive(value: float, name: str, upper: float | None = None) -> float:
+    if isinstance(value, bool) or not np.isfinite(value) or value <= 0.0:
+        raise ValueError(f"{name} must be positive and finite, got {value}")
+    if upper is not None and value > upper:
+        raise ValueError(f"{name} must not exceed {upper:g}, got {value}")
+    return float(value)
+
+
+def bilateral_filter(image: np.ndarray, sigma_color: float, sigma_space: float) -> np.ndarray:
+    """Bilateral filter (Tomasi and Manduchi, 1998) with OpenCV, reflected borders.
+
+    ``sigma_color`` is the intensity-similarity scale in the image's units and ``sigma_space``
+    the spatial scale in pixels; the window diameter is ``2 * ceil(3 * sigma_space) + 1``.
+    OpenCV filters in float32, so the result differs from a float64 evaluation by rounding
+    only. Two pixels of very different intensity barely influence each other, which is why
+    strong edges are kept; a small ``sigma_color`` approaches the identity.
+    """
+    _check_float_image(image)
+    sigma_color = _positive(sigma_color, "sigma_color")
+    sigma_space = _positive(sigma_space, "sigma_space", BILATERAL_MAX_SIGMA_SPACE)
+    diameter = 2 * int(np.ceil(3.0 * sigma_space)) + 1
+    out = cv2.bilateralFilter(
+        np.ascontiguousarray(image, dtype=np.float32),
+        diameter,
+        sigma_color,
+        sigma_space,
+        borderType=cv2.BORDER_REFLECT101,
+    )
+    return out.astype(np.float64)
+
+
+def non_local_means_filter(
+    image: np.ndarray,
+    h: float,
+    patch_size: int = 5,
+    patch_distance: int = 6,
+) -> np.ndarray:
+    """Non-local means (Buades, Coll and Morel, 2005) as implemented in scikit-image.
+
+    Fast mode, no noise-variance correction (``sigma=0``): the true noise level is not an
+    input, only ``h`` (the filtering strength, in the image's units) is. ``patch_size`` and
+    ``patch_distance`` (pixels) fix the patch and the search window.
+    """
+    from skimage.restoration import denoise_nl_means
+
+    _check_float_image(image)
+    h = _positive(h, "h")
+    for name, value in (("patch_size", patch_size), ("patch_distance", patch_distance)):
+        if isinstance(value, bool) or not isinstance(value, (int, np.integer)) or not 1 <= value <= 15:
+            raise ValueError(f"{name} must be an integer between 1 and 15.")
+    if patch_size % 2 == 0:
+        raise ValueError("patch_size must be odd.")
+    return np.asarray(
+        denoise_nl_means(
+            image.astype(np.float64),
+            patch_size=int(patch_size),
+            patch_distance=int(patch_distance),
+            h=h,
+            fast_mode=True,
+            sigma=0.0,
+            preserve_range=True,
+        ),
+        dtype=np.float64,
+    )
+
+
+def wavelet_max_level(shape: Tuple[int, int], wavelet: str = "sym4") -> int:
+    """Deepest decomposition level that does not run into boundary effects for an image of ``shape``."""
+    import pywt
+
+    if wavelet not in WAVELETS:
+        raise ValueError(f"Unknown wavelet {wavelet!r}. Valid choices: {WAVELETS}.")
+    return int(pywt.dwt_max_level(min(shape), pywt.Wavelet(wavelet).dec_len))
+
+
+def wavelet_shrinkage_filter(
+    image: np.ndarray,
+    sigma: float,
+    wavelet: str = "sym4",
+    levels: int = 3,
+    max_shifts: int = 3,
+) -> np.ndarray:
+    """Soft-threshold wavelet shrinkage with BayesShrink thresholds, made shift-invariant.
+
+    ``sigma`` is the noise standard deviation *assumed* by BayesShrink (Chang, Yu and
+    Vetterli, 2000) in the image's units; it is a strength control, not a measured value.
+    A decimated wavelet transform is not shift invariant and leaves blocky artefacts, so the
+    result is averaged over ``(max_shifts + 1) ** 2`` circular shifts (cycle spinning,
+    Coifman and Donoho, 1995); ``max_shifts=0`` gives the plain decimated transform.
+    """
+    from skimage.restoration import denoise_wavelet
+
+    _check_float_image(image)
+    sigma = _positive(sigma, "sigma")
+    if wavelet not in WAVELETS:
+        raise ValueError(f"Unknown wavelet {wavelet!r}. Valid choices: {WAVELETS}.")
+    if isinstance(levels, bool) or not isinstance(levels, (int, np.integer)) or not 1 <= levels <= 6:
+        raise ValueError("levels must be an integer between 1 and 6.")
+    if isinstance(max_shifts, bool) or not isinstance(max_shifts, (int, np.integer)) or not 0 <= max_shifts <= 7:
+        raise ValueError("max_shifts must be an integer between 0 and 7.")
+    deepest = wavelet_max_level(image.shape, wavelet)
+    if levels > deepest:
+        raise ValueError(f"levels={int(levels)} is too deep for a {image.shape[0]} x {image.shape[1]} image with "
+                         f"{wavelet} (at most {deepest}).")
+    data = image.astype(np.float64)
+    options = dict(
+        sigma=sigma, wavelet=wavelet, mode="soft", wavelet_levels=int(levels),
+        method="BayesShrink", rescale_sigma=True,
+    )
+    total = np.zeros_like(data)
+    shifts = [(dy, dx) for dy in range(int(max_shifts) + 1) for dx in range(int(max_shifts) + 1)]
+    for dy, dx in shifts:
+        shifted = np.roll(data, (dy, dx), axis=(0, 1))
+        total += np.roll(denoise_wavelet(shifted, **options), (-dy, -dx), axis=(0, 1))
+    return total / len(shifts)

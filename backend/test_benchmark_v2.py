@@ -427,7 +427,7 @@ def test_baseline_is_the_identity_and_unknown_families_fail():
     image = _test_image()
     assert np.array_equal(B.apply_filter(image, B.BASELINE, {}), image)
     with pytest.raises(ValueError):
-        B.apply_filter(image, "Bilateral", {})
+        B.apply_filter(image, "Anisotropic diffusion", {})
 
 
 def test_parameter_grid_covers_every_family_with_valid_odd_kernels():

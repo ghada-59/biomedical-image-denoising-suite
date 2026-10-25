@@ -10,6 +10,7 @@ pillow>=10.0.0
 matplotlib>=3.7.0
 pandas>=2.0.0
 scipy>=1.10.0
+PyWavelets>=1.6.0
 
 # Medical imaging
 pydicom>=2.4.0

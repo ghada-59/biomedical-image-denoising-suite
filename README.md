@@ -16,7 +16,7 @@ A biomedical image-processing project for **comparing classical denoising method
 | Benchmark | Synthetic noise in Hounsfield units on one public CT series; parameters tuned on 3 slices, results on 8 other slices; two evaluation masks; bootstrap intervals. **Exploratory: one patient, noisy reference, not an independent validation.** |
 | Reproducibility | The recorded run was produced from a clean commit with source-file hashes and the input manifest recorded. A second full run from a clean clone gave byte-identical result files, and the six original filters reproduce an earlier recorded run byte for byte. |
 | Dashboard | React + FastAPI. The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes; the Benchmark V2 page reads recorded results and says when none are configured. |
-| Tests | Backend 731 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, as installed on the host) 664 passed / 1 skipped; frontend 54 unit/component tests; 12 browser tests against the real API (1 skipped without a configured run). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies. |
+| Tests | Backend 739 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, as installed on the host) 672 passed / 1 skipped; frontend 56 unit/component tests; 12 browser tests against the real API (1 skipped without a configured run). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies. |
 | Deployment | `render.yaml` is configured and checked against the code; **it has not been deployed**, so there is no public URL. |
 
 ## What the project does
@@ -304,12 +304,12 @@ The loader checks series identity, slice orientation, image dimensions, and slic
 
 | Check | Command | Last result (2026-10-25) |
 | --- | --- | --- |
-| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 731 passed, 1 skipped, 46 s |
-| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 731 passed, 1 skipped, 68 s |
-| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 12 API-related test files | 664 passed, 1 skipped, 44 s |
+| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 739 passed, 1 skipped, 43 s |
+| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 739 passed, 1 skipped, 45 s |
+| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 13 API-related test files | 672 passed, 1 skipped, 42 s |
 | Python lint | `cd backend && ruff check .` | All checks passed |
 | Frontend lint | `cd frontend && npm run lint` | No problems (`--max-warnings 0`) |
-| Frontend unit and component tests | `npm test` | 54 passed |
+| Frontend unit and component tests | `npm test` | 56 passed |
 | Browser tests (real Chrome, real API) incl. axe-core in both themes | `npm run e2e` | 12 passed, 1 skipped (the skipped one needs `E2E_BENCHMARK_RUN_DIR`; with it set, that test runs and passes and the "no run configured" test is skipped) |
 | Production build | `npm run build` | Succeeds; entry chunk 222 kB (Plotly, 4.7 MB, loads on demand) |
 | Dependency vulnerabilities | `pip-audit`; `npm audit` | None known (Python environment of the full requirements; npm 0 findings) |

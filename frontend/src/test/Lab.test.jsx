@@ -113,6 +113,31 @@ describe("2D lab: input", () => {
     expect(runButton()).toBeEnabled();
   });
 
+  it("drops the previous image when a sample cannot be fetched, so the sample shown is the image that would run", async () => {
+    const user = userEvent.setup();
+    const table = routes({ "GET /api/samples/cell_phase/file": () => { throw new TypeError("Failed to fetch"); } }).table;
+    await ready(user, table);                                              // an uploaded file is loaded first
+    expect(runButton()).toBeEnabled();
+    await user.selectOptions(screen.getByLabelText(/bundled sample/i), "cell_phase");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Cannot reach the API/);
+    expect(runButton()).toBeDisabled();
+    expect(screen.queryByAltText(/Preview of/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/bundled sample/i)).toHaveValue("");
+  });
+
+  it("never lets the seed exceed what the server accepts", async () => {
+    const user = userEvent.setup();
+    const { table, sent } = routes();
+    await ready(user, table);
+    const seed = screen.getByLabelText("Random seed");
+    await user.clear(seed);
+    await user.type(seed, "99999999999");
+    expect(seed).toHaveValue(4294967295);
+    await user.click(runButton());
+    await screen.findByTestId("lab-results-table");
+    expect(sent[0].seed).toBe("4294967295");
+  });
+
   it("rejects an unreadable file with the server's message and keeps the run disabled", async () => {
     const user = userEvent.setup();
     const { table } = routes({ "POST /api/image/preview": () => json({ detail: "Could not read slice.png: Unrecognized image format or corrupted file." }, 400) });
@@ -281,7 +306,7 @@ describe("2D lab: helpers", () => {
 
   it("keeps sliders inside the server's limits", () => {
     expect(sliderBounds(spec("kernel_size"))).toEqual({ min: 1, max: 31 });
-    expect(sliderBounds(spec("cutoff_ratio"))).toEqual({ min: 0.01, max: 1 });
+    expect(sliderBounds(spec("cutoff_ratio"))).toEqual({ min: 0.01, max: 0.99 });      // the server rejects exactly 1
     expect(sliderBounds(spec("sigma"))).toEqual({ min: 0, max: 50 });
     expect(sliderBounds(spec("bilateral_sigma_color"))).toEqual({ min: 0.01, max: 1 });
   });

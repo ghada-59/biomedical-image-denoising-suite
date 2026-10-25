@@ -353,6 +353,9 @@ def apply_frequency_lowpass(
 # They do not clip; callers that need [0, 1] clip afterwards.
 
 WAVELETS = ("haar", "db2", "db4", "sym4", "sym8", "coif2")
+# Fixed (not tuned) hyper-parameters of the added denoisers; the lab and the benchmark both use these values.
+NLM_PATCH_SIZE, NLM_PATCH_DISTANCE = 5, 6
+WAVELET_NAME, WAVELET_LEVELS, WAVELET_MAX_SHIFTS = "sym4", 3, 3
 BILATERAL_MAX_SIGMA_SPACE = 10.0
 MIN_ADVANCED_SIZE = 8
 
@@ -400,8 +403,8 @@ def bilateral_filter(image: np.ndarray, sigma_color: float, sigma_space: float) 
 def non_local_means_filter(
     image: np.ndarray,
     h: float,
-    patch_size: int = 5,
-    patch_distance: int = 6,
+    patch_size: int = NLM_PATCH_SIZE,
+    patch_distance: int = NLM_PATCH_DISTANCE,
 ) -> np.ndarray:
     """Non-local means (Buades, Coll and Morel, 2005) as implemented in scikit-image.
 
@@ -444,9 +447,9 @@ def wavelet_max_level(shape: Tuple[int, int], wavelet: str = "sym4") -> int:
 def wavelet_shrinkage_filter(
     image: np.ndarray,
     sigma: float,
-    wavelet: str = "sym4",
-    levels: int = 3,
-    max_shifts: int = 3,
+    wavelet: str = WAVELET_NAME,
+    levels: int = WAVELET_LEVELS,
+    max_shifts: int = WAVELET_MAX_SHIFTS,
 ) -> np.ndarray:
     """Soft-threshold wavelet shrinkage with BayesShrink thresholds, made shift-invariant.
 

@@ -24,6 +24,7 @@
         "parameters": [
           {
             "default": 5,
+            "exclusive_maximum": false,
             "exclusive_minimum": false,
             "help": "Window side in pixels. Even values are raised to the next odd value.",
             "integer": true,
@@ -47,6 +48,7 @@
         "parameters": [
           {
             "default": 5,
+            "exclusive_maximum": false,
             "exclusive_minimum": false,
             "help": "Window side in pixels. Even values are raised to the next odd value.",
             "integer": true,
@@ -70,6 +72,7 @@
         "parameters": [
           {
             "default": 5,
+            "exclusive_maximum": false,
             "exclusive_minimum": false,
             "help": "Window side in pixels. Even values are raised to the next odd value.",
             "integer": true,
@@ -82,6 +85,7 @@
           },
           {
             "default": 0.0,
+            "exclusive_maximum": false,
             "exclusive_minimum": false,
             "help": "Standard deviation of the Gaussian kernel in pixels. 0 lets OpenCV derive it from the kernel size.",
             "integer": false,
@@ -105,6 +109,7 @@
         "parameters": [
           {
             "default": 0.15,
+            "exclusive_maximum": true,
             "exclusive_minimum": true,
             "help": "Cutoff radius as a fraction of the smaller half-dimension of the spectrum (1 = Nyquist). Must be in (0, 1).",
             "integer": false,
@@ -128,6 +133,7 @@
         "parameters": [
           {
             "default": 0.15,
+            "exclusive_maximum": true,
             "exclusive_minimum": true,
             "help": "Cutoff radius as a fraction of the smaller half-dimension of the spectrum (1 = Nyquist). Must be in (0, 1).",
             "integer": false,
@@ -151,6 +157,7 @@
         "parameters": [
           {
             "default": 0.15,
+            "exclusive_maximum": true,
             "exclusive_minimum": true,
             "help": "Cutoff radius as a fraction of the smaller half-dimension of the spectrum (1 = Nyquist). Must be in (0, 1).",
             "integer": false,
@@ -174,6 +181,7 @@
         "parameters": [
           {
             "default": 0.4,
+            "exclusive_maximum": false,
             "exclusive_minimum": true,
             "help": "Pixels whose intensity differs by much more than this barely influence each other (edges survive).",
             "integer": false,
@@ -186,6 +194,7 @@
           },
           {
             "default": 1.5,
+            "exclusive_maximum": false,
             "exclusive_minimum": true,
             "help": "Spatial standard deviation in pixels; the window diameter is 2*ceil(3*scale)+1.",
             "integer": false,
@@ -209,6 +218,7 @@
         "parameters": [
           {
             "default": 0.15,
+            "exclusive_maximum": false,
             "exclusive_minimum": true,
             "help": "Patch-similarity tolerance. Too small leaves noise, too large erases texture. Patch 5x5, search window 13x13 are fixed.",
             "integer": false,
@@ -232,6 +242,7 @@
         "parameters": [
           {
             "default": 0.15,
+            "exclusive_maximum": false,
             "exclusive_minimum": true,
             "help": "Noise standard deviation assumed by the BayesShrink thresholds. A strength control, not a measurement.",
             "integer": false,

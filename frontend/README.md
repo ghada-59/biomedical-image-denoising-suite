@@ -37,7 +37,7 @@ Plotly (about 4.7 MB) is loaded only when a page that draws a chart is opened.
 
 ```bash
 npm run lint      # ESLint (React hook rules), must pass with no warnings
-npm test          # Vitest + Testing Library (54 tests); the API is mocked with fixtures generated from the real backend
+npm test          # Vitest + Testing Library (56 tests); the API is mocked with fixtures generated from the real backend
 npm run build     # production build into dist/
 npm run e2e       # Playwright against the real API and the installed Chrome (see playwright.config.js for the environment variables)
 ```

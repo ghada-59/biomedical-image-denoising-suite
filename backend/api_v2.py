@@ -63,6 +63,8 @@ def configured_runs() -> dict[str, Path]:
         if not value:
             continue
         path = Path(value)
+        if not path.is_absolute():
+            path = Path(__file__).resolve().parent / path       # relative entries mean 'relative to backend/', whatever the working directory
         if (path / "run_metadata.json").is_file() and path.name not in runs:
             runs[path.name] = path.resolve()
     return runs

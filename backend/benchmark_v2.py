@@ -70,7 +70,8 @@ from scipy import ndimage
 from skimage.metrics import structural_similarity
 
 from evaluate_denoising import window_ct_slice
-from filters import bilateral_filter, non_local_means_filter, wavelet_shrinkage_filter
+from filters import (NLM_PATCH_DISTANCE, NLM_PATCH_SIZE, WAVELET_LEVELS, WAVELET_MAX_SHIFTS, WAVELET_NAME, bilateral_filter,
+                     non_local_means_filter, wavelet_shrinkage_filter)
 
 SCHEMA_VERSION = 2
 BODY_THRESHOLD_HU = -500.0
@@ -341,8 +342,7 @@ FAMILIES = ("Mean", "Median", "Gaussian", *FREQUENCY_FAMILIES)   # the six famil
 ADVANCED_FAMILIES = {"Bilateral": "sigma_color_hu", "Non-local means": "h_hu", "Wavelet BayesShrink": "sigma_hu"}
 ALL_FAMILIES = (*FAMILIES, *ADVANCED_FAMILIES)       # every family any grid version can contain
 BILATERAL_SIGMA_SPACE_PX = 1.5
-NLM_PATCH_SIZE, NLM_PATCH_DISTANCE = 5, 6
-WAVELET_NAME, WAVELET_LEVELS, WAVELET_MAX_SHIFTS = "sym4", 3, 3
+# NLM_PATCH_SIZE, NLM_PATCH_DISTANCE and the WAVELET_* settings are shared with the lab (imported from filters).
 # Strength grids in HU, fixed from sweeps on the three TUNING slices only (no test slice was scored). Ascending
 # strength after the identity, so an exact tie goes to the weaker smoothing.
 BILATERAL_SIGMA_COLOR_GRID_HU = (5, 8, 12, 16, 20, 25, 32, 40, 50, 65, 80, 100, 130, 160, 200, 260, 320, 500, 800)
@@ -920,6 +920,10 @@ def json_safe(value):
         return [json_safe(item) for item in value]
     if isinstance(value, (float, np.floating)):
         return float(value) if math.isfinite(float(value)) else None
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
     return value
 
 

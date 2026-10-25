@@ -325,9 +325,11 @@ def test_slices_without_enough_soft_tissue_are_reported_as_null_not_nan():
 
 
 def test_json_safe_replaces_nan_and_infinity_everywhere_and_keeps_everything_else():
-    nested = {"a": float("nan"), "b": [1, float("inf"), (float("-inf"), "x")], "c": {"d": np.float64("nan"), "e": np.float32(1.5), "f": True, "g": None}}
+    nested = {"a": float("nan"), "b": [1, float("inf"), (float("-inf"), "x")], "c": {"d": np.float64("nan"), "e": np.float32(1.5), "f": True, "g": None},
+              "h": np.int64(7), "i": np.bool_(True)}
     safe = B.json_safe(nested)
-    assert safe == {"a": None, "b": [1, None, [None, "x"]], "c": {"d": None, "e": 1.5, "f": True, "g": None}}
+    assert safe == {"a": None, "b": [1, None, [None, "x"]], "c": {"d": None, "e": 1.5, "f": True, "g": None}, "h": 7, "i": True}
+    assert type(safe["h"]) is int and type(safe["i"]) is bool
     json.dumps(safe, allow_nan=False)
 
 
@@ -421,3 +423,12 @@ def test_the_default_run_is_unchanged_and_does_not_mention_the_added_denoisers(t
     assert "added_denoisers" not in meta["protocol"] and meta["parameters"]["grid_version"] == "expanded"
     assert set(pd.read_csv(out / "test_summary.csv")["family"]) == set(B.FAMILIES) | {B.BASELINE}
     capsys.readouterr()
+
+
+def test_the_lab_and_the_benchmark_use_the_same_fixed_hyperparameters_for_the_added_denoisers():
+    import methods
+
+    assert (B.NLM_PATCH_SIZE, B.NLM_PATCH_DISTANCE) == (F.NLM_PATCH_SIZE, F.NLM_PATCH_DISTANCE) == (methods.NLM_PATCH_SIZE, methods.NLM_PATCH_DISTANCE)
+    assert (B.WAVELET_NAME, B.WAVELET_LEVELS, B.WAVELET_MAX_SHIFTS) == (F.WAVELET_NAME, F.WAVELET_LEVELS, F.WAVELET_MAX_SHIFTS)         == (methods.WAVELET_NAME, methods.WAVELET_LEVELS, methods.WAVELET_MAX_SHIFTS)
+    wavelet = B.advanced_configs("Wavelet BayesShrink")[1]
+    assert (wavelet["wavelet"], wavelet["levels"], wavelet["max_shifts"]) == (F.WAVELET_NAME, F.WAVELET_LEVELS, F.WAVELET_MAX_SHIFTS)

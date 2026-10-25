@@ -19,6 +19,11 @@ import numpy as np
 from scipy.ndimage import median_filter
 
 from filters import (
+    NLM_PATCH_DISTANCE,
+    NLM_PATCH_SIZE,
+    WAVELET_LEVELS,
+    WAVELET_MAX_SHIFTS,
+    WAVELET_NAME,
     apply_frequency_lowpass,
     bilateral_filter,
     non_local_means_filter,
@@ -26,10 +31,6 @@ from filters import (
     wavelet_shrinkage_filter,
 )
 
-WAVELET_NAME = "sym4"
-WAVELET_TARGET_LEVELS = 3
-WAVELET_SHIFTS = 3
-NLM_PATCH_SIZE, NLM_PATCH_DISTANCE = 5, 6
 
 
 @dataclass(frozen=True)
@@ -46,12 +47,13 @@ class Param:
     unit: str = ""
     help: str = ""
     exclusive_minimum: bool = False
+    exclusive_maximum: bool = False
 
     def as_dict(self) -> dict:
         return {
             "name": self.name, "label": self.label, "minimum": self.minimum, "maximum": self.maximum, "step": self.step,
             "default": self.default, "integer": self.integer, "unit": self.unit, "help": self.help,
-            "exclusive_minimum": self.exclusive_minimum,
+            "exclusive_minimum": self.exclusive_minimum, "exclusive_maximum": self.exclusive_maximum,
         }
 
 
@@ -61,7 +63,7 @@ KERNEL_SIZE = Param("kernel_size", "Kernel size", 1, 51, 2, 5, integer=True, uni
                     help="Window side in pixels. Even values are raised to the next odd value.")
 SIGMA = Param("sigma", "Gaussian sigma", 0.0, 50.0, 0.1, 0.0, unit="px",
               help="Standard deviation of the Gaussian kernel in pixels. 0 lets OpenCV derive it from the kernel size.")
-CUTOFF = Param("cutoff_ratio", "FFT cutoff", 0.0, 1.0, 0.01, 0.15, exclusive_minimum=True,
+CUTOFF = Param("cutoff_ratio", "FFT cutoff", 0.0, 1.0, 0.01, 0.15, exclusive_minimum=True, exclusive_maximum=True,
                help="Cutoff radius as a fraction of the smaller half-dimension of the spectrum (1 = Nyquist). Must be in (0, 1).")
 BILATERAL_COLOR = Param("bilateral_sigma_color", "Intensity scale", 0.0, 1.0, 0.01, 0.40, exclusive_minimum=True,
                         unit="of full range",
@@ -142,9 +144,9 @@ def _wavelet(image: np.ndarray, values: dict):
     deepest = wavelet_max_level(image.shape, WAVELET_NAME)
     if deepest < 1:
         raise ValueError("The image is too small for wavelet shrinkage.")
-    levels = min(WAVELET_TARGET_LEVELS, deepest)
-    out = wavelet_shrinkage_filter(image, sigma, WAVELET_NAME, levels, WAVELET_SHIFTS)
-    return _clip(out), {"assumed_noise_sd": sigma, "wavelet": WAVELET_NAME, "levels": levels, "shifts_averaged": (WAVELET_SHIFTS + 1) ** 2}
+    levels = min(WAVELET_LEVELS, deepest)
+    out = wavelet_shrinkage_filter(image, sigma, WAVELET_NAME, levels, WAVELET_MAX_SHIFTS)
+    return _clip(out), {"assumed_noise_sd": sigma, "wavelet": WAVELET_NAME, "levels": levels, "shifts_averaged": (WAVELET_MAX_SHIFTS + 1) ** 2}
 
 
 METHODS: tuple[Method, ...] = (

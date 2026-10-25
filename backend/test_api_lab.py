@@ -67,8 +67,31 @@ def test_every_catalogued_parameter_is_a_form_field_with_the_same_limits():
             assert field.get("exclusiveMinimum") == param.minimum, name
         else:
             assert field.get("minimum") == param.minimum, name
-        upper = field.get("maximum", field.get("exclusiveMaximum"))
-        assert upper == param.maximum, name
+        if param.exclusive_maximum:
+            assert field.get("exclusiveMaximum") == param.maximum and "maximum" not in field, name
+        else:
+            assert field.get("maximum") == param.maximum and "exclusiveMaximum" not in field, name
+
+
+def test_the_highest_value_a_control_offers_is_accepted_by_the_server():
+    """What the slider can reach must be a valid request: the endpoint's limits and the dashboard's control range agree."""
+    import numpy as np
+
+    from conftest import make_png_bytes
+
+    c = TestClient(api.app, raise_server_exceptions=False)
+    image = make_png_bytes((64, 64))
+    for method in M.METHODS:
+        for param in method.params:
+            step = param.step
+            top = param.maximum - step if param.exclusive_maximum else param.maximum
+            if param.integer:
+                top = min(int(top), 31)
+            bottom = param.minimum + step if param.exclusive_minimum else param.minimum
+            for value in (bottom, top):
+                response = c.post("/api/denoise", files={"file": ("s.png", image, "image/png")},
+                                  data={"methods": method.id, param.name: str(float(np.round(value, 6)) if not param.integer else int(value))})
+                assert response.status_code == 200, f"{method.id} {param.name}={value}: {response.status_code} {response.text[:120]}"
 
 
 def test_method_ids_are_parsed_in_order_without_duplicates_and_rejected_when_unknown():

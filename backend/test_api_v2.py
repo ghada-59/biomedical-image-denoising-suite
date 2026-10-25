@@ -294,3 +294,14 @@ def test_a_run_whose_metadata_contains_nan_is_still_served_as_valid_json(client,
     response = client.get("/api/v2/runs/phantom_run")
     assert response.status_code == 200
     assert response.json()["metadata"]["reference_noise_context"]["per_slice"][0]["white_noise_equivalent_sd_hu"] is None
+
+
+def test_a_relative_run_directory_means_relative_to_backend_whatever_the_working_directory(monkeypatch, tmp_path):
+    from pathlib import Path
+
+    runs = Path(api_v2.__file__).resolve().parent / "docs" / "results"
+    shipped = sorted(p.name for p in runs.glob("benchmark_v2_*") if (p / "run_metadata.json").is_file())
+    assert shipped
+    monkeypatch.chdir(tmp_path)                                   # not backend/
+    monkeypatch.setenv("BENCHMARK_RUN_DIRS", "docs/results/" + shipped[0])
+    assert list(api_v2.configured_runs()) == [shipped[0]]

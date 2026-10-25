@@ -6,10 +6,12 @@ import { EmptyState, Notice, PageHeading, RangeField, formatParams } from "./com
 const FAMILY_ORDER = ["Spatial", "Frequency", "Edge-preserving", "Wavelet"];
 const MAX_KERNEL_SLIDER = 31;
 const ORIGINAL = "Original input";
+const MAX_SEED = 4294967295;      // 2**32 - 1, the server's limit
 
 export function sliderBounds(spec) {
   const min = spec.exclusive_minimum ? Math.max(spec.step, spec.minimum + spec.step) : spec.minimum;
-  const max = spec.integer ? Math.min(spec.maximum, MAX_KERNEL_SLIDER) : spec.maximum;
+  const limit = spec.integer ? Math.min(spec.maximum, MAX_KERNEL_SLIDER) : spec.maximum;
+  const max = spec.exclusive_maximum ? Number((limit - spec.step).toFixed(6)) : limit;   // the server rejects the excluded end point
   return { min, max };
 }
 
@@ -126,6 +128,7 @@ export default function Lab({ apiOnline = true }) {
       const file = await fetchFile(entry.file_url, entry.filename, entry.media_type);
       await chooseFile(file, id);
     } catch (e) {
+      await chooseFile(null);          // drop the previous image so the sample shown always matches the image that would run
       setInputError(e.message);
     }
   }
@@ -241,7 +244,7 @@ export default function Lab({ apiOnline = true }) {
             <div className="field">
               <label className="field-label" htmlFor="lab-seed">Random seed</label>
               <input id="lab-seed" type="number" min="0" max="4294967295" value={seed} disabled={noiseType === "None"}
-                onChange={e => { setSeed(Math.max(0, Math.floor(Number(e.target.value) || 0))); resetResult(); }} />
+                onChange={e => { setSeed(Math.min(MAX_SEED, Math.max(0, Math.floor(Number(e.target.value) || 0)))); resetResult(); }} />
             </div>
           </fieldset>
 

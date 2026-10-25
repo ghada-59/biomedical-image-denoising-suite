@@ -192,7 +192,7 @@ At 50 HU the same 3 × 3 mean filter looks almost useless on the principal mask 
 | RMSE_HU | principal (the tuning criterion) | **30** | 0 | 18 (same setting selected) |
 | RMSE_HU | inner | 12 | **18** | 18 (same setting selected) |
 | MAE_HU | principal | 15 | 15 | 18 (same setting selected) |
-| PSNR | principal | 29 | 0 | 19 |
+| PSNR | principal | 29 | 0 | 19 (18 same setting, 1 unresolved) |
 | SSIM (primary) | principal | 7 | **23** | 18 (same setting selected) |
 
 "30 better, 0 worse" holds only for RMSE_HU on the principal mask, the criterion the grids were tuned for, and it reverses on the inner mask and for SSIM. This does not show that the extended grid is better; it shows that it changes which settings are chosen.

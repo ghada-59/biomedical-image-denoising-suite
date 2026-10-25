@@ -8,6 +8,9 @@ import logging
 import os
 import re
 import tempfile
+import threading
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -18,14 +21,14 @@ import pydicom
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image
 
+import methods as method_registry
+import sample_images
 from filters import (
     NOISE_TYPES,
     add_noise,
-    apply_frequency_lowpass,
-    apply_spatial_filters,
     calculate_metrics,
     load_medical_image,
 )
@@ -53,8 +56,25 @@ MAX_UPLOAD_BYTES = _env_int("MAX_UPLOAD_MB", 25) * 1024 * 1024
 MAX_IMAGE_PIXELS = _env_int("MAX_IMAGE_PIXELS", 2048 * 2048)
 MAX_CT_FILES = _env_int("MAX_CT_FILES", 400)
 MAX_CT_TOTAL_BYTES = _env_int("MAX_CT_TOTAL_MB", 200) * 1024 * 1024
+# Bilateral, non-local means and wavelet shrinkage cost far more than the other filters, so they are capped lower.
+MAX_ADVANCED_PIXELS = _env_int("MAX_ADVANCED_PIXELS", 1024 * 1024)
+# Image jobs are CPU-bound; a small cap on parallel jobs keeps a small host responsive instead of exhausting it.
+MAX_CONCURRENT_JOBS = _env_int("MAX_CONCURRENT_JOBS", 2)
+_JOB_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_JOBS)
 
 NoiseChoice = Literal["None", "Gaussian", "Salt & Pepper", "Speckle (synthetic)"]
+
+
+@contextmanager
+def _job_slot():
+    """Hold one processing slot, or answer 503 at once when every slot is taken."""
+    if not _JOB_SLOTS.acquire(blocking=False):
+        raise HTTPException(status_code=503, detail="The server is busy with other images. Try again in a few seconds.",
+                            headers={"Retry-After": "5"})
+    try:
+        yield
+    finally:
+        _JOB_SLOTS.release()
 
 app = FastAPI(title="Biomedical Imaging API", version="1.0.0")
 
@@ -216,6 +236,36 @@ def image_preview(file: UploadFile = File(...)):
     }
 
 
+@app.get("/api/methods")
+def methods_catalogue():
+    """The denoising methods of the lab with their parameters, limits and defaults, plus the server's resource limits."""
+    return {
+        "methods": method_registry.catalogue(),
+        "default_methods": list(method_registry.DEFAULT_METHOD_IDS),
+        "noise_types": list(NoiseChoice.__args__),
+        "limits": {
+            "max_upload_mb": MAX_UPLOAD_BYTES // (1024 * 1024),
+            "max_image_pixels": MAX_IMAGE_PIXELS,
+            "max_advanced_pixels": MAX_ADVANCED_PIXELS,
+            "max_concurrent_jobs": MAX_CONCURRENT_JOBS,
+        },
+    }
+
+
+@app.get("/api/samples")
+def samples():
+    """Bundled sample images with their provenance, so the lab can be tried without an upload."""
+    return {"samples": [sample.as_dict() for sample in sample_images.available_samples()]}
+
+
+@app.get("/api/samples/{sample_id}/file")
+def sample_file(sample_id: str):
+    sample = sample_images.find_sample(sample_id)
+    if sample is None:
+        raise HTTPException(status_code=404, detail="Unknown sample image.")
+    return FileResponse(sample.path(), media_type=sample.media_type, filename=sample.filename)
+
+
 # These endpoints are plain ``def`` on purpose: they are CPU-bound, so FastAPI runs them
 # in its worker thread pool instead of blocking the event loop.
 @app.post("/api/denoise")
@@ -228,43 +278,59 @@ def denoise(
     kernel_size: int = Form(5, ge=1, le=51),
     sigma: float = Form(0.0, ge=0.0, le=50.0),
     cutoff_ratio: float = Form(0.15, gt=0.0, lt=1.0),
+    bilateral_sigma_color: float = Form(0.40, gt=0.0, le=1.0),
+    bilateral_sigma_space: float = Form(1.5, gt=0.0, le=5.0),
+    nlm_h: float = Form(0.15, gt=0.0, le=1.0),
+    wavelet_sigma: float = Form(0.15, gt=0.0, le=1.0),
+    methods: str = Form(",".join(method_registry.DEFAULT_METHOD_IDS), max_length=200),
 ):
+    started = time.perf_counter()
+    try:
+        selected = [method_registry.BY_ID[method_id] for method_id in method_registry.parse_method_ids(methods)]
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     payload = _read_upload(file)
     clean = _decode_image(file.filename or "upload", payload)
+    if clean.size > MAX_ADVANCED_PIXELS:
+        heavy = [m.label for m in selected if m.heavy]
+        if heavy:
+            raise HTTPException(
+                status_code=413,
+                detail=f"{', '.join(heavy)} {'is' if len(heavy) == 1 else 'are'} limited to {MAX_ADVANCED_PIXELS:,} pixels "
+                       f"and this image has {clean.size:,}; choose other methods or a smaller image.",
+            )
+    values = {"kernel_size": kernel_size, "sigma": sigma, "cutoff_ratio": cutoff_ratio,
+              "bilateral_sigma_color": bilateral_sigma_color, "bilateral_sigma_space": bilateral_sigma_space,
+              "nlm_h": nlm_h, "wavelet_sigma": wavelet_sigma}
+    timings: dict[str, float] = {}
     try:
-        if noise_type == "None":
-            noisy = clean.copy()
-        else:
-            noisy = add_noise(clean, noise_type, amount=noise_amount, var=noise_variance, seed=seed)
-        mean_img, median_img, gaussian_img = apply_spatial_filters(noisy, kernel_size=kernel_size, sigma=sigma)
-        freq_results = {}
-        for method in ("ideal", "gauss", "butterworth"):
-            filtered, _, _ = apply_frequency_lowpass(noisy, cutoff_ratio=cutoff_ratio, filter_type=method)
-            freq_results[method] = filtered
-
-        outputs = {
-            "Noisy input": noisy,
-            "Mean": mean_img,
-            "Median": median_img,
-            "Gaussian": gaussian_img,
-            "Frequency ideal": freq_results["ideal"],
-            "Frequency Gaussian": freq_results["gauss"],
-            "Frequency Butterworth": freq_results["butterworth"],
-        }
-        results_rows = []
-        images = {}
-        for label, output in outputs.items():
-            psnr, ssim = calculate_metrics(clean, output)
-            results_rows.append({
-                "Filter": label,
-                "PSNR (dB)": "∞" if np.isinf(psnr) else round(float(psnr), 3),
-                "SSIM": round(float(ssim), 4),
-            })
-            images[label] = _png_data_url(output)
+        with _job_slot():
+            tick = time.perf_counter()
+            noisy = clean.copy() if noise_type == "None" else add_noise(clean, noise_type, amount=noise_amount, var=noise_variance, seed=seed)
+            timings["Noisy input"] = time.perf_counter() - tick
+            outputs = {"Noisy input": noisy}
+            used = []
+            for method in selected:
+                tick = time.perf_counter()
+                output, parameters = method.run(noisy, values)
+                timings[method.label] = time.perf_counter() - tick
+                outputs[method.label] = output
+                used.append({"id": method.id, "label": method.label, "family": method.family, "parameters": parameters})
+            results_rows = []
+            images = {}
+            for label, output in outputs.items():
+                psnr, ssim = calculate_metrics(clean, output)
+                results_rows.append({
+                    "Filter": label,
+                    "PSNR (dB)": "∞" if np.isinf(psnr) else round(float(psnr), 3),
+                    "SSIM": round(float(ssim), 4),
+                })
+                images[label] = _png_data_url(output)
     except ValueError as exc:
         # Parameter and image checks in filters.py raise ValueError with curated messages.
         logger.info("Rejected /api/denoise request: %s", exc)
         raise HTTPException(status_code=422, detail=_scrub(str(exc))) from exc
+    timings["total"] = time.perf_counter() - started
     return {
         "filename": file.filename or "upload",
         "width": int(clean.shape[1]),
@@ -272,8 +338,17 @@ def denoise(
         "noise_type": noise_type,
         "images": images,
         "results": results_rows,
+        "methods": used,
+        "settings": {
+            "noise_type": noise_type,
+            "noise_amount": noise_amount if noise_type == "Salt & Pepper" else None,
+            "noise_variance": noise_variance if noise_type in ("Gaussian", "Speckle (synthetic)") else None,
+            "seed": seed if noise_type != "None" else None,
+        },
+        "timings_ms": {label: round(seconds * 1000.0, 2) for label, seconds in timings.items()},
         "note": (
-            "Metrics compare outputs with the original image before synthetic noise was added."
+            "Metrics compare outputs with the original image before synthetic noise was added. That image is the uploaded one; "
+            "a real scan is never noise-free, so the scores measure similarity to it, not accuracy against a true clean image."
             if noise_type != "None"
             else "No synthetic noise was added. Metrics measure similarity to the input image, not ground-truth denoising accuracy."
         ),
@@ -319,50 +394,51 @@ def ct_volume(files: list[UploadFile] = File(...)):
             raise HTTPException(status_code=413, detail=f"The series exceeds the {_mb(MAX_CT_TOTAL_BYTES)} total upload limit.")
         _require_valid_dicom_slice(name, payload)
         payloads.append((name, payload))
-    temp_name = ""
-    try:
-        with tempfile.TemporaryDirectory(prefix="biomed-ct-") as temp_dir:
-            temp_name = temp_dir
-            temp_path = Path(temp_dir)
-            for index, (name, payload) in enumerate(payloads):
-                (temp_path / f"{index:05d}_{name}").write_bytes(payload)
-            volume, spacing, origin, direction = load_dicom_volume(temp_path)
-        sample_step = max(1, int(np.ceil(max(volume.shape) / 48)))
-        sample = volume[::sample_step, ::sample_step, ::sample_step]
-        low = float(np.percentile(sample, 1))
-        high = float(np.percentile(sample, 99))
-        if high <= low:
-            low, high = float(np.min(volume)), float(np.max(volume))
-        if high <= low:
-            raise ValueError("The selected CT volume has no intensity variation.")
-        intensity_min = max(low, -1000.0)
-        intensity_max = min(high, 400.0)
-        if intensity_max <= intensity_min:
-            intensity_min, intensity_max = low, high
-        figure = create_ct_volume_figure(
-            volume=volume,
-            spacing_xyz_mm=spacing,
-            origin_xyz_mm=origin,
-            direction_matrix=direction,
-            intensity_min=intensity_min,
-            intensity_max=intensity_max,
-        )
-        middle_slice = volume[volume.shape[0] // 2]
-        normalized = np.clip((middle_slice - intensity_min) / (intensity_max - intensity_min), 0, 1)
-        return {
-            "filename_count": len(payloads),
-            "slices": int(volume.shape[0]),
-            "dimensions_xyz": [int(volume.shape[2]), int(volume.shape[1]), int(volume.shape[0])],
-            "spacing_xyz_mm": [round(float(v), 3) for v in spacing],
-            "intensity_range": [round(intensity_min, 2), round(intensity_max, 2)],
-            "middle_slice": _png_data_url(normalized),
-            "figure": json.loads(figure.to_json()),
-            "note": "Research and educational visualization only; not for diagnosis.",
-        }
-    except Exception as exc:
-        logger.warning("CT reconstruction failed: %s", exc)
-        reason = _scrub(str(exc), temp_name) if isinstance(exc, ValueError) else "unexpected processing error"
-        raise HTTPException(
-            status_code=400,
-            detail=f"Could not reconstruct this CT series. Select all slices from one consistent series. Details: {reason}",
-        ) from exc
+    with _job_slot():
+        temp_name = ""
+        try:
+            with tempfile.TemporaryDirectory(prefix="biomed-ct-") as temp_dir:
+                temp_name = temp_dir
+                temp_path = Path(temp_dir)
+                for index, (name, payload) in enumerate(payloads):
+                    (temp_path / f"{index:05d}_{name}").write_bytes(payload)
+                volume, spacing, origin, direction = load_dicom_volume(temp_path)
+            sample_step = max(1, int(np.ceil(max(volume.shape) / 48)))
+            sample = volume[::sample_step, ::sample_step, ::sample_step]
+            low = float(np.percentile(sample, 1))
+            high = float(np.percentile(sample, 99))
+            if high <= low:
+                low, high = float(np.min(volume)), float(np.max(volume))
+            if high <= low:
+                raise ValueError("The selected CT volume has no intensity variation.")
+            intensity_min = max(low, -1000.0)
+            intensity_max = min(high, 400.0)
+            if intensity_max <= intensity_min:
+                intensity_min, intensity_max = low, high
+            figure = create_ct_volume_figure(
+                volume=volume,
+                spacing_xyz_mm=spacing,
+                origin_xyz_mm=origin,
+                direction_matrix=direction,
+                intensity_min=intensity_min,
+                intensity_max=intensity_max,
+            )
+            middle_slice = volume[volume.shape[0] // 2]
+            normalized = np.clip((middle_slice - intensity_min) / (intensity_max - intensity_min), 0, 1)
+            return {
+                "filename_count": len(payloads),
+                "slices": int(volume.shape[0]),
+                "dimensions_xyz": [int(volume.shape[2]), int(volume.shape[1]), int(volume.shape[0])],
+                "spacing_xyz_mm": [round(float(v), 3) for v in spacing],
+                "intensity_range": [round(intensity_min, 2), round(intensity_max, 2)],
+                "middle_slice": _png_data_url(normalized),
+                "figure": json.loads(figure.to_json()),
+                "note": "Research and educational visualization only; not for diagnosis.",
+            }
+        except Exception as exc:
+            logger.warning("CT reconstruction failed: %s", exc)
+            reason = _scrub(str(exc), temp_name) if isinstance(exc, ValueError) else "unexpected processing error"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not reconstruct this CT series. Select all slices from one consistent series. Details: {reason}",
+            ) from exc

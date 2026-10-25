@@ -38,7 +38,7 @@ function groupByFamily(methods) {
   return rest.length ? [...groups, ["Other", rest]] : groups;
 }
 
-export default function Lab({ apiOnline = true }) {
+export default function Lab({ apiOnline = true, apiEpoch = 0 }) {
   const [catalogue, setCatalogue] = useState({ status: "loading", methods: [], defaults: [], noiseTypes: [], limits: {}, error: "" });
   const [samples, setSamples] = useState([]);
   const [sampleId, setSampleId] = useState("");
@@ -68,13 +68,17 @@ export default function Lab({ apiOnline = true }) {
       const defaults = {};
       body.methods.forEach(m => m.parameters.forEach(p => { defaults[p.name] = p.default; }));
       setValues(defaults);
-      setSelected(new Set(body.default_methods));
+      const usable = new Set(body.methods.filter(m => m.available !== false).map(m => m.id));
+      setSelected(new Set(body.default_methods.filter(id => usable.has(id))));
       setCatalogue({ status: "ready", methods: body.methods, defaults: body.default_methods, noiseTypes: body.noise_types, limits: body.limits, error: "" });
     }).catch(e => setCatalogue({ status: "error", methods: [], defaults: [], noiseTypes: [], limits: {}, error: e.message }));
     api("/api/samples").then(body => setSamples(body.samples)).catch(() => setSamples([]));
   }, []);
 
-  useEffect(() => { loadCatalogue(); }, [loadCatalogue]);
+  const catalogueStatus = useRef("loading");
+  catalogueStatus.current = catalogue.status;
+  // Load on first show; reload when the API comes back, but only if the catalogue is not already loaded (keeps the user's settings).
+  useEffect(() => { if (catalogueStatus.current !== "ready") loadCatalogue(); }, [loadCatalogue, apiEpoch]);
   useEffect(() => () => { if (localUrl.current) URL.revokeObjectURL(localUrl.current); }, []);
 
   const methods = catalogue.methods;
@@ -134,6 +138,7 @@ export default function Lab({ apiOnline = true }) {
   }
 
   function toggleMethod(id) {
+    if (methods.find(m => m.id === id)?.available === false) return;
     setSelected(current => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -254,9 +259,9 @@ export default function Lab({ apiOnline = true }) {
               <div className="method-group" key={family}>
                 <p className="method-family">{family}</p>
                 {list.map(m => (
-                  <label className="method-option" key={m.id}>
-                    <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggleMethod(m.id)} />
-                    <span>{m.label}{m.heavy && <small className="method-cost"> slower</small>}</span>
+                  <label className="method-option" key={m.id} title={m.unavailable_reason || undefined}>
+                    <input type="checkbox" checked={selected.has(m.id)} disabled={m.available === false} onChange={() => toggleMethod(m.id)} />
+                    <span>{m.label}{m.heavy && <small className="method-cost"> slower</small>}{m.available === false && <small className="method-cost"> unavailable</small>}</span>
                   </label>
                 ))}
               </div>

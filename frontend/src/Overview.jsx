@@ -14,7 +14,7 @@ function WorkflowCard({ number, title, detail, icon: Icon, tag, onClick }) {
   );
 }
 
-export default function Overview({ setPage, benchmark, apiState }) {
+export default function Overview({ setPage, benchmark, apiState, apiEpoch = 0 }) {
   const [methodCount, setMethodCount] = useState(null);
   const [v2, setV2] = useState({ status: "loading", runs: 0 });
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function Overview({ setPage, benchmark, apiState }) {
     api("/api/methods").then(b => alive && setMethodCount(b.methods.length)).catch(() => alive && setMethodCount(null));
     api("/api/v2/runs").then(b => alive && setV2({ status: "ready", runs: b.runs.length })).catch(() => alive && setV2({ status: "error", runs: 0 }));
     return () => { alive = false; };
-  }, [apiState]);
+  }, [apiState, apiEpoch]);
   const count = benchmark.rows?.length || 0;
   const methodsText = methodCount ? `${methodCount} classical denoisers` : "classical denoisers";
 

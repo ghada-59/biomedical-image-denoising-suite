@@ -211,7 +211,7 @@ function SliceViewer({ run, conditions }) {
   </div>;
 }
 
-export default function BenchmarkV2() {
+export default function BenchmarkV2({ apiEpoch = 0 }) {
   const [state, setState] = useState({ status: "loading", runs: [], caveats: [], sliceOk: false, error: "" });
   const [runId, setRunId] = useState("");
   const [metric, setMetric] = useState("RMSE_HU");
@@ -224,7 +224,7 @@ export default function BenchmarkV2() {
       setState({ status: body.runs.length ? "ready" : "empty", runs: body.runs, caveats: body.caveats, sliceOk: body.slice_comparison_available, error: "" });
       if (body.runs.length) setRunId(body.runs[body.runs.length - 1].id);
     }).catch(e => setState({ status: "error", runs: [], caveats: [], sliceOk: false, error: e.message }));
-  }, []);
+  }, [apiEpoch]);
 
   const run = state.runs.find(r => r.id === runId);
   const summary = useTable(runId, "test_summary");
@@ -241,7 +241,7 @@ export default function BenchmarkV2() {
   }, [runId]);
 
   if (state.status === "loading") return <p className="footnote" role="status">Loading benchmark runs…</p>;
-  if (state.status === "error") return <Notice tone="warn">The API is not reachable ({state.error}). Start the backend to view benchmark results.</Notice>;
+  if (state.status === "error") return <Notice tone="warn">Benchmark results cannot be loaded. {state.error}</Notice>;
   if (state.status === "empty") return <div className="empty-state"><div className="empty-icon"><FlaskConical size={25}/></div><h3>No benchmark V2 run is configured</h3><p>Set the BENCHMARK_RUN_DIRS environment variable on the API server to one or more run directories (each containing run_metadata.json). Nothing is displayed until real results are available.</p></div>;
 
   const conditions = run.conditions;

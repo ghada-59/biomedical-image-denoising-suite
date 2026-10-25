@@ -10,7 +10,7 @@ const METRIC_NOTES = [
     "A single DICOM file can be previewed in 2D. A meaningful 3D voxel grid requires multiple slices from one series with consistent orientation, pixel spacing and geometry."],
 ];
 
-export default function Guide() {
+export default function Guide({ apiEpoch = 0 }) {
   const [state, setState] = useState({ status: "loading", methods: [], error: "" });
   useEffect(() => {
     let alive = true;
@@ -18,7 +18,7 @@ export default function Guide() {
       .then(body => alive && setState({ status: "ready", methods: body.methods, error: "" }))
       .catch(e => alive && setState({ status: "error", methods: [], error: e.message }));
     return () => { alive = false; };
-  }, []);
+  }, [apiEpoch]);
 
   return (
     <section>
@@ -26,7 +26,7 @@ export default function Guide() {
         description="What this workspace implements, how to read the measurements and the limitations to keep in mind." />
       <h2 className="lab-subheading">Denoising methods</h2>
       {state.status === "loading" && <p className="muted" role="status">Loading the method list from the API…</p>}
-      {state.status === "error" && <p className="error-box" role="alert">{state.error} The method descriptions come from the API; start it to see them.</p>}
+      {state.status === "error" && <p className="error-box" role="alert">The method descriptions come from the API and could not be loaded. {state.error}</p>}
       <div className="guide-grid">
         {state.methods.map(m => (
           <article className="panel guide-card" key={m.id}>

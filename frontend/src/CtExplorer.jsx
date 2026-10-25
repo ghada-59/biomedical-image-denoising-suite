@@ -4,7 +4,7 @@ import { Plot } from "./plot";
 import { api, apiHostLabel, apiIsLocal } from "./api";
 import { EmptyState, ImagePanel, MetricCard, PageHeading } from "./components";
 
-export default function CtExplorer() {
+export default function CtExplorer({ apiState = "online" }) {
   const [files, setFiles] = useState([]);
   const [data, setData] = useState(null);
   const [slicePreview, setSlicePreview] = useState(null);
@@ -53,9 +53,10 @@ export default function CtExplorer() {
         </div>
         <label className="secondary-button">
           {files.length ? "Change files" : "Select DICOM files"}
-          <input type="file" multiple accept=".dcm" aria-label="Select DICOM files" onChange={e => selectFiles(e.target.files)} />
+          <input type="file" multiple accept=".dcm" aria-label="Select DICOM files" disabled={apiState === "offline"} onChange={e => selectFiles(e.target.files)} />
         </label>
       </div>
+      {apiState === "offline" && <div className="error-box wide-error" role="alert"><CircleHelp size={18} aria-hidden="true" /><span>The API is not reachable, so a CT series cannot be processed right now. See the notice at the top of the page; this page works again as soon as the API answers.</span></div>}
       {busy && <div className="loading-card" role="status"><span className="spinner" aria-hidden="true" /> Reading DICOM metadata and building volume…</div>}
       {error && <div className={slicePreview ? "notice-box" : "error-box wide-error"} role={slicePreview ? "status" : "alert"}><CircleHelp size={18} aria-hidden="true" /><span>{error}</span></div>}
       {slicePreview && (

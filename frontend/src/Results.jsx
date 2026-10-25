@@ -30,7 +30,7 @@ function downloadJson(rows) {
   URL.revokeObjectURL(url);
 }
 
-export default function Results({ benchmark }) {
+export default function Results({ benchmark, apiState = "online", apiMessage = "" }) {
   const [noise, setNoise] = useState("Gaussian");
   const rows = useMemo(() => (benchmark.rows || []).filter(row => String(row.Noise) === noise), [benchmark.rows, noise]);
   const best = useMemo(() => rows.reduce((a, b) => (!a || Number(b.Mean_SSIM) > Number(a.Mean_SSIM) ? b : a), null), [rows]);
@@ -40,7 +40,11 @@ export default function Results({ benchmark }) {
       <PageHeading eyebrow="EXPERIMENT SUMMARY / 03" title="Results & Reports"
         description="Explore the older 2D benchmark file found by the API. Its provenance status is shown below. Newer, tuned and held-out comparisons are on the Benchmark V2 page."
         action={<span className="pill"><BarChart3 size={14} aria-hidden="true" />{benchmark.available ? (provenance?.status === "documented_run" ? "Documented run" : "Historical results") : "No benchmark"}</span>} />
-      {benchmark.available ? (
+      {apiState === "offline" ? (
+        <EmptyState icon={BarChart3} title="Results cannot be loaded: the API is not reachable" detail={apiMessage || "Start the backend; this page loads the results by itself when it answers."} />
+      ) : apiState === "checking" ? (
+        <p className="muted" role="status">Contacting the API…</p>
+      ) : benchmark.available ? (
         <>
           <div className="benchmark-toolbar">
             <div>

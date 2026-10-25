@@ -37,7 +37,8 @@ export function formEntries(body) {
 
 export function baseRoutes(extra = {}) {
   return {
-    "GET /api/health": { status: "ok" },
+    "HEAD /": () => new Response(null),                       // the dashboard server itself answers
+    "GET /api/health": { status: "ok", service: "Biomedical Imaging API", version: "1.0.0", unavailable_methods: [], problems: [] },
     "GET /api/results": { available: false, rows: [], noise_types: [], source: null, provenance: null },
     "GET /api/methods": CATALOGUE,
     "GET /api/samples": SAMPLES,

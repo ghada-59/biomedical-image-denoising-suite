@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import BenchmarkV2, { classifyGridChange, summariseGridChanges } from "../BenchmarkV2";
-import { baseRoutes, mockApi } from "./mockApi";
+import { baseRoutes, json, mockApi } from "./mockApi";
 
 vi.mock("../plot", () => ({ Plot: props => <div data-testid="plot" data-traces={props.data.length} /> }));
 
@@ -51,7 +51,7 @@ describe("Benchmark V2 page", () => {
   it("reports an unreachable API instead of an empty page", async () => {
     mockApi(baseRoutes({ "GET /api/v2/runs": () => { throw new TypeError("Failed to fetch"); } }));
     render(<BenchmarkV2 />);
-    expect(await screen.findByText(/The API is not reachable/)).toBeInTheDocument();
+    expect(await screen.findByText(/Benchmark results cannot be loaded/)).toBeInTheDocument();
   });
 
   it("shows the provenance of a recorded run, its verified files and the number of denoisers it covers", async () => {
@@ -101,7 +101,7 @@ describe("Benchmark V2 page", () => {
   });
 
   it("shows a table error without hiding the rest of the page", async () => {
-    mockApi(routes([run()], { "GET /api/v2/runs/run_a/tables/test_summary": () => new Response(JSON.stringify({ detail: "This run does not contain that table." }), { status: 404 }) }));
+    mockApi(routes([run()], { "GET /api/v2/runs/run_a/tables/test_summary": () => json({ detail: "This run does not contain that table." }, 404) }));
     render(<BenchmarkV2 />);
     expect(await screen.findByText("This run does not contain that table.")).toBeInTheDocument();
     expect(screen.getByText("FILES VERIFIED")).toBeInTheDocument();

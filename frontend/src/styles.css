@@ -309,3 +309,15 @@ button:disabled { opacity: .58; cursor: not-allowed; }
 :root[data-theme="light"] .primary-button { color: #fff; }
 .primary-button:hover { background: var(--accent-strong); filter: brightness(1.1); }
 .sample-caution, .field-warning { color: var(--warning-text); }
+
+/* ---- connection banner (shown on every page when the API or the dashboard server stops answering) ---- */
+.api-banner { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border)); border-left: 4px solid var(--danger); border-radius: 10px; background: color-mix(in srgb, var(--danger) 9%, var(--surface)); color: var(--text); }
+.api-banner > svg { flex: 0 0 auto; margin-top: 2px; color: var(--danger); }
+.api-banner > div { flex: 1; min-width: 0; }
+.api-banner strong { display: block; font-size: 14px; }
+.api-banner p { margin: 4px 0 6px; color: var(--muted); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.api-banner small { color: var(--subtle); font-size: 12px; }
+.api-banner .secondary-button { flex: 0 0 auto; min-height: 34px; }
+.api-banner-warn { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); border-left-color: var(--warning); background: color-mix(in srgb, var(--warning) 8%, var(--surface)); }
+.api-banner-warn > svg { color: var(--warning-text); }
+@media (max-width: 640px) { .api-banner { flex-wrap: wrap; } .api-banner .secondary-button { width: 100%; } }

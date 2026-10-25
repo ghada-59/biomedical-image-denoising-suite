@@ -62,13 +62,13 @@ describe("2D lab: catalogue and controls", () => {
     table["GET /api/methods"] = failing;
     mockApi(table);
     render(<Lab apiOnline={false} />);
-    expect(await screen.findByText(/Cannot reach the API/)).toBeInTheDocument();
+    expect(await screen.findByText(/failed before the server answered/)).toBeInTheDocument();
     expect(screen.getByText("Start with an image")).toBeInTheDocument();
     expect(runButton()).toBeDisabled();
     table["GET /api/methods"] = good;
     await user.click(screen.getByRole("button", { name: /retry/i }));
     expect(await screen.findByRole("checkbox", { name: "Mean" })).toBeInTheDocument();
-    expect(screen.queryByText(/Cannot reach the API/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/failed before the server answered/)).not.toBeInTheDocument();
   });
 
   it("tells the user that files stay on this computer when the API is local", async () => {
@@ -85,6 +85,54 @@ describe("2D lab: catalogue and controls", () => {
     }
     expect(screen.getByText("Select at least one method.")).toBeInTheDocument();
     expect(runButton()).toBeDisabled();
+  });
+});
+
+describe("2D lab: availability and recovery", () => {
+  const REASON = "Wavelet (BayesShrink) needs the Python package PyWavelets, which is not installed in this environment. Install it with: python -m pip install -r requirements-api.txt";
+
+  it("shows a method the server cannot run as unavailable, with the reason, and never sends it", async () => {
+    const user = userEvent.setup();
+    const catalogue = { ...CATALOGUE, methods: CATALOGUE.methods.map(m => (m.id === "wavelet" ? { ...m, available: false, unavailable_reason: REASON } : m)) };
+    const { sent, table } = routes({ "GET /api/methods": catalogue });
+    await ready(user, table);
+    const wavelet = screen.getByRole("checkbox", { name: /Wavelet \(BayesShrink\)/ });
+    expect(wavelet).toBeDisabled();
+    expect(wavelet).not.toBeChecked();
+    expect(screen.getByText("unavailable")).toBeInTheDocument();
+    expect(wavelet.closest("label")).toHaveAttribute("title", REASON);
+    await user.click(wavelet);
+    expect(wavelet).not.toBeChecked();
+    await user.click(runButton());
+    await screen.findByTestId("lab-results-table");
+    expect(sent[0].methods).not.toContain("wavelet");
+  });
+
+  it("loads the catalogue by itself when the API returns (epoch changes), without a manual retry", async () => {
+    const table = routes().table;
+    const good = table["GET /api/methods"];
+    table["GET /api/methods"] = () => json({ code: "api_unreachable", detail: "The dashboard server is running but cannot reach the API at http://127.0.0.1:8000 (ECONNREFUSED)." }, 502);
+    mockApi(table);
+    const { rerender } = render(<Lab apiOnline={false} apiEpoch={0} />);
+    expect(await screen.findByText(/cannot reach the API at http:\/\/127\.0\.0\.1:8000/)).toBeInTheDocument();
+    table["GET /api/methods"] = good;
+    rerender(<Lab apiOnline apiEpoch={1} />);
+    expect(await screen.findByRole("checkbox", { name: "Mean", exact: true })).toBeInTheDocument();
+    expect(screen.queryByText(/cannot reach the API/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the user's settings when the API returns while the catalogue is already loaded", async () => {
+    const user = userEvent.setup();
+    const { table } = routes();
+    mockApi(table);
+    const { rerender } = render(<Lab apiOnline apiEpoch={0} />);
+    await screen.findByRole("checkbox", { name: "Mean", exact: true });
+    await user.click(screen.getByRole("checkbox", { name: /Non-local means/ }));
+    fireEvent.change(screen.getByLabelText("Kernel size"), { target: { value: "9" } });
+    rerender(<Lab apiOnline apiEpoch={2} />);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(screen.getByRole("checkbox", { name: /Non-local means/ })).toBeChecked();
+    expect(screen.getByLabelText("Kernel size")).toHaveValue("9");
   });
 });
 
@@ -119,7 +167,7 @@ describe("2D lab: input", () => {
     await ready(user, table);                                              // an uploaded file is loaded first
     expect(runButton()).toBeEnabled();
     await user.selectOptions(screen.getByLabelText(/bundled sample/i), "cell_phase");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Cannot reach the API/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/failed before the server answered/);
     expect(runButton()).toBeDisabled();
     expect(screen.queryByAltText(/Preview of/)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/bundled sample/i)).toHaveValue("");
@@ -272,7 +320,7 @@ describe("2D lab: running an experiment", () => {
     expect(await screen.findByTestId("lab-error")).toHaveTextContent(/busy or starting up/);
     table["POST /api/denoise"] = () => { throw new TypeError("Failed to fetch"); };
     await user.click(runButton());
-    await waitFor(() => expect(screen.getByTestId("lab-error")).toHaveTextContent(/Cannot reach the API/));
+    await waitFor(() => expect(screen.getByTestId("lab-error")).toHaveTextContent(/failed before the server answered/));
   });
 
   it("drops stale results when a setting changes and ignores a response that arrives late", async () => {

@@ -967,6 +967,27 @@ def dicom_conversion_facts(series_dir: Path) -> dict:
             "note": "the WindowCenter/WindowWidth tags are NOT used by benchmark V2"}
 
 
+def require_hounsfield_series(series_dir: Path) -> None:
+    """Refuse a series whose stored values cannot be read as Hounsfield units.
+
+    The benchmark defines noise, masks (-500 HU body threshold, -1500 HU padding) and the display
+    window in HU. That is only meaningful for a CT series with an explicit modality rescale.
+    """
+    import pydicom
+    from src.dicom_volume import discover_dicom_files
+
+    header = pydicom.dcmread(discover_dicom_files(series_dir)[0], stop_before_pixels=True)
+    modality = str(getattr(header, "Modality", "absent"))
+    if modality != "CT":
+        raise ValueError(f"Benchmark V2 needs a CT series (Hounsfield units); the DICOM Modality is {modality!r}.")
+    for tag in ("RescaleSlope", "RescaleIntercept"):
+        if not hasattr(header, tag):
+            raise ValueError(f"The series has no {tag}, so its values cannot be interpreted as Hounsfield units.")
+    slope = float(header.RescaleSlope)
+    if not math.isfinite(slope) or slope <= 0 or not math.isfinite(float(header.RescaleIntercept)):
+        raise ValueError("RescaleSlope must be positive and finite and RescaleIntercept finite.")
+
+
 def ensure_outside_repository(out_dir: Path, repository_root: Path, allow: bool) -> None:
     out, root = out_dir.resolve(), repository_root.resolve()
     if not allow and (out == root or root in out.parents):
@@ -993,6 +1014,7 @@ def main(argv: list[str] | None = None) -> None:
 
     repo = Path(__file__).resolve().parent.parent
     ensure_outside_repository(args.out, repo, args.allow_inside_repo)
+    require_hounsfield_series(args.dicom_series)
     volume, spacing, _, _ = load_dicom_volume(args.dicom_series)
     eligible = eligible_slices(volume)
     tune, test = split_slices(eligible, args.n_tune, args.n_test, args.min_gap)

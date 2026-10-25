@@ -1467,3 +1467,42 @@ def test_evaluate_masks_rejects_a_non_finite_output():
         B.evaluate_masks(case, bad)
     with pytest.raises(ValueError, match="same shape"):
         B.evaluate_masks(case, case.noisy_hu[:, :-1])
+
+
+# --- the series must be a CT series with a modality rescale --------------------------------------------
+
+
+def _series_with(tmp_path, **kwargs):
+    from conftest import make_dicom_bytes
+
+    directory = tmp_path / "series"
+    directory.mkdir()
+    for index in range(3):
+        (directory / f"s{index}.dcm").write_bytes(make_dicom_bytes(series_uid="1.2.826.0.1.3680043.8.498.600", instance_number=index + 1,
+                                                                   z_mm=3.0 * index, **kwargs))
+    return directory
+
+
+def test_a_ct_series_with_a_rescale_is_accepted(tmp_path):
+    B.require_hounsfield_series(_series_with(tmp_path))
+
+
+@pytest.mark.parametrize("kwargs, message", [
+    ({"overrides": {"Modality": "MR"}}, "needs a CT series"),
+    ({"omit": ("Modality",)}, "needs a CT series"),
+    ({"omit": ("RescaleSlope",)}, "RescaleSlope"),
+    ({"omit": ("RescaleIntercept",)}, "RescaleIntercept"),
+    ({"overrides": {"RescaleSlope": 0.0}}, "positive and finite"),
+    ({"overrides": {"RescaleSlope": -1.0}}, "positive and finite"),
+])
+def test_a_series_that_cannot_be_read_as_hounsfield_units_is_refused(tmp_path, kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        B.require_hounsfield_series(_series_with(tmp_path, **kwargs))
+
+
+def test_the_command_line_refuses_a_non_ct_series_before_writing_anything(tmp_path):
+    series = _series_with(tmp_path, overrides={"Modality": "MR"})
+    out = tmp_path / "out"
+    with pytest.raises(ValueError, match="needs a CT series"):
+        B.main(["--dicom-series", str(series), "--out", str(out), "--plan-only"])
+    assert not out.exists()

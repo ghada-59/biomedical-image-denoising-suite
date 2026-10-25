@@ -10,7 +10,12 @@ const METRICS = [
   { key: "SSIM_Wang2004", label: "SSIM (Wang 2004)", unit: "", lowerIsBetter: false, note: "Windowed display images; 11x11 Gaussian window, windows fully inside the mask." },
 ];
 const MASKS = { main: "Principal mask", inner: "Inner mask (10 px from padding removed)" };
-const FAMILY_COLORS = { "Noisy (no filter)": "#8d9aa8", Mean: "#7188ff", Median: "#22a699", Gaussian: "#e3a64f", "FFT ideal": "#b18aff", "FFT Gaussian": "#5ca8e8", "FFT Butterworth": "#e27d9b" };
+const FAMILY_COLORS = { "Noisy (no filter)": "#8d9aa8", Mean: "#7188ff", Median: "#22a699", Gaussian: "#e3a64f", "FFT ideal": "#b18aff", "FFT Gaussian": "#5ca8e8", "FFT Butterworth": "#e27d9b", Bilateral: "#8bd17c", "Non-local means": "#ff8a65", "Wavelet BayesShrink": "#4dd0e1" };
+const ADDED_NOTES = {
+  Bilateral: "Bilateral: the tuned value is the intensity scale (HU); the spatial scale is fixed.",
+  "Non-local means": "Non-local means: the tuned value is the filtering strength h (HU); patch and search window are fixed, and the true noise level is not supplied.",
+  "Wavelet BayesShrink": "Wavelet BayesShrink: the tuned value is the noise level the thresholds ASSUME (HU), used as a strength control, not a measurement.",
+};
 const RANGE_NOTE = "Intervals are 95% percentile bootstrap intervals over test slices of one patient; they under-cover and are descriptive.";
 
 function useThemeTick() {
@@ -242,11 +247,12 @@ export default function BenchmarkV2() {
   const conditions = run.conditions;
   const bracketByKey = Object.fromEntries((bracketing.rows || []).map(r => [`${r.condition}|${r.family}`, r]));
   const integrityOk = run.integrity.status === "verified";
+  const addedFamilies = (run.families || []).filter(f => ADDED_NOTES[f]);
   const agreement = criteria.rows ? { n: criteria.rows.length, psnr: criteria.rows.filter(r => r.PSNR_agrees).length, ssim: criteria.rows.filter(r => r.SSIM_agrees).length } : null;
 
   return <section className="v2-page">
     <div className="page-heading"><div><p className="eyebrow">EXPLORATORY STUDY / 04</p><h1>Benchmark V2</h1>
-      <p className="page-description">Six classical filters compared under synthetic noise on one CT series. Every number below is read from the files of a recorded run or recomputed from its recorded seeds.</p></div></div>
+      <p className="page-description">{(run.families || []).length || "Several"} classical denoisers compared under synthetic noise on one CT series. Every number below is read from the files of a recorded run or recomputed from its recorded seeds.</p></div></div>
 
     <Notice tone="warn"><ShieldCheck size={15}/> Exploratory study: one patient, few slices, a noisy clinical reference and synthetic noise. Not clinically validated and not evidence that any filter is best in general.</Notice>
 
@@ -288,6 +294,7 @@ export default function BenchmarkV2() {
         { key: "tuning_score", label: "Tuning RMSE (HU)", render: r => Number(r.tuning_score).toFixed(2) },
         { key: "status", label: "Grid position", render: r => bracketByKey[`${r.condition}|${r.family}`]?.status ?? "—" },
       ]}/>
+      {addedFamilies.map(f => <p className="footnote" key={f}>{ADDED_NOTES[f]}</p>)}
       {agreement && <p className="footnote">Across all {agreement.n} tuned settings of this run, PSNR would have chosen the same parameters as RMSE_HU in {agreement.psnr} and SSIM in {agreement.ssim} (tuning slices only).</p>}
     </Section>
 

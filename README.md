@@ -35,31 +35,84 @@ The project does **not** claim that one filter is best for every image or noise 
 
 ## Quick start (dashboard)
 
-Requirements: Python 3.10 to 3.12 and Node.js 22.12 or newer. From the repository root.
+Requirements: Python 3.10 to 3.12 and Node.js 22.12 or newer. The dashboard is **two programs that both have to run**: the **API** (FastAPI, `http://127.0.0.1:8000`) and the **dashboard server** (Vite, `http://127.0.0.1:5173`). The browser talks only to the dashboard server, which forwards every `/api/...` request to the API, so start the API first. The commands were run on Windows 11 in Command Prompt (`cmd.exe`) and are the same in an Anaconda Prompt. Replace `D:\myprojects\biomedical-image-denoising-suite` by the folder you cloned into.
 
-**1. Start the API** (Windows Command Prompt shown; on macOS/Linux use `source .venv/bin/activate` and `export BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25`):
+### Option A: one command (Windows)
 
 ```bat
-cd backend
+cd /d D:\myprojects\biomedical-image-denoising-suite
+.\dev.cmd start
+```
+
+Type the `.\`. A bare `dev.cmd` is answered with *'dev.cmd' is not recognized* in PowerShell and in Command Prompts where Windows does not search the current folder (the `NoDefaultCurrentDirectoryInExePath` setting, which is on for the machine this was tested on).
+
+`start` chooses the Python (the variable `DENOISING_PYTHON` if set, else `backend\.venv`, else the `python` of the active environment), checks that the API's packages import, opens the API in its own window, **waits until `/api/health` answers**, then opens the dashboard server in a second window, checks that the dashboard really forwards to the API, and opens the browser. The two windows stay open, so an error is never hidden; it takes about 15 seconds. Two more commands:
+
+```bat
+.\dev.cmd status
+.\dev.cmd stop
+```
+
+`status` shows what listens on ports 8000 and 5173, which Python is used and whether `127.0.0.1` and `localhost` answer, and changes nothing. `stop` ends only this project's processes: a program that listens on port 8000 or 5173 **and** is `uvicorn api:app` or the Vite server, plus the windows the helper opened. Anything else on those ports is reported and left alone; `.\dev.cmd stop -DryRun` lists what would be stopped. `start` also takes `-NoBrowser`.
+
+### Option B: two windows by hand
+
+**0. Environment (once).** Command Prompt with a virtual environment:
+
+```bat
+cd /d D:\myprojects\biomedical-image-denoising-suite\backend
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-api.txt
+```
+
+Anaconda Prompt with an existing environment: `conda activate biomedical-denoising` (or `conda activate D:\path\to\environment`), then `cd /d D:\myprojects\biomedical-image-denoising-suite\backend` and `python -m pip install -r requirements-api.txt`. That last line is safe to repeat; it adds what is missing. One package matters: without PyWavelets the API still starts, but the wavelet method is marked *unavailable* (with the reason) in the lab, in `/api/health` and in `/api/methods`, and the helper prints a warning. On macOS/Linux use `source .venv/bin/activate`.
+
+**1. Window 1: the API.** Activate the environment, then:
+
+```bat
+cd /d D:\myprojects\biomedical-image-denoising-suite\backend
 set BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25
 python -m uvicorn api:app --host 127.0.0.1 --port 8000
 ```
 
-`requirements-api.txt` is enough for the dashboard; `requirements.txt` adds Streamlit, VTK, matplotlib and the test tools. `BENCHMARK_RUN_DIRS` exposes the recorded benchmark run that ships with the repository; without it the Benchmark V2 page reports that no run is configured.
+It is ready when the window prints `Uvicorn running on http://127.0.0.1:8000`. Check it in a browser: http://127.0.0.1:8000/ answers with a short JSON note saying that this is the API and where the dashboard and the documentation are, http://127.0.0.1:8000/docs lists every route, http://127.0.0.1:8000/api/health answers `{"status":"ok",...}`. `requirements-api.txt` is enough for the dashboard; `requirements.txt` adds Streamlit, VTK, matplotlib and the test tools. `BENCHMARK_RUN_DIRS` exposes the recorded benchmark run that ships with the repository; without it the Benchmark V2 page reports that no run is configured. (macOS/Linux: `export BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25`.)
 
-**2. Start the dashboard** (second terminal):
+**2. Window 2: the dashboard server.**
 
-```bash
-cd frontend
+```bat
+cd /d D:\myprojects\biomedical-image-denoising-suite\frontend
 npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/. Try the **2D Denoising Lab**: choose *Cell in saline* or *Brain MRI slice* from the sample list (or upload a PNG, JPEG or DICOM slice), tick the methods to compare, press *Run denoising*, and use the divider to compare the outputs. The table shows the scores the API computed for that run, the parameters actually used and each method's measured runtime. Interface details are in [frontend/README.md](frontend/README.md).
+It is ready when the window prints `Local: http://127.0.0.1:5173/`. If port 5173 is taken it stops with an error instead of choosing another port, so the address stays the one in this document.
+
+**3. Open the dashboard:** http://127.0.0.1:5173/ (http://localhost:5173/ works as well; both were tested). The bottom of the sidebar must say **API ONLINE** with the API's address. If it does not, see the next section.
+
+**4. Stop:** press `Ctrl+C` in each window (answer `Y` if asked), or run `.\dev.cmd stop` from the repository root.
+
+If the API is started later than the dashboard, or is stopped and started again, the open page notices within a few seconds and loads its data by itself; nothing has to be reloaded. A stopped dashboard server needs a restart and a reload of the page.
+
+### If the dashboard shows an error
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| **The API is not reachable** — *The dashboard server is running but cannot reach the API at http://127.0.0.1:8000 (ECONNREFUSED)* | The dashboard server is up; nothing answers on port 8000 (the API was not started, is still starting, stopped, or crashed). | Start the API (step 1, or `.\dev.cmd start`). Read the API window for an error. The page reconnects by itself every 2 seconds. |
+| **The dashboard server is not responding** — *The dashboard server at http://localhost:5173 is not responding* | The page is an old tab; the Vite server behind it was closed or stopped, so no request can leave the browser. | Start it again (step 2, or `.\dev.cmd start`), then reload the page. |
+| *… answered /api/… with HTTP 404, but not as the API* | Something other than the dashboard server answers on the page's address (a static host, another program on the port), or a production build was made without `VITE_API_BASE_URL`. | Open the page through `npm run dev` or `npm run preview`; for a separately hosted build, set `VITE_API_BASE_URL` when building (and `CORS_ORIGINS` on the API). |
+| *Cannot reach the API at … check VITE_API_BASE_URL and the API's CORS_ORIGINS* | A build that calls a fixed API address cannot reach it. | Start the API at that address, or rebuild with the right `VITE_API_BASE_URL`. |
+| A method is greyed out as *unavailable* | An optional package (PyWavelets) is missing in the Python that runs the API. | `python -m pip install -r requirements-api.txt` in that environment, then restart the API. |
+| `http://127.0.0.1:8000/` shows JSON, not the dashboard | That is the API. The dashboard is on port 5173. | Open http://127.0.0.1:5173/. |
+| `Errno 10048` / *port already in use* | Another program (often an earlier run) holds port 8000 or 5173. | `.\dev.cmd status` shows who; `.\dev.cmd stop` ends this project's own processes. |
+| *'dev.cmd' is not recognized* | See Option A: the current folder is not searched. | Use `.\dev.cmd`, and run it from the repository root. |
+
+`.\dev.cmd status` answers most of these in one screen. To see what the browser sends, open the developer tools (F12), tab *Network*, and filter by `api`: every request goes to the page's own address (port 5173) and is forwarded to port 8000. Details of the proxy and of the error messages are in [frontend/README.md](frontend/README.md).
+
+### Using the lab
+
+Open the **2D Denoising Lab**: choose *Cell in saline* or *Brain MRI slice* from the sample list (or upload a PNG, JPEG or DICOM slice), tick the methods to compare, press *Run denoising*, and use the divider to compare the outputs. The table shows the scores the API computed for that run, the parameters actually used and each method's measured runtime. Interface details are in [frontend/README.md](frontend/README.md).
 
 ## Interfaces
 

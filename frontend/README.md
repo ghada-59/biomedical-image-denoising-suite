@@ -18,7 +18,14 @@ npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/. The Vite server proxies `/api` to http://127.0.0.1:8000 (set `VITE_DEV_API_TARGET` to proxy elsewhere). For a build that talks to another host, set `VITE_API_BASE_URL` at build time.
+Open http://127.0.0.1:5173/ (`localhost` works as well). The Windows commands for the whole start-up, the one-command helper (`.\dev.cmd start`, `status`, `stop` from the repository root) and the list of error messages are in the [root README](../README.md#quick-start-dashboard).
+
+### How the page reaches the API
+
+- In `npm run dev` and `npm run preview` the page calls its **own address** (`/api/...`); the Vite server forwards those calls to `http://127.0.0.1:8000` (`server.proxy` and `preview.proxy` in `vite.config.js`; set `VITE_DEV_API_TARGET` to forward elsewhere). The browser never talks to port 8000 directly, so no CORS setup is needed in development.
+- A production build that is served by something else must be built with `VITE_API_BASE_URL` set to the API's address (and the API's `CORS_ORIGINS` must list the page's origin).
+- The page asks `/api/health` every 2 seconds while the API is offline and every 5 seconds while it is online. When the API comes back the pages reload their data by themselves, and a user's settings in the lab are kept.
+- Failures are reported by what actually failed, never as a generic "cannot reach localhost:5173": the proxy answers HTTP 502 with a JSON message when the API is down (*The API is not reachable*); if not even the dashboard server answers, the page says *The dashboard server is not responding*; an HTTP 200 that is not JSON (for example a static host's fallback page) is treated as "not the API", never as success. The pages that need the API show that state instead of data; nothing is filled in with placeholder values.
 
 To see recorded benchmark results, start the API with `BENCHMARK_RUN_DIRS` pointing at a run directory (the run that ships with the repository is `backend/docs/results/benchmark_v2_methods_2026-10-25`); without it the Benchmark V2 page says that no run is configured and shows nothing.
 

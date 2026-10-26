@@ -6,24 +6,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from src.dicom_volume import load_dicom_volume
 from src.volume_denoising import gaussian_denoise_volume
+from src.volume_views import orthogonal_views
 
 
-def _save_slice_figure(volume, smoothed, output_path: Path, spacing_xyz_mm):
-    z, y, x = (n // 2 for n in volume.shape)
-    original = [volume[z, :, :], volume[:, y, :], volume[:, :, x]]
-    filtered = [smoothed[z, :, :], smoothed[:, y, :], smoothed[:, :, x]]
-    titles = ["Axial", "Coronal", "Sagittal"]
-    # Use physical pixel aspect ratios so thick-slice CT is not stretched.
-    sx, sy, sz = spacing_xyz_mm
-    aspects = [sy / sx, sz / sx, sz / sy]
+def _save_slice_figure(volume, smoothed, output_path: Path, spacing_xyz_mm, direction=None):
+    # Physical pixel aspect ratios keep thick-slice CT from being stretched; coronal and sagittal views are drawn superior-up.
+    original = orthogonal_views(volume, spacing_xyz_mm, direction)
+    filtered = orthogonal_views(smoothed, spacing_xyz_mm, direction)
     fig, axes = plt.subplots(3, 3, figsize=(13, 12))
-    for col, title in enumerate(titles):
-        diff = np.abs(filtered[col] - original[col])
-        axes[0, col].imshow(original[col], cmap="gray", aspect=aspects[col])
-        axes[0, col].set_title(f"Original — {title}")
-        axes[1, col].imshow(filtered[col], cmap="gray", aspect=aspects[col])
+    for col, (before, after) in enumerate(zip(original, filtered)):
+        diff = np.abs(after.image - before.image)
+        axes[0, col].imshow(before.image, cmap="gray", aspect=before.aspect)
+        axes[0, col].set_title(f"Original - {before.name} ({before.note})")
+        axes[1, col].imshow(after.image, cmap="gray", aspect=after.aspect)
         axes[1, col].set_title("Gaussian-smoothed")
-        axes[2, col].imshow(diff, cmap="magma", aspect=aspects[col], vmin=0, vmax=max(float(np.percentile(diff, 99)), 1e-6))
+        axes[2, col].imshow(diff, cmap="magma", aspect=after.aspect, vmin=0, vmax=max(float(np.percentile(diff, 99)), 1e-6))
         axes[2, col].set_title("Absolute difference")
     for ax in axes.ravel():
         ax.axis("off")
@@ -68,7 +65,7 @@ claims are not supported. Smoothing can blur small anatomical structures.
 """
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(report, encoding="utf-8")
-    _save_slice_figure(volume, smoothed, args.figure_output, spacing)
+    _save_slice_figure(volume, smoothed, args.figure_output, spacing, direction)
     print(report)
     print(f"Report saved to: {args.output}")
     print(f"Figure saved to: {args.figure_output}")

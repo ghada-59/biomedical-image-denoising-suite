@@ -235,24 +235,39 @@ def test_non_dicom_files_in_a_series_folder_are_ignored(tmp_path):
     assert volume.shape[0] == 3
 
 
-def test_unreadable_slice_in_the_middle_is_caught_by_the_spacing_check(tmp_path):
+def test_unreadable_slice_in_the_middle_is_reported_by_name(tmp_path):
     items = [(f"s{i}.dcm", _slice(i * 2.0, i + 1)) for i in range(4)]
     items[2] = ("s2.dcm", b"corrupted bytes, not a DICOM file")
-    with pytest.raises(ValueError, match="Non-uniform slice spacing"):
+    with pytest.raises(ValueError, match="Unreadable DICOM file s2.dcm"):
         load_dicom_volume(_write(tmp_path, items))
 
 
-def test_unreadable_last_slice_is_silently_dropped_when_loading_a_folder(tmp_path):
-    """Documents a known limitation of folder scanning.
-
-    ``discover_dicom_files`` skips unreadable files (needed to ignore README files), so a
-    corrupt slice at either end of the series leaves a shorter but internally consistent
-    volume and no error. The upload API guards against this separately (see test_api.py).
-    """
+def test_unreadable_last_slice_is_an_error_not_a_silently_shorter_volume(tmp_path):
+    """A damaged *.dcm at either end used to leave a shorter but internally consistent volume with no error."""
     items = [(f"s{i}.dcm", _slice(i * 2.0, i + 1)) for i in range(4)]
     items[3] = ("s3.dcm", b"corrupted bytes, not a DICOM file")
+    with pytest.raises(ValueError, match="Unreadable DICOM file s3.dcm"):
+        load_dicom_volume(_write(tmp_path, items))
+
+
+def test_files_without_the_dcm_suffix_that_are_not_dicom_are_still_ignored(tmp_path):
+    items = [(f"s{i}.dcm", _slice(i * 2.0, i + 1)) for i in range(3)]
+    items += [("README.txt", b"notes"), ("LICENSE", b"licence text"), ("thumbs.db", b"binary junk")]
     volume, *_ = load_dicom_volume(_write(tmp_path, items))
     assert volume.shape[0] == 3
+
+
+def test_gantry_tilt_is_refused_because_the_voxel_grid_would_be_sheared(tmp_path):
+    items = [(f"s{i}.dcm", _slice(i * 2.0, i + 1, overrides={"GantryDetectorTilt": 15.0})) for i in range(3)]
+    with pytest.raises(ValueError, match="tilt of 15 degrees"):
+        load_dicom_volume(_write(tmp_path, items))
+
+
+def test_zero_or_missing_gantry_tilt_is_accepted(tmp_path):
+    items = [(f"a{i}.dcm", _slice(i * 2.0, i + 1, overrides={"GantryDetectorTilt": 0.0})) for i in range(3)]
+    assert load_dicom_volume(_write(tmp_path / "zero", items))[0].shape[0] == 3
+    items = [(f"b{i}.dcm", _slice(i * 2.0, i + 1)) for i in range(3)]
+    assert load_dicom_volume(_write(tmp_path / "missing", items))[0].shape[0] == 3
 
 
 def test_truncated_pixel_data_raises_instead_of_returning_a_partial_slice(tmp_path):

@@ -11,6 +11,9 @@ except ImportError:  # pydicom 2.4.x compatibility
     from pydicom.pixel_data_handlers.util import apply_modality_lut
 
 
+MAX_GANTRY_TILT_DEGREES = 0.1   # above this the slice stack is sheared and a regular voxel grid would be wrong
+
+
 def _header(path: Path):
     try:
         return pydicom.dcmread(path, stop_before_pixels=True)
@@ -29,8 +32,13 @@ def discover_dicom_files(series_dir: str | Path) -> list[Path]:
     for path in sorted(root.rglob("*")):
         if path.is_file():
             ds = _header(path)
-            if ds is not None and hasattr(ds, "SOPInstanceUID") and hasattr(ds, "SeriesInstanceUID"):
+            usable = ds is not None and hasattr(ds, "SOPInstanceUID") and hasattr(ds, "SeriesInstanceUID")
+            if usable:
                 files.append(path)
+            elif path.suffix.lower() == ".dcm":
+                # Other files (README, licence text) are ignored, but a *.dcm file that cannot be used is a damaged slice:
+                # skipping it would silently return a shorter volume, so it is an error.
+                raise ValueError(f"Unreadable DICOM file {path.name}: it is not a usable DICOM instance (damaged or without SOP/Series UID).")
     if not files:
         raise ValueError(f"No readable DICOM instances found in: {root}")
     return files
@@ -103,6 +111,10 @@ def load_dicom_volume(series_dir: str | Path):
     files = sort_dicom_slices(discovered)
     # Geometry comes from headers; slice pixels are read one at a time below so the whole series is never held twice.
     first = pydicom.dcmread(files[0], stop_before_pixels=True)
+    tilts = {round(float(getattr(ds, "GantryDetectorTilt", 0.0) or 0.0), 3) for ds in headers}
+    if any(abs(tilt) > MAX_GANTRY_TILT_DEGREES for tilt in tilts):
+        raise ValueError(f"Gantry/detector tilt of {max(tilts, key=abs):g} degrees found: the slices are not perpendicular to the "
+                         "stack axis, so a regular voxel grid would be sheared. Tilt correction is not implemented; resample the series first.")
     rows, cols = int(first.Rows), int(first.Columns)
     pixel_spacing = np.asarray(first.PixelSpacing, dtype=float)
     if pixel_spacing.shape != (2,) or not np.isfinite(pixel_spacing).all() or np.any(pixel_spacing <= 0):

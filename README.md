@@ -10,13 +10,13 @@ A biomedical image-processing project for **comparing classical denoising method
 
 ## At a glance
 
-| What | Status (2026-10-25, one Windows laptop; nothing has run on GitHub Actions or Render) |
+| What | Status (2026-10-26, one Windows laptop; nothing has run on GitHub Actions or Render) |
 | --- | --- |
 | Denoising methods | Nine classical, non-learned methods: mean, median, Gaussian, FFT ideal / Gaussian / Butterworth low-pass, **bilateral, non-local means and wavelet (BayesShrink)**. No neural network, on purpose ([why](backend/docs/methods_and_decisions.md)). |
-| Benchmark | Synthetic noise in Hounsfield units on one public CT series; parameters tuned on 3 slices, results on 8 other slices; two evaluation masks; bootstrap intervals. **Exploratory: one patient, noisy reference, not an independent validation.** |
-| Reproducibility | The recorded run was produced from a clean commit with source-file hashes and the input manifest recorded. A second full run from a clean clone gave byte-identical result files, and the six original filters reproduce an earlier recorded run byte for byte. |
-| Dashboard | React + FastAPI. The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes; the Benchmark V2 page reads recorded results and says when none are configured. |
-| Tests | Backend 758 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, as installed on the host) 691 passed / 1 skipped; frontend 72 unit/component tests (5 of them start the real Vite server); 21 browser tests against the real API and real servers (1 skipped without a configured run). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies. |
+| Benchmarks | **V2 (2D):** synthetic noise in Hounsfield units on one public CT series, parameters tuned on 3 slices and tested on 8 others, two masks, bootstrap intervals. **3D:** slice-wise versus volumetric Gaussian smoothing, same protocol, with the error split into structure change and residual noise. A legacy fixed-setting benchmark is kept apart. **All exploratory: one patient, noisy reference, not an independent validation.** |
+| Reproducibility | **V2:** the recorded run was produced from a clean commit with source-file hashes and the input manifest recorded; two full runs from two commits gave byte-identical result files and the six original filters reproduce an earlier recorded run (both checks were done when the run was made and were **not repeated** afterwards). Three source files have changed since; a reduced run of the complete pipeline with the old and the current code gave 12 byte-identical result files, and 60 recorded rows recompute exactly ([details](backend/docs/benchmark_v2.md#provenance-and-reproduction)). **3D:** two complete runs gave identical tables; 72 recorded rows were recomputed independently; the run was made from uncommitted code, so its `git_commit` reads `+dirty` and the source hashes identify the code. |
+| Dashboard | React + FastAPI (V2 results only; Benchmark 3D is a script with recorded files). The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes; the Benchmark V2 page reads recorded results and says when none are configured. |
+| Tests | Backend 800 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, as installed on the host) 704 passed / 1 skipped; frontend 72 unit/component tests (5 of them start the real Vite server); 21 browser tests against the real API and real servers (1 skipped without a configured run). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies. |
 | Deployment | `render.yaml` is configured and checked against the code; **it has not been deployed**, so there is no public URL. |
 
 ## What the project does
@@ -29,7 +29,7 @@ The project compares the output of several classical filters under controlled co
 - **Synthetic noise models:** Gaussian, salt-and-pepper, and synthetic speckle (in the lab); white and correlated noise in Hounsfield units plus two robustness tests (in Benchmark V2).
 - **Metrics:** PSNR, SSIM, and, in Benchmark V2, RMSE and MAE in Hounsfield units.
 - **Medical image handling:** grayscale images and DICOM CT slices, including modality rescaling and display windowing.
-- **Optional 3D workflow:** validation and visualization of a consistent multi-slice DICOM CT series, with Gaussian smoothing specified in millimetres.
+- **3D handling:** loading of a consistent multi-slice DICOM series with physical geometry, orthogonal views and volume rendering, a Gaussian smoothing script with its width in millimetres, and **Benchmark 3D**, which tests whether smoothing across slices helps (it barely does on 3 mm slices; see [Benchmarks](#benchmarks)).
 
 The project does **not** claim that one filter is best for every image or noise type. A higher PSNR or SSIM is a measure of similarity to the selected reference, not proof of improved diagnostic quality, and none of the metrics measures whether small structures are preserved.
 
@@ -245,16 +245,19 @@ Definitions, assumptions, implementations and the parameter-selection rules are 
 │   ├── sample_images.py            # Catalogue of the bundled samples with provenance
 │   ├── filters.py                  # Image loading, noise, filters (including bilateral, NLM, wavelet), metrics
 │   ├── benchmark_v2.py             # Benchmark V2 (HU-domain noise, tuning/test split, two masks)
+│   ├── benchmark_3d.py             # Benchmark 3D (slice-wise vs volumetric Gaussian smoothing)
 │   ├── evaluate_denoising.py       # Earlier 2D CT benchmark
 │   ├── provenance.py               # Provenance label for result files
 │   ├── app.py                      # Streamlit interface
 │   ├── download_data.py            # Local synthetic examples and optional downloads
-│   ├── src/                        # DICOM volume loading, 3D smoothing, viewers
+│   ├── src/                        # DICOM volume loading, oriented orthogonal views, 3D smoothing, viewers
 │   ├── test_*.py                   # pytest suite
 │   ├── samples/                    # Small example images and a synthetic DICOM file (README.md: provenance of each)
 │   ├── docs/methods_and_decisions.md  # Methods, metrics, protocol, decision on deep learning, references
 │   ├── docs/references_verification.md  # What was checked, and what was not, for each cited reference
-│   ├── docs/results/               # Historical snapshots + the shipped recorded benchmark run (byte-exact)
+│   ├── docs/benchmark_v2.md        # Complete description of Benchmark V2
+│   ├── docs/images/                # Committed figures (README.md: how each was made and checked)
+│   ├── docs/results/               # Historical snapshots + the recorded V2 and 3D runs (byte-exact)
 │   ├── CONTRIBUTING.md             # Development setup, checks, how to add a method or a benchmark run
 │   ├── requirements.txt            # Full development / Streamlit / test dependencies
 │   ├── requirements-api.txt        # Runtime dependencies of the hosted API
@@ -295,35 +298,27 @@ Everyday commands:
 
 The example-generation command avoids the optional Kaggle and pydicom-fixture downloads. Optional external downloads have separate terms and are not required. How to add a method or a benchmark run, and what the checks cover, is in [backend/CONTRIBUTING.md](backend/CONTRIBUTING.md).
 
-## Exploratory benchmark V2
+## Benchmarks
 
-> **Status: exploratory, partly reproducible comparison study.** It compares nine classical denoisers under *synthetic* noise on a *single* CT series. It does not show that any filter is best in general, has no clinical validation, and is not an independent external validation.
+Three experiments are kept apart on purpose. The API and the dashboard serve Benchmark V2 only; the other two are command-line scripts with recorded results.
 
-### Question and workflow
+| | **Benchmark V2** (primary, 2D) | **Benchmark 3D** (new) | **Historical 2D benchmark** (legacy) |
+| --- | --- | --- | --- |
+| Question | How close does each of nine classical filters bring a noisy CT slice back to the original slice, when every filter is tuned? | Does smoothing across neighbouring slices help, compared with smoothing slice by slice? | Fixed-setting comparison of six filters on windowed slices: the first experiment of the project |
+| Noise | White and 1-pixel-correlated noise of 10, 25, 50 HU; 2 % impulse; multiplicative speckle (all defined in HU) | White noise of 10, 25, 50 HU, independent for every voxel | Gaussian (variance 0.02 on the display scale), salt-and-pepper, synthetic speckle |
+| Settings | Tuned per condition on 3 slices, tested on 8 other slices | Tuned per condition on 3 slices, tested on 8 other slices at least 8 slices away | One fixed setting per filter, no tuning |
+| Measures | RMSE and MAE in HU, PSNR, SSIM, bootstrap intervals, two masks | The same, plus a split of the error into structure change and residual noise, and a soft-tissue region | PSNR and SSIM on the windowed whole slice, padding included |
+| Code | `backend/benchmark_v2.py` | `backend/benchmark_3d.py` | `backend/evaluate_denoising.py` |
+| Recorded results | `backend/docs/results/benchmark_v2_methods_2026-10-25` | `backend/docs/results/benchmark_3d_2026-10-26` | `backend/docs/results/denoising_*.csv` |
+| Status | Exploratory, reproducible, one patient | Exploratory, reproducible, one patient | Historical snapshot, kept for traceability |
 
-When synthetic noise of a stated size is added to a CT slice, how closely do filtered results return to the original slice, and how much does that depend on the method, its setting, the image region and the metric?
+All three use the same public CT series (`LIDC-IDRI-0709`: one patient, 100 axial slices, 0.54 mm pixels, 3 mm slices), which is **not** part of this repository. The reference is a real clinical slice with its own noise, so every score measures similarity to a *noisy* reference, never accuracy against the true anatomy.
 
-1. Load one DICOM series and convert it to Hounsfield units (HU) with the modality rescale.
-2. Fix two evaluation masks per slice from the original slice, before any noise exists.
-3. Add synthetic noise in HU for 8 noise conditions, with reproducible seeds.
-4. **Tuning:** for each noise condition and method, choose one setting on 3 tuning slices (RMSE_HU on the principal mask only).
-5. **Test:** apply that frozen setting to 8 other slices (5 noise realisations each); report means with bootstrap intervals over slices.
-6. Compare the methods with each other and with the unfiltered noisy image.
+### Benchmark V2: nine classical filters, tuned and tested on separate slices
 
-### Data and reference
+Workflow: convert the series to Hounsfield units; fix two evaluation masks per slice from the original slice; add synthetic noise in HU (8 conditions, reproducible seeds); for each condition and filter choose one setting on 3 tuning slices (RMSE_HU on the principal mask only); apply the frozen setting to 8 other slices (5 noise realisations each); report means with bootstrap intervals over slices. Noise levels are scenarios, not measurements of a scanner; the "correlated" noise is an unvalidated construction; the two robustness conditions are not CT noise models. The complete description, the mask analysis and the provenance of the run are in [backend/docs/benchmark_v2.md](backend/docs/benchmark_v2.md).
 
-- One local series labelled `LIDC-IDRI-0709` in its DICOM headers (100 slices, 512 × 512, 0.54 × 0.54 mm, 3.0 mm slice spacing, convolution kernel `FC01`); its folder carries the LIDC-IDRI licence text (CC BY 3.0). **Whether the local files are identical to the public TCIA release has not been verified.** The run records the series UID and a SHA-256 manifest of its 101 files, so anyone can compare their copy. The data are not part of this repository. Citation: Armato SG III et al., *Data From LIDC-IDRI*, TCIA, DOI [10.7937/K9/TCIA.2015.LO9QL9SX](https://doi.org/10.7937/K9/TCIA.2015.LO9QL9SX) (resolves to the TCIA collection page); Clark K et al., *J Digit Imaging* 2013;26:1045.
-- **The reference is not clean ground truth.** It is a real, already-reconstructed clinical slice with its own noise, and the synthetic noise is added to it. A rough white-noise-equivalent estimate of the reference's own high-frequency noise is about 3 HU (2.7 to 4.2 HU over the 11 slices), but CT noise is correlated, so that is a lower bound; estimates of the image's noise differ by an order of magnitude depending on the definition. Errors measure the difference from this slice, not accuracy against the true anatomy.
-
-### Methods, noise, masks, metrics
-
-Nine methods (see above). Eight noise conditions, all added in HU: white Gaussian noise (10, 25, 50 HU), "correlated" noise (white noise smoothed by a 1-pixel Gaussian and renormalised; **an unvalidated construction**), and two robustness tests that are *not* CT noise models (2 % salt-and-pepper, multiplicative speckle). Noise levels are scenarios, not measurements of a scanner, and no source was found that would support calling them typical.
-
-The *principal* mask is the largest body region above −500 HU. The *inner* mask removes everything within 10 px of the scanner padding; it is an experimental sensitivity choice, not clinically validated. Metrics: RMSE_HU and MAE_HU (HU, unclipped, over the mask); PSNR and SSIM on images displayed with a −600/1500 HU window (clipped to [0, 1]), SSIM averaged over windows fully inside the mask. Definitions and what each metric cannot show are in [methods_and_decisions.md](backend/docs/methods_and_decisions.md).
-
-### What the recorded run shows (illustration, not a ranking)
-
-The run `backend/docs/results/benchmark_v2_methods_2026-10-25` (grid `methods`; the six original filters plus bilateral, non-local means and wavelet BayesShrink). Mean test RMSE_HU over 8 slices with the 95 % bootstrap interval over slices, principal mask (lowest of the nine in bold):
+Mean test RMSE_HU over 8 slices with the 95 % bootstrap interval over slices, principal mask (lowest of the nine in bold):
 
 | Condition | Unfiltered | Best of the six original filters | Bilateral | Non-local means | Wavelet BayesShrink |
 |---|---|---|---|---|---|
@@ -336,92 +331,79 @@ The run `backend/docs/results/benchmark_v2_methods_2026-10-25` (grid `methods`; 
 | salt-and-pepper 2 % (robustness) | 130.74 [127.82, 133.95] | **13.62 [13.22, 14.05]** (Median) | 45.68 [44.23, 47.43] | 46.82 [44.06, 49.37] | 56.28 [54.04, 59.04] |
 | speckle (robustness) | 119.19 [110.77, 128.67] | 40.17 [38.99, 41.56] (Median) | **35.69 [34.66, 36.98]** | 39.04 [36.49, 41.75] | 44.68 [43.39, 46.47] |
 
-Paired over the same 8 slices, the added filter minus the best of the six original filters (negative = lower error; "lower" or "higher" only when the whole interval is on one side of zero):
+- The added filters had a lower RMSE_HU than the best original filter, with the whole paired interval below zero, in 7 (bilateral), 6 (non-local means) and 4 (wavelet) of the 8 conditions. The pattern is consistent with what each method assumes (wavelet shrinkage models white Gaussian noise; non-local means is lowest on correlated noise; the median filter is far ahead on impulse noise), but that explanation was not tested separately.
+- RMSE over the whole body mask is dominated by the few high-contrast edges: a 3-pixel band along the mask edge is about 2.3 % of the mask pixels, yet after mean or Gaussian smoothing its RMSE_HU is 228 to 284 HU and in a worked example it carried 87 to 89 % of the squared error. Where "no filter" scored best, that means no smoothing lowered this boundary-dominated error, not that smoothing is useless elsewhere. The choice of mask and metric changes the winner in some conditions (see the full description).
+- **None of this shows that the denoised images are better for any clinical purpose.** No structure-preservation measure was computed.
 
-| Condition | Bilateral | Non-local means | Wavelet BayesShrink |
-|---|---|---|---|
-| white 10 HU | −1.67 [−1.80, −1.51] lower | −1.94 [−2.17, −1.67] lower | −3.11 [−3.35, −2.82] lower |
-| white 25 HU | −0.67 [−0.94, −0.42] lower | −1.87 [−2.03, −1.71] lower | −2.74 [−3.18, −2.15] lower |
-| white 50 HU | −3.57 [−4.25, −2.98] lower | −4.48 [−5.08, −3.99] lower | −3.38 [−3.63, −3.12] lower |
-| correlated 10 HU | −0.53 [−0.59, −0.46] lower | −0.65 [−0.73, −0.54] lower | −0.22 [−0.26, −0.16] lower |
-| correlated 25 HU | −2.49 [−2.66, −2.33] lower | −4.20 [−4.53, −3.93] lower | +0.07 [−0.10, +0.25] unresolved |
-| correlated 50 HU | −2.39 [−2.72, −2.05] lower | −7.07 [−7.28, −6.85] lower | +7.85 [+7.16, +8.62] higher |
-| salt-and-pepper 2 % | +32.06 [+30.87, +33.55] higher | +33.21 [+30.67, +35.41] higher | +42.66 [+40.47, +45.44] higher |
-| speckle | −4.49 [−4.75, −4.22] lower | −1.13 [−3.39, +0.62] unresolved | +4.51 [+3.04, +6.21] higher |
+### Benchmark 3D: slice-wise versus volumetric Gaussian smoothing
 
-**How to read this.**
+Question: with 3 mm slices, is it worth smoothing across neighbouring slices? Three Gaussian families, each with its width given in **millimetres** and converted to voxels with the real spacing: *2D slice-wise* (in-plane only), *3D isotropic* (same sigma in mm along x, y, z) and *3D anisotropic* (in-plane and across-slice sigma tuned together; it contains the 2D family as the case sigma_z = 0). White noise is added to the whole volume, independently for every voxel. Parameters are selected on the principal-mask RMSE_HU of 3 tuning slices and frozen for 8 held-out slices (in the recorded run the closest test slice is 9 slices from a tuning slice; because a kernel can reach 8 slices, the neighbourhoods of a tuning and a test slice can overlap, so the two sets are different slices, not different anatomy). The field-of-view padding (-2048 HU) is excluded from the smoothing by a normalised convolution so it cannot leak into the body edge.
 
-- Over the 8 conditions the added filters had a lower RMSE_HU than the best original filter in 7 (bilateral), 6 (non-local means) and 4 (wavelet) of them, with an interval entirely below zero. The pattern follows what each method assumes: wavelet shrinkage, which models white Gaussian noise, is best on white noise at 10 and 25 HU and clearly worse on strongly correlated noise and on impulse noise; non-local means is lowest on correlated noise; bilateral is lowest on speckle; the median filter remains by far the best on salt-and-pepper noise.
-- The lowest-RMSE method is the same on the principal and the inner mask in 7 of the 8 conditions; the exception is white 50 HU (non-local means on the principal mask, wavelet on the inner mask). Both masks are shown on the dashboard. At 50 HU the tuned 3 × 3 mean filter looks almost useless on the principal mask (49.98 → 48.40 HU) and strongly useful on the inner mask (49.98 → 21.00 HU), which is the boundary effect described below.
-- RMSE_HU and PSNR name the same family in all 8 conditions; SSIM names a different one in 2 (white 50 HU and correlated 10 HU: bilateral instead of non-local means). The tuning minimum of each added method lies strictly inside its grid in 23 of the 24 (method, condition) cases; the exception is bilateral on salt-and-pepper noise, at the strongest end of the grid, where the filter has become a Gaussian filter.
-- The tuned "assumed noise level" of the wavelet filter and the bilateral intensity scale are larger than the true noise (for example 50 HU assumed for 25 HU white noise): they are strength controls, not noise estimates.
-- **None of this shows that the denoised images are better for any clinical purpose.** The error is measured against a noisy reference; smoothing more strongly can remove small structures, and no structure-preservation measure was computed.
+Besides RMSE, PSNR and SSIM, every result is split into two parts that add up exactly (for a linear filter `f`, `f(reference + noise) - reference = [f(reference) - reference] + f(noise)`): the **structure change** the filter causes with no noise present, and the **residual noise** it leaves. A *soft-tissue* region (0 to 100 HU, away from edges) shows what a filter can do where there is almost nothing to lose; the principal mask includes the lung boundaries and vessels and shows what it costs.
 
-**Why the mask matters.** A 3-pixel band along the mask edge is about 2.3 % of the mask pixels, yet after mean or Gaussian smoothing its RMSE_HU is 228–284 HU, and in a worked example it carried 87–89 % of the squared HU error. Tuning on RMSE_HU over the principal mask is therefore largely a criterion about the body boundary: where "no filter" scored best, that means no smoothing lowered the boundary-dominated error, not that smoothing is useless for the rest of the image. Tuning on the inner mask would change the choice in 34 of 48 cells of the earlier six-filter run (tuning slices only).
+Held-out results (8 slices, mean [95 % bootstrap interval over slices]; HU):
 
-**RMSE_HU, PSNR and SSIM can prefer different settings.** In the earlier six-filter run PSNR chose the same setting as RMSE_HU in 44 of 48 cases on the tuning slices, SSIM in only 6 of 48.
+| Noise | Method | Selected setting (sigma in plane / across slices, mm) | RMSE_HU, principal mask | Structure change | Residual noise | RMSE_HU, soft tissue | SSIM (Wang), principal mask |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| white 10 HU | Noisy (no filter) | none | 10.00 [10.00, 10.01] | 0.00 | 10.00 | 10.00 [9.98, 10.01] | 0.9731 |
+|  | 2D slice-wise Gaussian | 0.25 / 0 | 7.88 [7.80, 7.95] | 3.29 | 7.15 | 7.39 [7.34, 7.45] | 0.9850 |
+|  | 3D isotropic Gaussian | 0.25 / 0.25 | 7.88 [7.80, 7.95] | 3.29 | 7.15 | 7.39 [7.34, 7.45] | 0.9850 |
+|  | 3D anisotropic Gaussian | 0.25 / 0 | 7.88 [7.80, 7.95] | 3.29 | 7.15 | 7.39 [7.34, 7.45] | 0.9850 |
+| white 25 HU | Noisy (no filter) | none | 24.98 [24.97, 25.00] | 0.00 | 24.98 | 24.97 [24.92, 25.02] | 0.8598 |
+|  | 2D slice-wise Gaussian | 0.4 / 0 | 13.80 [13.36, 14.23] | 9.89 | 9.61 | 10.86 [10.65, 11.11] | 0.9687 |
+|  | 3D isotropic Gaussian | 0.4 / 0.4 | 13.80 [13.36, 14.23] | 9.89 | 9.61 | 10.86 [10.65, 11.11] | 0.9687 |
+|  | 3D anisotropic Gaussian | 0.4 / 0 | 13.80 [13.36, 14.23] | 9.89 | 9.61 | 10.86 [10.65, 11.11] | 0.9687 |
+| white 50 HU | Noisy (no filter) | none | 49.99 [49.97, 50.01] | 0.00 | 49.99 | 50.01 [49.93, 50.08] | 0.6386 |
+|  | 2D slice-wise Gaussian | 0.4 / 0 | 21.65 [21.37, 21.93] | 9.89 | 19.24 | 19.92 [19.77, 20.08] | 0.9120 |
+|  | 3D isotropic Gaussian | 0.4 / 0.4 | 21.65 [21.37, 21.93] | 9.89 | 19.24 | 19.92 [19.77, 20.08] | 0.9120 |
+|  | 3D anisotropic Gaussian | 0.4 / 1 | 21.55 [21.21, 21.86] | 10.43 | 18.82 | 19.54 [19.40, 19.70] | 0.9145 |
 
-### Earlier comparison: extended grid versus first grid
+![Trade-off curves](backend/docs/results/benchmark_3d_2026-10-26/tradeoff_curves.png)
 
-The first six-filter run used a smaller grid without a "no filter" option; the extended grid adds one. Comparing the tuned results of the two on the 8 test slices (48 cells, filtered versus filtered):
+*Each point is one filter setting on the tuning slices: the horizontal axis is the structure change, the vertical axis the noise that is left; dotted arcs join points of equal RMSE; large circles are the settings selected for each method. Top row: principal mask. Bottom row: homogeneous soft tissue.*
 
-| Metric (extended − first) | Mask | Better | Worse | Unresolved |
-|---|---|---|---|---|
-| RMSE_HU | principal (the tuning criterion) | **30** | 0 | 18 (same setting selected) |
-| RMSE_HU | inner | 12 | **18** | 18 (same setting selected) |
-| MAE_HU | principal | 15 | 15 | 18 (same setting selected) |
-| PSNR | principal | 29 | 0 | 19 (18 same setting, 1 unresolved) |
-| SSIM (primary) | principal | 7 | **23** | 18 (same setting selected) |
+![Held-out error](backend/docs/results/benchmark_3d_2026-10-26/test_rmse.png)
 
-"30 better, 0 worse" holds only for RMSE_HU on the principal mask, the criterion the grids were tuned for, and it reverses on the inner mask and for SSIM. For RMSE_HU on the principal mask, 34 of 48 filtered cells are materially below the unfiltered image and none above, but the absence of increases is partly built in: "no filter" is part of the grid.
+What this shows, and what it does not:
 
-### Limits of the evidence
+- **Weak smoothing is what minimises the error.** The settings chosen on the tuning slices are in-plane sigmas of 0.25 mm (10 HU noise) and 0.4 mm (25 and 50 HU), that is 0.5 to 0.7 pixel. They bring the held-out RMSE_HU from 10, 25 and 50 HU down to 7.9, 13.8 and 21.7 HU. Wider kernels remove more noise but change the structure by more than they gain: the selected setting is the point of each curve closest to the origin, that is, with the smallest total error.
+- **Smoothing across slices is not worth it on 3 mm slices.** At 10 and 25 HU the tuned 2D, 3D isotropic and 3D anisotropic filters give identical results: nothing is taken from neighbouring slices (the isotropic family selects 0.25 or 0.4 mm, about a tenth of a slice, which puts a weight below 1e-9 on a neighbour). At 50 HU the anisotropic family selects a very light kernel (sigma_z = 1 mm, about 1 % of the weight on each neighbouring slice) and lowers the held-out RMSE_HU by 0.11 HU [95 % interval -0.18, -0.04] out of 21.7, i.e. 0.5 %. A gain of 0.5 % is a small, dataset-specific observation: its interval excludes zero only in the sense of comparing the 8 slices of one patient with each other. It is not evidence that volumetric smoothing is better in general, and says nothing about other patients, scanners, slice thicknesses or noise.
+- **Why.** At an in-plane sigma of 0.4 mm and 25 HU noise, widening the kernel across one whole slice (sigma_z = 3 mm) cuts the residual noise from 9.6 to 5.1 HU, but raises the structure change on the principal mask from 10.7 to 43.5 HU, and even in the soft-tissue region from 4.2 to 13.2 HU (tuning slices): the anatomy changes between neighbouring 3 mm slices, soft tissue included. The structure change also contains the removal of the reference's own noise, so it is not a pure loss of anatomy.
+- **The experiment is generous to 3D smoothing**, because the added noise is independent between slices; real CT noise is partly correlated across slices, which would make averaging them less useful.
+- **Not shown:** thinner slices, correlated noise, 3D filters other than the Gaussian (3D median, bilateral, non-local means), other patients, a task-based or clinical measure. The result is "on this series, with these noise levels, a volumetric Gaussian brings almost nothing over a slice-wise one", not "3D denoising is useless".
 
-- **One CT series, 3 tuning and 8 test slices.** No generalisation across patients, scanners, doses or kernels is claimed; slices of one scan are not independent.
-- **Test slices are not untouched.** The code keeps test data out of the selection (a test perturbs the test slices only and finds identical selections), but the test slices were looked at in earlier runs, and the three added methods were chosen after those results were known. Their grids were fixed from the tuning slices before any test slice was scored with them, and the run was executed once, but this is not an independent validation.
-- **Bootstrap intervals** use 8 slices of one patient. In simulation with 8 slices the nominal 95 % interval covered the true mean in about 79–89 % of cases, so intervals are somewhat too narrow; read them as descriptive spread. No correction for multiple comparisons was applied.
-- **Fixed hyper-parameters.** Each method has one tuned strength; the others (bilateral spatial scale 1.5 px, non-local-means patch 5 and search distance 6, wavelet `sym4` with 3 levels) were fixed, not tuned, and the bilateral scale is a compromise between noise types. A differently configured method could rank differently.
-- **Not comparable with the historical results** in `backend/docs/results/` (different noise, clipping before filtering, fixed settings, no split).
-- **No small-structure, edge or texture measure** and no task-based (for example detectability) evaluation.
-
-### Provenance and reproduction
-
-The shipped run `benchmark_v2_methods_2026-10-25` was produced on 2026-10-25 from a **clean clone of commit `0b1380b048d0`**. Its `run_metadata.json` records the commit (no `+dirty`), package versions (Python 3.12.15, NumPy 2.5.4, SciPy 1.18.1, scikit-image 0.26.0, PyWavelets 1.10.0, OpenCV 5.0.0, pandas 3.1.0, pydicom 3.0.2), the SHA-256 of the source files that define the run (line-ending independent), the series UID and a SHA-256 manifest of the 101 input files, all parameters and grids, seeds, and the SHA-256 of every result file. What was checked:
-
-- Two full runs from two different clean commits (`2fe94f6` and `0b1380b`) gave **byte-identical** result files (all 12 CSVs). The first run's metadata was superseded because it held non-standard JSON (`NaN`) that browsers cannot parse; that defect was fixed and covered by tests before the shipped run was made.
-- For the six original filters and the unfiltered baseline, every result table is **byte-identical** to the run recorded on 2026-10-24 (which came from an uncommitted working tree, `d788e0c` plus local changes), so the extension changed nothing for them.
-- The 101 input-file hashes equal the manifest recorded on 2026-10-24. This shows the same local files were used; it does not show they are identical to the TCIA release.
-- The dashboard recomputes images from the recorded seeds and the recomputed RMSE_HU matched the stored rows for the ten outputs in each of the three conditions spot-checked (to better than 10⁻⁴ HU).
-
-This demonstrates reproducibility on this machine and series; it does not validate the results on other data or platforms.
+Reproduce (needs the local series and the packages of `requirements.txt`, matplotlib included for the figures; about 8 minutes; the output directory must be outside the repository). The recorded run was made from the working tree on top of commit `103d359`, so its `git_commit` reads `103d359...+dirty`; the SHA-256 of every source file it used is recorded instead, and the committed files can be compared with them:
 
 ```bash
 cd backend
-python benchmark_v2.py --dicom-series "path/to/LIDC-IDRI-0709" --out "path/outside/repo/benchmark_v2_run" --plan-only
-python benchmark_v2.py --dicom-series "path/to/LIDC-IDRI-0709" --out "path/outside/repo/benchmark_v2_run" --grid-version methods
+python benchmark_3d.py --dicom-series "path/to/LIDC-IDRI-0709/<series folder>" --out "path/outside/repo/benchmark_3d_run" --plan-only
+python benchmark_3d.py --dicom-series "path/to/LIDC-IDRI-0709/<series folder>" --out "path/outside/repo/benchmark_3d_run"
 ```
 
-Prerequisites not provided by this repository: a local copy of the LIDC-IDRI series (from TCIA, under its terms) and an output directory **outside** the repository (the script refuses to write inside it). `--grid-version expanded` (the default) and `v1` reproduce the six-filter runs. The command refuses a series that is not CT or has no modality rescale. The full `methods` run took about 24 minutes (1,430 s) on a 16-thread laptop while other work was running; the peak memory of the benchmark script itself was not measured.
+`run_metadata.json` of the recorded run holds the parameters, seeds, grids, package versions, the SHA-256 of the source files and of every input and output file; `test_benchmark_3d.py` checks the hashes and the protocol (including two synthetic volumes whose right answer is known: one where smoothing across slices must help and one where it must hurt).
 
-### Dashboard (Benchmark V2 page)
+### Historical 2D benchmark (`evaluate_denoising.py`)
 
-The page shows run provenance and CSV integrity (SHA-256 against the recorded values), test metrics with intervals for both masks, change relative to the unfiltered image, tuned parameters (with a note on what each added method's tuned value means), cautious statements computed from the tables, and, when the server has the CT series (`CT_SERIES_DIR`), a slice viewer with window/level, noisy and filtered images or difference maps, mask outline, intensity profile and boundary-band versus deeper-region error. Slice images are recomputed from the recorded seed and the page states whether they reproduce the recorded rows. Nothing is displayed unless the API serves a real run. The server never accepts paths from the browser: runs are addressed by directory name, and only the configured series is read.
-
-## Historical 2D benchmark (`evaluate_denoising.py`)
-
-The benchmark uses a **local DICOM CT series**; the larger series is not bundled in this repository. Place an authorized, single-series dataset locally, then pass the path to that series directory:
+The first experiment: three noise models (variance 0.02 or amount 0.02 on the display scale, nominally about 212 HU for the Gaussian case), six filters at **one fixed setting each** (5 x 5 kernels; frequency cutoff 0.10 in the recorded snapshot), applied to the windowed slice (-600/1500 HU, clipped to [0, 1]) and scored over the whole image including the black field-of-view padding. It is kept because its files are recorded, but it should not be used to rank filters: at the fixed settings the filters remove very different amounts of noise (white-noise variance gain 0.04 for the 5 x 5 mean, 0.075 for the 5 x 5 Gaussian, 0.018 for the Gaussian low-pass at cutoff 0.15), so a ranking mixes *which* filter with *how strong*; the 15 runs behind each row are 5 slices x 3 noise draws of one series, not independent samples; and the PSNR depends on the region scored (for one example slice the mean filter scores 24.9 dB over the whole image and 26.6 dB over the body only). Benchmark V2 replaces it.
 
 ```bash
 python evaluate_denoising.py --dicom-series "path/to/one_dicom_series" --repeats 3 --seed 42
 ```
 
-The script selects up to five spread-out slices by default and creates local outputs under `backend/reports/` (when run from `backend/`), including per-run metrics, a summary CSV, and comparison figures. Generated reports are ignored by Git.
+The script writes to `backend/reports/` (ignored by Git). The committed `backend/docs/results/denoising_benchmark.csv` and `denoising_summary.csv` are **historical snapshots from the earlier `0.10` cutoff** and must not be presented as results of the current default (0.15); a controlled synthetic check of the cutoff is in [frequency cutoff validation](backend/docs/results/frequency_cutoff_validation.md) (a single-image sweep, not evidence that 0.15 is optimal). The three spatial-filter figures below were produced by this script, slice 50, first noise draw; their parameters and the table values behind them are listed in [backend/docs/images/README.md](backend/docs/images/README.md).
 
-Current benchmark configuration in `evaluate_denoising.py` includes a frequency cutoff ratio of `0.15`. The committed files `backend/docs/results/denoising_benchmark.csv` and `backend/docs/results/denoising_summary.csv` are **historical snapshots from the earlier `0.10` cutoff configuration**. They must not be presented as results from the current default. A controlled synthetic test of a separate fixture is documented in [frequency cutoff validation](backend/docs/results/frequency_cutoff_validation.md); it is a small parameter check, not evidence that `0.15` is optimal for all CT images.
+| Gaussian noise (seed 5000293) | Salt and pepper (seed 5000403) | Synthetic speckle (seed 5000499) |
+| --- | --- | --- |
+| ![Gaussian](backend/docs/images/benchmark_gaussian_spatial.png) | ![Salt and pepper](backend/docs/images/benchmark_salt_pepper_spatial.png) | ![Speckle](backend/docs/images/benchmark_speckle_spatial.png) |
 
-## Optional 3D CT workflow
+*Panels, left to right: original windowed slice, slice with synthetic noise, then 5 x 5 mean, median and Gaussian filters. One slice and one noise draw: an illustration, not a ranking. The titles contain the DICOM series UID.*
 
-The 3D tools require a consistent multi-slice DICOM series with usable geometry metadata. Example commands, run from `backend/`:
+### 3D tools: what exists and what does not
+
+- **Loading** (`src/dicom_volume.py`): slices are ordered by position along the slice normal (not by file name), the series must be one UID with one orientation, pixel spacing and size; spacing must be uniform (otherwise the loader refuses and asks for resampling; it never resamples); tilted gantry geometry and damaged `.dcm` files are refused instead of producing a sheared or shorter volume.
+- **Visualisation**: interactive Plotly volume (API, dashboard, Streamlit), a VTK viewer, and orthogonal axial / coronal / sagittal views (`src/volume_views.py`, drawn with the physical aspect ratio and superior at the top).
+- **Volume smoothing script** (`run_denoised_3d_viewer.py`, `src/evaluate_volume_denoising.py`): a 3D Gaussian with sigma in millimetres. It reports descriptive statistics only. The quantitative evaluation of 3D smoothing is Benchmark 3D above, which finds almost no benefit from the third dimension on 3 mm slices.
+- **Not implemented:** any 3D filter other than the Gaussian, 3D tuning on real noise, resampling to isotropic voxels, and any claim of 3D denoising performance beyond Benchmark 3D.
 
 ```bash
 python -m src.slice_viewer "path/to/one_dicom_series"
@@ -430,25 +412,28 @@ python run_denoised_3d_viewer.py "path/to/one_dicom_series" --sigma-mm 1.0 --out
 python -m src.evaluate_volume_denoising "path/to/one_dicom_series" --sigma-mm 1.0
 ```
 
-The loader checks series identity, slice orientation, image dimensions, and slice spacing, and reads slices one at a time. Volume smoothing may remove small structures; a smoother appearance alone does not establish better diagnostic quality. The 3D workflow is a visualization and image-processing experiment, not a clinical viewer.
+![Original and Gaussian-smoothed CT volume](backend/docs/images/original_vs_smoothed_ct_3d_pseudocolor.png)
+
+*VTK rendering of the series before and after a 1 mm Gaussian (see the [3D viewer validation note](backend/docs/results/3d_viewer_validation.md)). A smoother appearance alone does not establish better quality, and smoothing can remove small structures.*
 
 ## Tests and checks
 
-| Check | Command | Last result (2026-10-25) |
+| Check | Command | Last result (2026-10-26) |
 | --- | --- | --- |
-| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 758 passed, 1 skipped, 69 s |
-| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 758 passed, 1 skipped, 88 s |
-| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 15 API-related test files | 691 passed, 1 skipped, 91 s |
+| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 800 passed, 1 skipped, 129 s |
+| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 800 passed, 1 skipped, 150 s |
+| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 16 API-related test files | 704 passed, 1 skipped, 101 s |
 | Python lint | `cd backend && ruff check .` | All checks passed |
 | Frontend lint | `cd frontend && npm run lint` | No problems (`--max-warnings 0`) |
 | Frontend unit and component tests | `npm test` | 72 passed (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend) |
 | Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 21 passed, 1 skipped (the skipped one needs `E2E_BENCHMARK_RUN_DIR`; with it set, that test runs and passes and the "no run configured" test is skipped) |
-| Production build | `npm run build` | Succeeds; entry chunk 222 kB (Plotly, 4.7 MB, loads on demand) |
+| Production build | `npm run build` | Succeeds; entry chunk 227 kB (Plotly, 4.7 MB, loads on demand) |
+| **Separate copy of the working tree, documented commands only** (2026-10-26): plain CPython 3.10.21 (not Conda), new `.venv` with `requirements.txt` + `ruff==0.17.2`, `npm ci` | `ruff check .`, `python -m pytest -q`, `npm run lint`, `npm test`, `npm run build`, `npm run e2e` (the venv's `python` on the `PATH`) | ruff clean; pytest 799 passed, 2 skipped; lint clean; 72 unit tests passed; build succeeds; 21 browser tests passed, 1 skipped. Every step exited 0. |
 | Dependency vulnerabilities | `pip-audit`; `npm audit` | None known (Python environment of the full requirements; npm 0 findings) |
 
 **Checked by hand on Windows 11 (not automated):** `.\dev.cmd start` run from a real console window, that window closed the way the X button does, then both services probed on `127.0.0.1` and `localhost` (API health, dashboard page, `/api/health` through the dashboard): all six answers were HTTP 200 before and after, with the same process ids. The previous design, which gave each service its own terminal window, stopped a service when *that* window was closed. A stop issued from another clone of the project leaves the services of this one alone. The console used for the test was a classic console window; a Windows Terminal tab was not closed in the test, but the services have no terminal of any kind (no console window, no Windows Terminal session), so there is nothing for it to close.
 
-The one skipped backend test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). The frontend tests mock the API with fixtures generated from the real backend, and a backend test fails if those fixtures drift. The GitHub Actions workflows run the same checks on pushes and pull requests to `main`; **they have not been executed on GitHub**, so the existence of a workflow does not confirm that the latest commit passed there.
+The skipped backend test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). A clone or copy without local outputs skips one more (`test_provenance.py`, "no local reports folder"): it checks the locally generated `backend/reports/`, which is ignored by Git and therefore absent from a clone, hence 799 passed / 2 skipped there against 800 / 1 on the development machine. The frontend tests mock the API with fixtures generated from the real backend, and a backend test fails if those fixtures drift. The GitHub Actions workflows run the same checks on pushes and pull requests to `main`; **they have not been executed on GitHub**, so the existence of a workflow does not confirm that the latest commit passed there.
 
 ## Deployment (Render)
 
@@ -468,44 +453,20 @@ The free plan sleeps when idle, so the first request after a pause is slow. The 
 
 - The CT series used for benchmark development is local and is not included in this repository; only derived results are (aggregated metrics, no pixel data and no patient identifiers).
 - The LIDC-IDRI collection is hosted by [The Cancer Imaging Archive (TCIA)](https://www.cancerimagingarchive.net/collection/lidc-idri/) under CC BY 3.0. Follow the collection's data-use and attribution requirements.
-- Bundled samples (details and checks in [backend/samples/README.md](backend/samples/README.md)): `head_ct.png` is a head CT slice (scikit-image's `data.brain()`, University of North Carolina volume-rendering test data; **its terms could not be verified at the source**); `cell_phase.png` is a quantitative phase image of a cell in saline (scikit-image's `data.cell()`, CC0 per its documentation; it is not tissue); `synthetic_ct_scan.dcm` is a two-disc phantom generated by `download_data.py`. Earlier names (`brain_mri.png`, `cells_tissue.png`) were inaccurate.
+- Bundled samples (details and checks in [backend/samples/README.md](backend/samples/README.md)): `head_ct.png` is most likely a head CT slice (judged from the image, not from metadata; scikit-image's `data.brain()`, University of North Carolina volume-rendering test data; **its terms could not be verified at the source**); `cell_phase.png` is a quantitative phase image of a cell in saline (scikit-image's `data.cell()`, CC0 per its documentation; it is not tissue); `synthetic_ct_scan.dcm` is a two-disc phantom generated by `download_data.py`. Earlier names (`brain_mri.png`, `cells_tissue.png`) were inaccurate.
 - `download_data.py` can generate a fictional synthetic DICOM example locally and optionally download third-party examples. Review the terms of any external dataset before use or redistribution.
 - Use only images you are authorized to process. A locally run API keeps files on your computer; a hosted one receives them. Do not upload identifiable patient data to a public deployment (the dashboard states which case applies). DICOM files and exported HTML reports can contain sensitive metadata or image content.
 
 ## Limitations
 
 - The quantitative experiments add synthetic noise to a source slice and use that same slice as the reference. They do not provide a clean ground truth for real clinical noise, and the scores say nothing about diagnostic value or preserved small structures.
-- The documented CT benchmark is based on one local series of one patient and does not establish generalization across patients, scanners, protocols, or modalities. The identity of the local series with the public LIDC-IDRI release has not been verified.
-- Benchmark V2 results are exploratory: noisy clinical reference, synthetic noise of unvalidated realism, few slices of one patient, test slices that were inspected during development, and intervals that under-cover (see the V2 section).
+- The documented CT benchmarks are based on one local series of one patient and do not establish generalization across patients, scanners, protocols, or modalities. The local series agrees with TCIA's public record for this series on every compared field (UIDs, modality, scanner, software version, image count, total size of the 100 files), but its files were not hashed against a fresh download.
+- Benchmark V2 and Benchmark 3D results are exploratory: noisy clinical reference, synthetic noise whose resemblance to real CT noise is not established, few slices of one patient, test slices that were inspected during development (V2), and bootstrap intervals from only 8 slices that may be too narrow (see [backend/docs/benchmark_v2.md](backend/docs/benchmark_v2.md)). Benchmark 3D uses noise that is independent between slices, which favours smoothing across slices, and tests only Gaussian filters.
 - No learned denoising model is included, because the available data (one patient, no clean reference) cannot support an honest training and validation protocol; see [methods_and_decisions.md](backend/docs/methods_and_decisions.md). BM3D was considered and not implemented.
 - Synthetic speckle is included as a mathematical noise model; it is not presented as a CT-specific noise model. The Gaussian noise added to the bundled head CT sample in the lab is a teaching device, not a model of CT noise.
 - The filters are classical image-processing methods, not a trained AI model.
 - The API has no authentication, and its limits are sized for a small instance; the hosted memory behaviour is untested.
 - **A repository-wide software license has not been declared.** Do not assume the code is licensed for reuse; the owner must choose and add one before inviting redistribution.
-
-## Selected figures
-
-The following figures are committed examples from earlier experiments. Check their associated parameters and validation notes before treating them as results for the current default configuration.
-
-### Spatial filtering
-
-![Gaussian synthetic noise with spatial filters](backend/docs/images/ct_gaussian_spatial.png)
-
-![Salt-and-pepper synthetic noise with spatial filters](backend/docs/images/ct_salt_pepper_spatial.png)
-
-![Synthetic speckle with spatial filters](backend/docs/images/ct_speckle_spatial.png)
-
-### Frequency-domain filtering
-
-![Salt-and-pepper synthetic noise with frequency filters](backend/docs/images/ct_salt_pepper_frequency.png)
-
-### 3D visualization
-
-![Original CT volume in grayscale](backend/docs/images/ct_volume_3d_grayscale.png)
-
-![Original and Gaussian-smoothed CT volume](backend/docs/images/original_vs_smoothed_ct_3d_pseudocolor.png)
-
-See the [3D viewer validation report](backend/docs/results/3d_viewer_validation.md) for the recorded data source and interpretation limits.
 
 ## References
 

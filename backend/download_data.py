@@ -27,16 +27,18 @@ def generate_skimage_samples() -> None:
     import matplotlib.pyplot as plt
     from skimage import data
 
-    print("→ scikit-image samples…")
+    print("-> scikit-image samples...")
     SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
     try:
-        brain = data.brain()
-        brain_img = brain[5] if brain.ndim == 3 else brain
-        plt.imsave(SAMPLES_DIR / "brain_mri.png", brain_img, cmap="gray")
-        print("  ✓ brain_mri.png")
+        # scikit-image calls this array "brain", but slice 5 shows a skull with bright bone: it is a head CT slice
+        # (see samples/README.md), so the sample is saved as head_ct.png.
+        volume = data.brain()
+        head_ct_img = volume[5] if volume.ndim == 3 else volume
+        plt.imsave(SAMPLES_DIR / "head_ct.png", head_ct_img, cmap="gray")
+        print("  ok head_ct.png")
     except Exception as exc:
-        print(f"  ✗ brain_mri.png skipped ({exc})")
+        print(f"  FAILED head_ct.png skipped ({exc})")
 
     try:
         cells = data.cell()
@@ -46,23 +48,23 @@ def generate_skimage_samples() -> None:
             cells_img = cells[0]
         else:
             cells_img = cells
-        plt.imsave(SAMPLES_DIR / "cells_tissue.png", cells_img, cmap="gray")
-        print("  ✓ cells_tissue.png")
+        plt.imsave(SAMPLES_DIR / "cell_phase.png", cells_img, cmap="gray")
+        print("  ok cell_phase.png")
     except Exception as exc:
-        print(f"  ✗ cells_tissue.png skipped ({exc})")
+        print(f"  FAILED cell_phase.png skipped ({exc})")
 
 
 def generate_synthetic_dicom() -> None:
-    """Generates a synthetic DICOM (fictional abdominal CT scan), 100% local."""
+    """Generates a synthetic DICOM phantom (two concentric discs plus Gaussian noise, in HU), 100% local."""
     try:
         import pydicom
         from pydicom.dataset import FileDataset, FileMetaDataset
         from pydicom.uid import ExplicitVRLittleEndian, generate_uid
     except ImportError:
-        print("→ Synthetic DICOM skipped: package `pydicom` is not installed.")
+        print("-> Synthetic DICOM skipped: package `pydicom` is not installed.")
         return
 
-    print("→ Synthetic DICOM (fictional abdominal CT scan)…")
+    print("-> Synthetic DICOM (two-disc phantom)...")
     SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
     size = 256
@@ -117,21 +119,21 @@ def generate_synthetic_dicom() -> None:
 
     try:
         ds.save_as(dcm_path)
-        print(f"  ✓ {dcm_path.name}")
+        print(f"  ok {dcm_path.name}")
     except Exception as exc:
-        print(f"  ✗ {dcm_path.name} skipped ({exc})")
+        print(f"  FAILED {dcm_path.name} skipped ({exc})")
 
 
 def download_pydicom_test_samples() -> None:
     """Download lightweight DICOM test fixtures from the pydicom project."""
-    print("→ Public DICOM test samples…")
+    print("-> Public DICOM test samples...")
     dicom_dir = SAMPLES_DIR / "dicom_test_files"
     dicom_dir.mkdir(parents=True, exist_ok=True)
 
     for filename, url in PYDICOM_TEST_SAMPLES.items():
         dest = dicom_dir / filename
         if dest.exists():
-            print(f"  ✓ {filename} (already exists)")
+            print(f"  ok {filename} (already exists)")
             continue
         try:
             with urllib.request.urlopen(url, timeout=30) as response:
@@ -146,9 +148,9 @@ def download_pydicom_test_samples() -> None:
             except Exception as exc:
                 raise ValueError(f"Downloaded file is not a readable DICOM: {exc}") from exc
             tmp.replace(dest)
-            print(f"  ✓ {filename}")
+            print(f"  ok {filename}")
         except Exception as exc:
-            print(f"  ✗ {filename} failed ({exc})")
+            print(f"  FAILED {filename} failed ({exc})")
 
 
 def download_kaggle_samples(n_per_class: int = DEFAULT_IMAGES_PER_CLASS) -> None:
@@ -156,14 +158,14 @@ def download_kaggle_samples(n_per_class: int = DEFAULT_IMAGES_PER_CLASS) -> None
     try:
         import kagglehub
     except ImportError:
-        print("→ Kaggle dataset skipped: package `kagglehub` is not installed.")
+        print("-> Kaggle dataset skipped: package `kagglehub` is not installed.")
         return
 
-    print(f"→ Downloading '{KAGGLE_DATASET}'…")
+    print(f"-> Downloading '{KAGGLE_DATASET}'...")
     try:
         dataset_root = Path(kagglehub.dataset_download(KAGGLE_DATASET))
     except Exception as exc:
-        print(f"  ✗ Kaggle download failed ({exc}).")
+        print(f"  FAILED Kaggle download failed ({exc}).")
         return
 
     image_dirs = sorted(p for p in dataset_root.rglob("images") if p.is_dir())
@@ -192,12 +194,12 @@ def download_kaggle_samples(n_per_class: int = DEFAULT_IMAGES_PER_CLASS) -> None
         for src in chosen:
             shutil.copy2(src, dest_dir / src.name)
             total_copied += 1
-        print(f"  ✓ {class_slug}: {len(chosen)} image(s)")
+        print(f"  ok {class_slug}: {len(chosen)} image(s)")
 
     if total_copied == 0:
-        print("  ✗ No images found in downloaded archive.")
+        print("  FAILED No images found in downloaded archive.")
     else:
-        print(f"  ✓ {total_copied} image(s) copied in total to {dest_root}/")
+        print(f"  ok {total_copied} image(s) copied in total to {dest_root}/")
 
 
 def main() -> None:
@@ -236,7 +238,7 @@ def main() -> None:
             print(f"  {path.relative_to(SAMPLES_DIR)}")
             found_any = True
     if not found_any:
-        print("  (empty — all sources failed or were skipped)")
+        print("  (empty - all sources failed or were skipped)")
 
 
 if __name__ == "__main__":

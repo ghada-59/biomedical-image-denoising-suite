@@ -275,8 +275,10 @@ def test_the_sample_listing_states_provenance_licence_and_cautions(client):
         assert sample["provenance"] and sample["licence"] and sample["caution"] and sample["description"]
         assert sample["file_url"] == f"/api/samples/{sample['id']}/file" and sample["size_bytes"] > 0
     by_id = {s["id"]: s for s in samples}
-    assert "fictional" in by_id["synthetic_ct"]["modality"] and "not tissue" in by_id["cell_phase"]["description"]
-    assert "Rician" in by_id["brain_mri"]["caution"] and "not verified" in by_id["brain_mri"]["licence"].lower()
+    assert "phantom" in by_id["synthetic_ct"]["modality"] and "not tissue" in by_id["cell_phase"]["description"]
+    head = by_id["head_ct"]   # the file scikit-image calls "brain" shows a skull: it is a CT slice, and the catalogue must not call it an MRI
+    assert head["modality"].startswith("CT") and "MRI" not in head["label"] and "not an MRI" in head["description"]
+    assert "teaching device" in head["caution"] and "not verified" in head["licence"].lower()
 
 
 def test_sample_files_are_served_exactly_and_unknown_ids_are_404(client):
@@ -284,7 +286,7 @@ def test_sample_files_are_served_exactly_and_unknown_ids_are_404(client):
         response = client.get(f"/api/samples/{sample.id}/file")
         assert response.status_code == 200 and response.content == sample.path().read_bytes()
         assert response.headers["content-type"].startswith(sample.media_type)
-    for bad in ("nope", "..", "%2e%2e%2fapi.py", "brain_mri.png", "synthetic_ct%2f..%2f..%2fapi.py"):
+    for bad in ("nope", "..", "%2e%2e%2fapi.py", "head_ct.png", "brain_mri", "synthetic_ct%2f..%2f..%2fapi.py"):
         assert client.get(f"/api/samples/{bad}/file").status_code == 404
 
 

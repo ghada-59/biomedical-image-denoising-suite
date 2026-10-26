@@ -32,8 +32,8 @@ def test_every_endpoint_in_the_readme_table_exists():
 def test_the_readme_example_request_uses_real_fields_and_files():
     command = re.search(r"curl -X POST (\S+) \\\n\s+(.*)", README)
     assert command and command.group(1).endswith("/api/denoise")
-    assert "file=@backend/samples/brain_mri.png" in command.group(2)
-    assert (ROOT / "backend" / "samples" / "brain_mri.png").is_file()
+    assert "file=@backend/samples/head_ct.png" in command.group(2)
+    assert (ROOT / "backend" / "samples" / "head_ct.png").is_file()
     for field in re.findall(r"-F \"?(\w+)=", command.group(2)):
         assert field in {"file", "noise_type", "seed", "methods"}
 
@@ -60,3 +60,14 @@ def test_every_environment_variable_the_readme_names_is_read_by_the_code():
     source = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "backend").glob("api*.py"))
     for name in set(re.findall(r"`((?:MAX|BENCHMARK|CORS|CT)_[A-Z_]+)`", README)):
         assert name in source, f"{name} is documented but never read"
+
+
+def test_every_bundled_sample_is_catalogued_and_has_a_provenance_entry():
+    import sample_images
+
+    samples = ROOT / "backend" / "samples"
+    provenance = (samples / "README.md").read_text(encoding="utf-8")
+    files = {path.name for path in samples.iterdir() if path.is_file() and path.name != "README.md"}
+    assert files == {sample.filename for sample in sample_images.SAMPLES}
+    for name in files:
+        assert f"`{name}`" in provenance, f"{name} has no entry in backend/samples/README.md"

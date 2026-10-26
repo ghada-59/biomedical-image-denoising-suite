@@ -91,6 +91,12 @@ def test_powershell_counts_one_listener_as_one():
     assert "safe=1" in result.stdout, result.stdout + result.stderr
 
 
+def test_the_sample_generator_prints_only_ascii_so_a_redirected_windows_console_cannot_crash_it():
+    """Arrow and check-mark characters raised UnicodeEncodeError under cp1252 when stdout was redirected."""
+    source = (ROOT / "backend" / "download_data.py").read_text(encoding="utf-8")
+    assert all(ord(character) < 128 for character in source)
+
+
 def test_the_helper_exists_and_is_reachable_from_the_repository_root():
     launcher = (ROOT / "dev.cmd").read_text(encoding="utf-8")
     assert "scripts\\dev.ps1" in launcher and "%*" in launcher and SCRIPT.is_file()

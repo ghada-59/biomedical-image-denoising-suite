@@ -44,7 +44,7 @@ test.describe("2D lab against the real backend", () => {
     const problems = watchConsole(page);
     await openLab(page);
     await page.getByLabel(/bundled sample/i).selectOption("cell_phase");
-    await expect(page.getByAltText(/Preview of cells_tissue.png/)).toBeVisible();
+    await expect(page.getByAltText(/Preview of cell_phase.png/)).toBeVisible();
     await expect(page.getByText(/not tissue and not a radiological image/)).toBeVisible();
     for (const name of [/Bilateral/, /Non-local means/, /Wavelet/]) await page.getByRole("checkbox", { name }).check();
     await page.getByTestId("lab-run").click();
@@ -212,7 +212,7 @@ test.describe("accessibility (axe-core, WCAG 2 A and AA rules)", () => {
         .map(v => `${v.id} (${v.impact}): ${v.nodes.slice(0, 4).map(n => `${n.target.join(" ")} [${(n.any[0]?.message || "").slice(0, 150)}]`).join(" | ")}`);
       expect(serious(await scan()), "overview").toEqual([]);
       await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /2D Denoising Lab/ }).click();
-      await page.getByLabel(/bundled sample/i).selectOption("brain_mri");
+      await page.getByLabel(/bundled sample/i).selectOption("head_ct");
       await page.getByTestId("lab-run").click();
       await expect(page.getByTestId("lab-results-table")).toBeVisible();
       expect(serious(await scan()), "lab with results").toEqual([]);

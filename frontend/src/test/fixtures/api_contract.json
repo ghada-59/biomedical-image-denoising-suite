@@ -1,0 +1,329 @@
+{
+  "methods": {
+    "default_methods": [
+      "mean",
+      "median",
+      "gaussian",
+      "fft_ideal",
+      "fft_gauss",
+      "fft_butterworth"
+    ],
+    "limits": {
+      "max_advanced_pixels": 1048576,
+      "max_concurrent_jobs": 2,
+      "max_image_pixels": 4194304,
+      "max_upload_mb": 25
+    },
+    "methods": [
+      {
+        "assumption": "Noise is independent between pixels and the image is smooth at the window scale; edges and small structures are blurred.",
+        "available": true,
+        "family": "Spatial",
+        "heavy": false,
+        "id": "mean",
+        "label": "Mean",
+        "parameters": [
+          {
+            "default": 5,
+            "exclusive_maximum": false,
+            "exclusive_minimum": false,
+            "help": "Window side in pixels. Even values are raised to the next odd value.",
+            "integer": true,
+            "label": "Kernel size",
+            "maximum": 51,
+            "minimum": 1,
+            "name": "kernel_size",
+            "step": 2,
+            "unit": "px"
+          }
+        ],
+        "reference": "Textbook definition; see docs/methods_and_decisions.md",
+        "summary": "Box average over a square window.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "Suited to impulse (salt-and-pepper) noise; non-linear and can flatten thin structures.",
+        "available": true,
+        "family": "Spatial",
+        "heavy": false,
+        "id": "median",
+        "label": "Median",
+        "parameters": [
+          {
+            "default": 5,
+            "exclusive_maximum": false,
+            "exclusive_minimum": false,
+            "help": "Window side in pixels. Even values are raised to the next odd value.",
+            "integer": true,
+            "label": "Kernel size",
+            "maximum": 51,
+            "minimum": 1,
+            "name": "kernel_size",
+            "step": 2,
+            "unit": "px"
+          }
+        ],
+        "reference": "Textbook definition; see docs/methods_and_decisions.md",
+        "summary": "Median of a square window.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "Like the mean filter but with smoother weights; edges are blurred in proportion to sigma.",
+        "available": true,
+        "family": "Spatial",
+        "heavy": false,
+        "id": "gaussian",
+        "label": "Gaussian",
+        "parameters": [
+          {
+            "default": 5,
+            "exclusive_maximum": false,
+            "exclusive_minimum": false,
+            "help": "Window side in pixels. Even values are raised to the next odd value.",
+            "integer": true,
+            "label": "Kernel size",
+            "maximum": 51,
+            "minimum": 1,
+            "name": "kernel_size",
+            "step": 2,
+            "unit": "px"
+          },
+          {
+            "default": 0.0,
+            "exclusive_maximum": false,
+            "exclusive_minimum": false,
+            "help": "Standard deviation of the Gaussian kernel in pixels. 0 lets OpenCV derive it from the kernel size.",
+            "integer": false,
+            "label": "Gaussian sigma",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "name": "sigma",
+            "step": 0.1,
+            "unit": "px"
+          }
+        ],
+        "reference": "Textbook definition; see docs/methods_and_decisions.md",
+        "summary": "Gaussian-weighted average.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "High frequencies are noise. The sharp cutoff rings near edges and the transform assumes periodic borders.",
+        "available": true,
+        "family": "Frequency",
+        "heavy": false,
+        "id": "fft_ideal",
+        "label": "Frequency ideal",
+        "parameters": [
+          {
+            "default": 0.15,
+            "exclusive_maximum": true,
+            "exclusive_minimum": true,
+            "help": "Cutoff radius as a fraction of the smaller half-dimension of the spectrum (1 = Nyquist). Must be in (0, 1).",
+            "integer": false,
+            "label": "FFT cutoff",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "name": "cutoff_ratio",
+            "step": 0.01,
+            "unit": ""
+          }
+        ],
+        "reference": "Textbook definition; formulas in docs/methods_and_decisions.md",
+        "summary": "Hard cutoff low-pass in the Fourier domain.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "Smooth roll-off, no ringing; blurs like a spatial Gaussian under periodic borders.",
+        "available": true,
+        "family": "Frequency",
+        "heavy": false,
+        "id": "fft_gauss",
+        "label": "Frequency Gaussian",
+        "parameters": [
+          {
+            "default": 0.15,
+            "exclusive_maximum": true,
+            "exclusive_minimum": true,
+            "help": "Cutoff radius as a fraction of the smaller half-dimension of the spectrum (1 = Nyquist). Must be in (0, 1).",
+            "integer": false,
+            "label": "FFT cutoff",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "name": "cutoff_ratio",
+            "step": 0.01,
+            "unit": ""
+          }
+        ],
+        "reference": "Textbook definition; formulas in docs/methods_and_decisions.md",
+        "summary": "Gaussian low-pass in the Fourier domain.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "Intermediate roll-off between the ideal and Gaussian filters.",
+        "available": true,
+        "family": "Frequency",
+        "heavy": false,
+        "id": "fft_butterworth",
+        "label": "Frequency Butterworth",
+        "parameters": [
+          {
+            "default": 0.15,
+            "exclusive_maximum": true,
+            "exclusive_minimum": true,
+            "help": "Cutoff radius as a fraction of the smaller half-dimension of the spectrum (1 = Nyquist). Must be in (0, 1).",
+            "integer": false,
+            "label": "FFT cutoff",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "name": "cutoff_ratio",
+            "step": 0.01,
+            "unit": ""
+          }
+        ],
+        "reference": "Textbook definition; formulas in docs/methods_and_decisions.md",
+        "summary": "Order-2 Butterworth low-pass in the Fourier domain.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "Noise is small compared with the edges to keep; flat regions are smoothed, but noise on an edge is not.",
+        "available": true,
+        "family": "Edge-preserving",
+        "heavy": true,
+        "id": "bilateral",
+        "label": "Bilateral",
+        "parameters": [
+          {
+            "default": 0.4,
+            "exclusive_maximum": false,
+            "exclusive_minimum": true,
+            "help": "Pixels whose intensity differs by much more than this barely influence each other (edges survive).",
+            "integer": false,
+            "label": "Intensity scale",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "name": "bilateral_sigma_color",
+            "step": 0.01,
+            "unit": "of full range"
+          },
+          {
+            "default": 1.5,
+            "exclusive_maximum": false,
+            "exclusive_minimum": true,
+            "help": "Spatial standard deviation in pixels; the window diameter is 2*ceil(3*scale)+1.",
+            "integer": false,
+            "label": "Spatial scale",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "name": "bilateral_sigma_space",
+            "step": 0.1,
+            "unit": "px"
+          }
+        ],
+        "reference": "Tomasi and Manduchi, ICCV 1998, doi:10.1109/ICCV.1998.710815",
+        "summary": "Averages only pixels that are close in space and similar in intensity.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "Image structures repeat; noise is independent and roughly Gaussian. The noise level is not supplied, only the strength h.",
+        "available": true,
+        "family": "Edge-preserving",
+        "heavy": true,
+        "id": "nlm",
+        "label": "Non-local means",
+        "parameters": [
+          {
+            "default": 0.15,
+            "exclusive_maximum": false,
+            "exclusive_minimum": true,
+            "help": "Patch-similarity tolerance. Too small leaves noise, too large erases texture. Patch 5x5, search window 13x13 are fixed.",
+            "integer": false,
+            "label": "Filtering strength h",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "name": "nlm_h",
+            "step": 0.01,
+            "unit": "of full range"
+          }
+        ],
+        "reference": "Buades, Coll and Morel, CVPR 2005, doi:10.1109/CVPR.2005.38",
+        "summary": "Averages pixels whose surrounding patches look alike, wherever they are.",
+        "unavailable_reason": null
+      },
+      {
+        "assumption": "Noise is Gaussian and white; the image is sparse in the wavelet basis. Correlated noise is only partly removed.",
+        "available": true,
+        "family": "Wavelet",
+        "heavy": true,
+        "id": "wavelet",
+        "label": "Wavelet (BayesShrink)",
+        "parameters": [
+          {
+            "default": 0.15,
+            "exclusive_maximum": false,
+            "exclusive_minimum": true,
+            "help": "Noise standard deviation assumed by the BayesShrink thresholds. A strength control, not a measurement.",
+            "integer": false,
+            "label": "Assumed noise level",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "name": "wavelet_sigma",
+            "step": 0.01,
+            "unit": "of full range"
+          }
+        ],
+        "reference": "Chang, Yu and Vetterli, IEEE TIP 2000, doi:10.1109/83.862633",
+        "summary": "Soft-thresholds wavelet coefficients, averaged over circular shifts.",
+        "unavailable_reason": null
+      }
+    ],
+    "noise_types": [
+      "None",
+      "Gaussian",
+      "Salt & Pepper",
+      "Speckle (synthetic)"
+    ]
+  },
+  "samples": {
+    "samples": [
+      {
+        "caution": "Not a real scan: it shows how DICOM slices are read, not how real CT noise behaves.",
+        "description": "Two concentric discs (about 40 HU and 400 HU) on a -1000 HU background with Gaussian noise of 15 HU, drawn by code and stored as a DICOM file with a modality rescale. It is not an anatomical image and contains no patient data.",
+        "file_url": "/api/samples/synthetic_ct/file",
+        "filename": "synthetic_ct_scan.dcm",
+        "id": "synthetic_ct",
+        "label": "Synthetic phantom (DICOM CT slice)",
+        "licence": "Generated for this project.",
+        "media_type": "application/dicom",
+        "modality": "CT (synthetic phantom)",
+        "provenance": "Generated by backend/download_data.py in this repository.",
+        "size_bytes": 131798
+      },
+      {
+        "caution": "An 8-bit window of one slice: the Hounsfield values and the DICOM header are not in the file, so scores are on the display scale. The Gaussian noise added here is a teaching device, not a model of CT noise.",
+        "description": "Slice 50 of the chest CT series LIDC-IDRI-0709 (100 axial slices, 0.54 mm pixels, 3 mm slices), converted to Hounsfield units with the DICOM rescale, displayed with the -600/1500 HU lung window and saved as an 8-bit PNG (512 x 512). It is the slice used for the figures of the historical benchmark.",
+        "file_url": "/api/samples/chest_ct/file",
+        "filename": "chest_ct.png",
+        "id": "chest_ct",
+        "label": "Chest CT slice (LIDC-IDRI, PNG)",
+        "licence": "CC BY 3.0 (licence of the collection on The Cancer Imaging Archive, and the licence text shipped with the series). Attribution is required: cite the collection when you reuse this image.",
+        "media_type": "image/png",
+        "modality": "CT (display window applied)",
+        "provenance": "The Cancer Imaging Archive, collection LIDC-IDRI (Armato SG III et al., Medical Physics 2011; data citation DOI 10.7937/K9/TCIA.2015.LO9QL9SX). Generated by backend/download_data.py --ct-series from the local series.",
+        "size_bytes": 93714
+      },
+      {
+        "caution": "Has a banding artefact in the background. Included to show the filters on a non-radiological image.",
+        "description": "A single cell floating in saline, imaged by digital holography (scikit-image's data.cell()). It is a microscopy image, not tissue and not a radiological image.",
+        "file_url": "/api/samples/cell_phase/file",
+        "filename": "cell_phase.png",
+        "id": "cell_phase",
+        "label": "Cell in saline (quantitative phase image)",
+        "licence": "CC0 (public-domain dedication) according to the scikit-image documentation of data.cell.",
+        "media_type": "image/png",
+        "modality": "Quantitative phase microscopy",
+        "provenance": "scikit-image sample data (qpformat; see the scikit-image documentation of data.cell).",
+        "size_bytes": 124038
+      }
+    ]
+  }
+}

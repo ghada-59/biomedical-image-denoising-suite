@@ -1,0 +1,6 @@
+# Recorded benchmark runs: keep the exact bytes. The SHA-256 of every file is recorded in the run's
+# run_metadata.json, and the API verifies it, so no line-ending conversion may touch these files.
+backend/docs/results/benchmark_v2_*/** -text
+
+# Recorded benchmark 3D run: keep the exact bytes (the SHA-256 of every file is in its run_metadata.json).
+backend/docs/results/benchmark_3d_*/** -text

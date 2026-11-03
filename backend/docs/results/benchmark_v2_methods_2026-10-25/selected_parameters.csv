@@ -1,0 +1,73 @@
+condition,family,params,tuning_criterion,tuning_score
+white_10HU,Mean,"{""kernel_size"": 1}",RMSE_HU,9.991878288583065
+white_10HU,Median,"{""kernel_size"": 1}",RMSE_HU,9.991878288583065
+white_10HU,Gaussian,"{""kernel_size"": 3, ""sigma"": 0.3}",RMSE_HU,9.868202929135506
+white_10HU,FFT ideal,"{""cutoff_ratio"": null}",RMSE_HU,9.991878288583065
+white_10HU,FFT Gaussian,"{""cutoff_ratio"": 3.0}",RMSE_HU,9.789707191246995
+white_10HU,FFT Butterworth,"{""cutoff_ratio"": 2.0}",RMSE_HU,9.838128386334333
+white_10HU,Bilateral,"{""sigma_color_hu"": 20, ""sigma_space_px"": 1.5}",RMSE_HU,8.109247043997682
+white_10HU,Non-local means,"{""h_hu"": 12, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,7.593529946199549
+white_10HU,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 30, ""wavelet"": ""sym4""}",RMSE_HU,6.415951760279685
+white_25HU,Mean,"{""kernel_size"": 1}",RMSE_HU,25.013861487710212
+white_25HU,Median,"{""kernel_size"": 3}",RMSE_HU,15.410818127936944
+white_25HU,Gaussian,"{""kernel_size"": 5, ""sigma"": 0.4}",RMSE_HU,22.535071058756177
+white_25HU,FFT ideal,"{""cutoff_ratio"": null}",RMSE_HU,25.013861487710212
+white_25HU,FFT Gaussian,"{""cutoff_ratio"": 1.0}",RMSE_HU,22.647297684773687
+white_25HU,FFT Butterworth,"{""cutoff_ratio"": 1.5}",RMSE_HU,23.25110551050029
+white_25HU,Bilateral,"{""sigma_color_hu"": 65, ""sigma_space_px"": 1.5}",RMSE_HU,14.9339291797718
+white_25HU,Non-local means,"{""h_hu"": 25, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,13.502130021938994
+white_25HU,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 50, ""wavelet"": ""sym4""}",RMSE_HU,12.083549045930402
+white_50HU,Mean,"{""kernel_size"": 3}",RMSE_HU,48.29635061291496
+white_50HU,Median,"{""kernel_size"": 3}",RMSE_HU,24.662915107179163
+white_50HU,Gaussian,"{""kernel_size"": 5, ""sigma"": 0.5}",RMSE_HU,37.1506471528725
+white_50HU,FFT ideal,"{""cutoff_ratio"": 0.8}",RMSE_HU,45.106880708562265
+white_50HU,FFT Gaussian,"{""cutoff_ratio"": 0.6}",RMSE_HU,36.864112346364344
+white_50HU,FFT Butterworth,"{""cutoff_ratio"": 0.8}",RMSE_HU,37.39118465261603
+white_50HU,Bilateral,"{""sigma_color_hu"": 200, ""sigma_space_px"": 1.5}",RMSE_HU,21.857299854296354
+white_50HU,Non-local means,"{""h_hu"": 50, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,20.57031382757062
+white_50HU,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 65, ""wavelet"": ""sym4""}",RMSE_HU,21.01076754199839
+correlated_10HU,Mean,"{""kernel_size"": 1}",RMSE_HU,10.003585077839686
+correlated_10HU,Median,"{""kernel_size"": 1}",RMSE_HU,10.003585077839686
+correlated_10HU,Gaussian,"{""kernel_size"": 3, ""sigma"": 0.3}",RMSE_HU,9.995925135083073
+correlated_10HU,FFT ideal,"{""cutoff_ratio"": null}",RMSE_HU,10.003585077839686
+correlated_10HU,FFT Gaussian,"{""cutoff_ratio"": null}",RMSE_HU,10.003585077839686
+correlated_10HU,FFT Butterworth,"{""cutoff_ratio"": 4.0}",RMSE_HU,10.00346974036403
+correlated_10HU,Bilateral,"{""sigma_color_hu"": 16, ""sigma_space_px"": 1.5}",RMSE_HU,9.4207163056225
+correlated_10HU,Non-local means,"{""h_hu"": 8, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,9.247901752767383
+correlated_10HU,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 20, ""wavelet"": ""sym4""}",RMSE_HU,9.723450948144647
+correlated_25HU,Mean,"{""kernel_size"": 1}",RMSE_HU,24.97763574477698
+correlated_25HU,Median,"{""kernel_size"": 3}",RMSE_HU,22.528782661493214
+correlated_25HU,Gaussian,"{""kernel_size"": 3, ""sigma"": 0.3}",RMSE_HU,24.90413166381748
+correlated_25HU,FFT ideal,"{""cutoff_ratio"": null}",RMSE_HU,24.97763574477698
+correlated_25HU,FFT Gaussian,"{""cutoff_ratio"": 3.0}",RMSE_HU,24.898488487421584
+correlated_25HU,FFT Butterworth,"{""cutoff_ratio"": 3.0}",RMSE_HU,24.974869060415006
+correlated_25HU,Bilateral,"{""sigma_color_hu"": 65, ""sigma_space_px"": 1.5}",RMSE_HU,20.161483555424017
+correlated_25HU,Non-local means,"{""h_hu"": 32, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,18.430326773389368
+correlated_25HU,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 40, ""wavelet"": ""sym4""}",RMSE_HU,22.477637986599067
+correlated_50HU,Mean,"{""kernel_size"": 1}",RMSE_HU,50.019746495496015
+correlated_50HU,Median,"{""kernel_size"": 5}",RMSE_HU,37.72611195791936
+correlated_50HU,Gaussian,"{""kernel_size"": 5, ""sigma"": 0.4}",RMSE_HU,48.86784858876302
+correlated_50HU,FFT ideal,"{""cutoff_ratio"": null}",RMSE_HU,50.019746495496015
+correlated_50HU,FFT Gaussian,"{""cutoff_ratio"": 1.5}",RMSE_HU,49.34982932252837
+correlated_50HU,FFT Butterworth,"{""cutoff_ratio"": 2.0}",RMSE_HU,49.99454962679715
+correlated_50HU,Bilateral,"{""sigma_color_hu"": 200, ""sigma_space_px"": 1.5}",RMSE_HU,35.0848405523266
+correlated_50HU,Non-local means,"{""h_hu"": 65, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,30.41825560320002
+correlated_50HU,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 50, ""wavelet"": ""sym4""}",RMSE_HU,44.76243678753522
+robustness_salt_pepper,Mean,"{""kernel_size"": 3}",RMSE_HU,63.12181697533714
+robustness_salt_pepper,Median,"{""kernel_size"": 3}",RMSE_HU,14.646677853401165
+robustness_salt_pepper,Gaussian,"{""kernel_size"": 7, ""sigma"": 1.0}",RMSE_HU,59.675829802169176
+robustness_salt_pepper,FFT ideal,"{""cutoff_ratio"": 0.4}",RMSE_HU,66.92838128345379
+robustness_salt_pepper,FFT Gaussian,"{""cutoff_ratio"": 0.3}",RMSE_HU,60.41477523365989
+robustness_salt_pepper,FFT Butterworth,"{""cutoff_ratio"": 0.4}",RMSE_HU,59.220341988732706
+robustness_salt_pepper,Bilateral,"{""sigma_color_hu"": 800, ""sigma_space_px"": 1.5}",RMSE_HU,45.372550020911525
+robustness_salt_pepper,Non-local means,"{""h_hu"": 200, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,48.04704845850578
+robustness_salt_pepper,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 160, ""wavelet"": ""sym4""}",RMSE_HU,54.1797651038437
+robustness_speckle,Mean,"{""kernel_size"": 3}",RMSE_HU,58.16747202028546
+robustness_speckle,Median,"{""kernel_size"": 5}",RMSE_HU,39.63585183509538
+robustness_speckle,Gaussian,"{""kernel_size"": 7, ""sigma"": 0.75}",RMSE_HU,55.25157251341549
+robustness_speckle,FFT ideal,"{""cutoff_ratio"": 0.4}",RMSE_HU,62.25061944882223
+robustness_speckle,FFT Gaussian,"{""cutoff_ratio"": 0.4}",RMSE_HU,54.879948827306215
+robustness_speckle,FFT Butterworth,"{""cutoff_ratio"": 0.4}",RMSE_HU,54.671608261228734
+robustness_speckle,Bilateral,"{""sigma_color_hu"": 500, ""sigma_space_px"": 1.5}",RMSE_HU,35.291517458835145
+robustness_speckle,Non-local means,"{""h_hu"": 130, ""patch_distance"": 6, ""patch_size"": 5}",RMSE_HU,38.927373504379055
+robustness_speckle,Wavelet BayesShrink,"{""levels"": 3, ""max_shifts"": 3, ""sigma_hu"": 130, ""wavelet"": ""sym4""}",RMSE_HU,43.42830876560305

@@ -1,0 +1,10 @@
+condition,method,params
+white_10HU,2D slice-wise Gaussian,"{""sigma_xy_mm"": 0.25, ""sigma_z_mm"": 0.0}"
+white_10HU,3D isotropic Gaussian,"{""sigma_xy_mm"": 0.25, ""sigma_z_mm"": 0.25}"
+white_10HU,3D anisotropic Gaussian,"{""sigma_xy_mm"": 0.25, ""sigma_z_mm"": 0.0}"
+white_25HU,2D slice-wise Gaussian,"{""sigma_xy_mm"": 0.4, ""sigma_z_mm"": 0.0}"
+white_25HU,3D isotropic Gaussian,"{""sigma_xy_mm"": 0.4, ""sigma_z_mm"": 0.4}"
+white_25HU,3D anisotropic Gaussian,"{""sigma_xy_mm"": 0.4, ""sigma_z_mm"": 0.0}"
+white_50HU,2D slice-wise Gaussian,"{""sigma_xy_mm"": 0.4, ""sigma_z_mm"": 0.0}"
+white_50HU,3D isotropic Gaussian,"{""sigma_xy_mm"": 0.4, ""sigma_z_mm"": 0.4}"
+white_50HU,3D anisotropic Gaussian,"{""sigma_xy_mm"": 0.4, ""sigma_z_mm"": 0.0}"

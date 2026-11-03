@@ -19,11 +19,21 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+# Environments and secrets (an example file with placeholder values may be committed as .env.example)
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
 ENV/
+
+# Caches, logs and operating-system files
+.ruff_cache/
+.mypy_cache/
+*.log
+Thumbs.db
+desktop.ini
 .DS_Store
 .idea/
 .vscode/
@@ -38,3 +48,6 @@ reports/
 
 # Local medical imaging datasets (keep local datasets out of Git)
 data/
+
+# Output of the Windows development helper (.\dev.cmd start)
+/logs/

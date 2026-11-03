@@ -1,0 +1,1393 @@
+{
+  "benchmark": "V2",
+  "dicom_conversion": {
+    "BitsStored": "16",
+    "ConvolutionKernel": "FC01",
+    "Modality": "CT",
+    "PhotometricInterpretation": "MONOCHROME2",
+    "PixelRepresentation": "1",
+    "RescaleIntercept": "0",
+    "RescaleSlope": "1",
+    "WindowCenter": "-500",
+    "WindowWidth": "2000",
+    "hu = stored * RescaleSlope + RescaleIntercept (pydicom apply_modality_lut)": true,
+    "note": "the WindowCenter/WindowWidth tags are NOT used by benchmark V2"
+  },
+  "files_sha256": {
+    "grid_bracketing.csv": "7b80e051d6635028899a26c174e37a827c66459ff92587d18d5c3aeab05f2139",
+    "mask_ranking.csv": "f77eb264e0ad7a0be2980670ab4333183daa4affeff8232f11ced5ca6712debd",
+    "mask_sensitivity.csv": "e87ea2fb761f0854b2e91821e39286949d1f1c6ee0548529db209e37709810da",
+    "mask_summary.csv": "8ab9b435b639f43490f12fd3211e2d5443a85a6a260459a54891a212dcdd2b6f",
+    "selected_parameters.csv": "11dc094835d9212ba3265c228d14c399a7c49d267b530e8857065fc669fcb48d",
+    "ssim_sensitivity.csv": "47996a52dc3da0a083bcb3bacc578e6a5606418fc63990cc5bb0506ea3e28e96",
+    "test_pairwise.csv": "31ac6424754cd3d63e1e1f1a064dab2b4dc13521502ebea0307f8d1b9362e27c",
+    "test_per_run.csv": "873834e18d3c75e77ba9c3a87a5f9e5554ed0b4b24b354a2ee8bfb9694886574",
+    "test_per_slice.csv": "2501c55f074aa5b50f13d7c54a5e9d28898b2fc6db331203cd3531c6cfaf3b95",
+    "test_summary.csv": "ef8cbfde9adc652599a397e8acc8a582d6af362de9c0b71edbd1c9cb58b32086",
+    "tuning_criteria_comparison.csv": "d2fbe75a0b9a5d6d97c48611b982ad12b554b9f321ec382cfb1e04e5a2f736d6",
+    "tuning_grid.csv": "4d043e744413c45039097563914c68e2fcc994287aa83d4014a5f8f80e9e5151"
+  },
+  "filter_physical_equivalents": {
+    "fft_cutoff": {
+      "0.05": {
+        "cycles_per_mm": 0.0463,
+        "equivalent_gaussian_sigma_mm": 3.438
+      },
+      "0.08": {
+        "cycles_per_mm": 0.0741,
+        "equivalent_gaussian_sigma_mm": 2.149
+      },
+      "0.1": {
+        "cycles_per_mm": 0.0926,
+        "equivalent_gaussian_sigma_mm": 1.719
+      },
+      "0.15": {
+        "cycles_per_mm": 0.1389,
+        "equivalent_gaussian_sigma_mm": 1.146
+      },
+      "0.2": {
+        "cycles_per_mm": 0.1852,
+        "equivalent_gaussian_sigma_mm": 0.859
+      },
+      "0.3": {
+        "cycles_per_mm": 0.2778,
+        "equivalent_gaussian_sigma_mm": 0.573
+      },
+      "0.4": {
+        "cycles_per_mm": 0.3704,
+        "equivalent_gaussian_sigma_mm": 0.43
+      },
+      "0.5": {
+        "cycles_per_mm": 0.463,
+        "equivalent_gaussian_sigma_mm": 0.344
+      },
+      "0.6": {
+        "cycles_per_mm": 0.5556,
+        "equivalent_gaussian_sigma_mm": 0.286
+      },
+      "0.8": {
+        "cycles_per_mm": 0.7407,
+        "equivalent_gaussian_sigma_mm": 0.215
+      },
+      "1.0": {
+        "cycles_per_mm": 0.9259,
+        "equivalent_gaussian_sigma_mm": 0.172
+      },
+      "1.5": {
+        "cycles_per_mm": 1.3889,
+        "equivalent_gaussian_sigma_mm": 0.115
+      },
+      "2.0": {
+        "cycles_per_mm": 1.8519,
+        "equivalent_gaussian_sigma_mm": 0.086
+      },
+      "3.0": {
+        "cycles_per_mm": 2.7778,
+        "equivalent_gaussian_sigma_mm": 0.057
+      },
+      "4.0": {
+        "cycles_per_mm": 3.7037,
+        "equivalent_gaussian_sigma_mm": 0.043
+      }
+    },
+    "gaussian_sigma_mm": {
+      "0.0": 0.0,
+      "0.2": 0.108,
+      "0.3": 0.162,
+      "0.4": 0.216,
+      "0.5": 0.27,
+      "0.75": 0.405,
+      "1.0": 0.54,
+      "1.5": 0.81,
+      "2.0": 1.08,
+      "3.0": 1.62
+    },
+    "kernel_size_mm": {
+      "1": 0.54,
+      "3": 1.62,
+      "5": 2.7,
+      "7": 3.78,
+      "9": 4.86,
+      "11": 5.94
+    },
+    "note": "parameters are defined in pixels / fractions of Nyquist; they are unaffected by the HU normalisation. A cutoff above 1 lies beyond the Nyquist frequency along the axes: the ideal mask is the identity from sqrt(2), Gaussian and Butterworth only approach it. The identity configurations are kernel 1, sigma 0 and cutoff null.",
+    "nyquist_cycles_per_mm": 0.9259,
+    "pixel_spacing_mm": 0.54
+  },
+  "generated_at": "2026-10-25T19:31:21+00:00",
+  "git_commit": "0b1380b048d02ed6e8f4df7674667212f31f4c35",
+  "grid_bracketing_summary": {
+    "identity": 13,
+    "interior": 58,
+    "strongest_end": 1
+  },
+  "grid_note": "Selection uses RMSE_HU on the tuning slices only. 'identity' means no filtering scored best; 'interior' means the minimum is bracketed by weaker and stronger neighbours; 'weakest_end'/'strongest_end' mean the minimum is NOT bracketed. PSNR and SSIM on the tuning slices are recorded in tuning_grid.csv and compared in tuning_criteria_comparison.csv but never select a parameter.",
+  "input_series": {
+    "dicom_instances": 100,
+    "files_in_directory": 101,
+    "files_sha256": {
+      "1-001.dcm": "778d414eba7eb839984b11c787ff66ca1b9ae082942c48d876a2f243640811b7",
+      "1-002.dcm": "5b2fa77715ec519b02dfe6e85b0cff346b1ed043ce8b5ec7d4aa6bf01661786a",
+      "1-003.dcm": "6b728305a14259bbf92136827003ec2736a00f40254f56f7cf5bb022fbe2aa5f",
+      "1-004.dcm": "e02eeb551bece9dce30214068d6e2654ea02bba714b8e7a9f8015a2ce62be576",
+      "1-005.dcm": "49af7f1fa3ff2c7f341956fc809cca5d294075f9d2893b607f44a4c2352832e9",
+      "1-006.dcm": "8ae7b02d55de6ba1cca71d23d661989b5f8d52f9980c22fb5c9d070d0d02dc07",
+      "1-007.dcm": "5c220aea7739632ca3f52e20cabc58f043334d2daa6fff0bf491b692344429d5",
+      "1-008.dcm": "898ff8fd019a635b65e88189b38a1c8ab4859d7b0ec6352f2a1ac68befe3a461",
+      "1-009.dcm": "3589861a576854e6cb4813272fcc18e2df4ea06f9565e6bd9451422bc78c85d2",
+      "1-010.dcm": "cb65f969be53cf67c35374b23bf7feec24504b591f2f8175ade95e6ca3c7dd08",
+      "1-011.dcm": "295dc0867e7bb14b7847fde7d69fc830d557b22b7c75746e1a0ba15188f9de7e",
+      "1-012.dcm": "68f40f89958d8142975b3ffbf8c04b6a9e2d42fe15b481492d867332e5a1afd4",
+      "1-013.dcm": "27d3402d87fc4f02d1d78e99ad8de1d3c028d3b3bfad1f5f2c64248c3042a40f",
+      "1-014.dcm": "7888b0193d6f076d3a994871d6c0b1449d4ad21454204a1a9ada4e296bfffbf4",
+      "1-015.dcm": "f5ba1e1cd230d447d06fbd8924900dae8a862f81e6dce213a5a87817f315ba0b",
+      "1-016.dcm": "7c61b10532c0e87a495185510bcc6a1dc01dd79a9e7aedd5df25f6d84a9b9cee",
+      "1-017.dcm": "48fc9b6e589aa305b4d070fabb6343633bded61f9ce6e33b7fedb86a5024ecb0",
+      "1-018.dcm": "ecc194dba73f544cf28dc5469d0d117553247997e5c569050611f406f0f609b9",
+      "1-019.dcm": "2cf3a0f348f07b35d1351a9188b1bac78d26eeea647aaeb812591bc5a7813cd2",
+      "1-020.dcm": "42a6a374e2448032f3a52308ad57342a9755cbc41dc18b7434f9d2f0d22eea3d",
+      "1-021.dcm": "186a1b72053a54ce7704f456951ba553ba624aa58504c11c9cc8e76c01a97a4a",
+      "1-022.dcm": "9f8956001e30cbc0602b75ac76b334abe07341b14337026418947c05e4e471ea",
+      "1-023.dcm": "2c5eb09586613668e1a6d7533313ca716af05b00f4dfaec6b1f56df430577740",
+      "1-024.dcm": "b1318ec10fdbb263f74da702ff07a91eb55b05eaf0c6ea44c68cded5dfccdd2a",
+      "1-025.dcm": "32dde66d7b6249ea7c1edb589a4dcdec8477d441146e8478c0624b3f6eb01bc5",
+      "1-026.dcm": "65ae1f181377a95c00a418d5fc3d895f36fad76bb2170dafb3a36c67152756b9",
+      "1-027.dcm": "3ec8d672c068e9406d4280e30e154a449c25c61ffabbd39620c299d17e8d327e",
+      "1-028.dcm": "172486ed85876afe2c1db94d8f1a1a1b8c0cc64f6f6d009c52f8b18f72b4b483",
+      "1-029.dcm": "b93feb3a81e6dfc9f8fdc40c872ad517d041b4b7249825c1fdc9d29f5d12b412",
+      "1-030.dcm": "3be634d8a930206647a5df12da7b834238f62095f8c1cc0bbe76c5b781f581fc",
+      "1-031.dcm": "2a7c75b8b93ce1a0e440e7e44ef4a4db75cc79b67b28e15a420141a742e07cb1",
+      "1-032.dcm": "0c2225a52d316212134d5945d51457e2569d13a9cb55b70c5c0e6e5a94e650a4",
+      "1-033.dcm": "3f8bdbab029f1c9003eb08dc382dc14bfae9caa1e1dc0821b199b1fbc7aee7ac",
+      "1-034.dcm": "13466b65f7dc859c969abe58f98ff93ea54bbc0903497a8df5cb8288e64de26e",
+      "1-035.dcm": "5aca612eda4db821bf10da2f3092d1fb27bf9ffa39e48d093f4256f0b8149e22",
+      "1-036.dcm": "cb2e979a028ca24f9af244e238172563c3cd4a4f903c18e272c4b40785ed0c24",
+      "1-037.dcm": "ab60a109aa23e245c0ac7f88a3b4a4eab2ace62fa29ce2ece0787d1e8cf81bf5",
+      "1-038.dcm": "04537864bf7c067832ee4f0f5fea4f1fd90a275d87977e2c0bb7ba3adf99ca2f",
+      "1-039.dcm": "4545648160f449dd6fd2c9cc18550120c7387dc5799a1a9185c83c0f7b4fe47c",
+      "1-040.dcm": "fb82ad774e4e62f71ae81fc58c4235b85e00612444b2c7b0652b3d0ed67ed598",
+      "1-041.dcm": "f677048f17f2adf683a791a4626cf8d89a3eb5746d468453de29b48b00d22a85",
+      "1-042.dcm": "660ff92c1a56a301195fb6ddc9ed588c8852424f5004c99bf6c42c6da1789a0a",
+      "1-043.dcm": "0f03dc681d7fbe8d8c6957d9669d5c2406fc414720b813a8bb99b4f58dd1d9d8",
+      "1-044.dcm": "984b6568117ded2df42b8462c5af7e595b72a0a6a4979a11a1343f8b8cb4e943",
+      "1-045.dcm": "713cdcb57c7914421552d4670e317477b078412005927c262aa9f711867de789",
+      "1-046.dcm": "18094ec7c6415528d1f1082430b74a4a677d8bcdc9b92fb429a06639c57f7498",
+      "1-047.dcm": "3c235ae64610855a28bd6e55f08532fb82fbb5d33b939c12c6972deeae80094e",
+      "1-048.dcm": "39e5477010b41e75d2cd75c7082b4141dbf165935b3e77bbc8408785f2d24860",
+      "1-049.dcm": "229dc8b9f87c18e63846a63672811c9f6fbaa528cf7237534c390e069135b7f5",
+      "1-050.dcm": "a0175d3d1e1bed02ef612822625b1c734adaada73e1d3570223b094047676635",
+      "1-051.dcm": "71598e05748926916752516e146d882524a9abf71d08986d2ec275ae071fdba8",
+      "1-052.dcm": "051792ac65bd088868ee57787bc070cafe0c0f9d259a2cd224ca0af2e4091862",
+      "1-053.dcm": "a6e5d4270c7a6e421ad15129a8b74505be1c577c46c2dba840bfdd96cd4483ed",
+      "1-054.dcm": "bfbde3c1a13a5ff6dcc1e82b11b7d71ab3991a49b5ec91d617296f69ba9f191a",
+      "1-055.dcm": "abbcd502d0f02315a091317b79a77ad1b9bef58ada475420de9c75c2ab55fbea",
+      "1-056.dcm": "04634683647852415e29f3a221f53a0dbd1cec8c616ad90aa2461593407effad",
+      "1-057.dcm": "699ae189e057c086d0d8cfab53b4589ed23db323a3cd308ed361edcce326cf67",
+      "1-058.dcm": "5923bd6370b3f20f0998cfad5b210bd02d9563400f848ce2ff3c59a9a447bfb1",
+      "1-059.dcm": "114273c4142164d7c3471bf64106696d59531f0cee7c04e897a7c1b25769da4e",
+      "1-060.dcm": "28055f3db0d99e292bfed6eccdca0003a005a85a7956257bcda1462f691b364c",
+      "1-061.dcm": "16b5de2dae274031a9a7798a36bba7f140f78fdf61d33c9d5c7db31a25194bb1",
+      "1-062.dcm": "d70b285199d3c09e4fd6a75f12b31a61ee89985d1f3b4bea18cca4d55d13ae94",
+      "1-063.dcm": "8652197a8b8a5be66ed9be379a3eb8071c43fb7f71b9bda3762ec68d29986956",
+      "1-064.dcm": "f320f645f01536488fb1b03855d857472580d53c8b7ccb3be8bcb2b6a389f7cd",
+      "1-065.dcm": "e2efe37f7d8ec34dde308f976304b60d8234ff77d4b0cc8ca7ce7e1137f4a8f9",
+      "1-066.dcm": "9c6209b4d93f56d4651faaf1e24b31be549e6a2cc288074c52c07372722474fd",
+      "1-067.dcm": "0e9b6de7058695ec8a766d43d2fdb4247292b6709ee944f7a4747ef09e3b508b",
+      "1-068.dcm": "be04bd09645e6f8ad2218d62b1abf5a10ae398f45a2b18b12b50b59b4d5f3b41",
+      "1-069.dcm": "498399d48cca1e0946a1a8ba5701dd1c6a1a833dd8aa057b7025ddf7ddf8024b",
+      "1-070.dcm": "980339eb4fc809a71efd7f67bd6dc0c9c2642c90fa9ea3b9a86814f2786649f6",
+      "1-071.dcm": "391986b82e8b8d9c727fbf9989d41a0a76ffeda98ae8907351dbd30379350a8f",
+      "1-072.dcm": "8cb9d675834c2262b9e54e7b404559e0bab4568bf78783cb0a015753b91a4573",
+      "1-073.dcm": "771839f14352d97e8e491265b4946f3e8b046c2cabb5d059137838c516938b13",
+      "1-074.dcm": "ad4f49f9a48f055796025b9139d87aff400fc90e899f8b1abddbca9ddb7460d2",
+      "1-075.dcm": "22bcceac5876d1fe903b426d765fd931c4782bec6d332557a88a5502c23e5dde",
+      "1-076.dcm": "195c0ed63e726ac601eb1f675b83c4c13edb6244854d221cad07dc86af6b8bca",
+      "1-077.dcm": "84a096478e3a3a37c7f8821498342f42d6f70c3dc0672aa5da34507f8c1f1c22",
+      "1-078.dcm": "e01a21a83a4d7b86b6e516c2724364f61e4059fcefa6e47cbe151f3541d15559",
+      "1-079.dcm": "2a7cdf6a0e13fee8e21a34e7e7e7a7d79e3b704383cafdf2c26029a3202b86ec",
+      "1-080.dcm": "ac595875277fc8b84e8b0bc658616d0d1451dfe92377be48121a91b9efcd1c2a",
+      "1-081.dcm": "9dc51689c83d8121223afe4d4223465dae02168172d4f339bbf509f595df810b",
+      "1-082.dcm": "7d835b07e34e2580b3e348b6d775ffc158375635ebe3d07ffce89af1ac28fd65",
+      "1-083.dcm": "09a8047a8245ee94b702c6ca84752d14cba2b3f6125a21cb6841d84d958fd3eb",
+      "1-084.dcm": "09e0af888a97f38d1aff9e34837a956e83b422cd25bf6308bdee9efd59c53c1b",
+      "1-085.dcm": "b68e005cc79af32968441bce1d03a00d3d9686014b3f547a63812d9ac2ae3441",
+      "1-086.dcm": "a07869f40508661216dde752d9d3035a79ad1e047b4c96331aab50f0a0cf5429",
+      "1-087.dcm": "0575c62930ea8e8b88176cdf60fb1b5e5fd50c9f270ddbe100e2a93ab2ee8814",
+      "1-088.dcm": "71c7d34b4d3a29fe5db1360adec17ce93e721435cdfd0bffc868188837c74e15",
+      "1-089.dcm": "336727a0e58bbf454cc0b70b83f733d691dfe4582341bca647262b9fa2a89611",
+      "1-090.dcm": "82a409d62fc2468b27c8e7a5e36123077e9a3a721c335a049c37913e027ed643",
+      "1-091.dcm": "85b59c7ae816f1714350cef34d44071554554aa9b9c8cfe73f2eecf0b0326865",
+      "1-092.dcm": "e93a93c6431b4378121114546063f51da4d5bc1df1a2c075cb009965201b962c",
+      "1-093.dcm": "22ca3e8c2343367980f19f6eb8c61e407536badf2507bd8ddfb8e5f79e66e7a0",
+      "1-094.dcm": "6f37cd04b5b33a464db982e0fe006c641cc730234051ee85c84115cdcb0535c2",
+      "1-095.dcm": "4ae48994c0bde0933501d38a3ee335a4444812512fcd2ed9ae9ecf906814311f",
+      "1-096.dcm": "5f9e177d093d98f4e6a706967dc6336166ce566b72e5df4b92f25ec5de2edade",
+      "1-097.dcm": "1395e80cdd9c9ceabb0fe65491a92dc5f244ba385e8b4151b8e7f349d4343e1d",
+      "1-098.dcm": "ad574c0ff701fd805ba43b4f8be2e0f7a11b3417f79f35365318b9dd2a16a0b3",
+      "1-099.dcm": "73daec6a55d34d8bbe4ce14810024709cbdb5fa6b04415e510da28611a853752",
+      "1-100.dcm": "9d613f57fb37cd7aec6d315a6f243f1a5c446ae78d262720fb053fb0899f0098",
+      "LICENSE": "549adb2471a8adc13da32860115c5559971b06097bba2922634a5e49f1800e0b"
+    },
+    "manifest_format": "<sha256>  <relative path>\\n per file, sorted by path, LF",
+    "manifest_sha256": "5b602fdf0a93ea3f671d2f30f6c93c0215028cd0afdce494615f3957b8ca6ac7",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.309707676674808510671394142910"
+  },
+  "limitations": "Synthetic-noise experiment on one clinical series; the reference is a noisy clinical slice, not ground truth; noise levels are scenarios; correlated noise is unvalidated; no clinical validation.",
+  "mask_pixel_counts_by_slice": [
+    {
+      "band_removed_pixels": 9849,
+      "inner_fraction_of_main": 0.9487250236878,
+      "inner_pixels": 182233,
+      "main_pixels": 192082,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 16,
+      "ssim_pixels_default_inner": 176316,
+      "ssim_pixels_default_main": 186123,
+      "ssim_pixels_wang_inner": 172465,
+      "ssim_pixels_wang_main": 182254
+    },
+    {
+      "band_removed_pixels": 9697,
+      "inner_fraction_of_main": 0.949938306978281,
+      "inner_pixels": 184004,
+      "main_pixels": 193701,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 25,
+      "ssim_pixels_default_inner": 178185,
+      "ssim_pixels_default_main": 187876,
+      "ssim_pixels_wang_inner": 174362,
+      "ssim_pixels_wang_main": 184049
+    },
+    {
+      "band_removed_pixels": 8895,
+      "inner_fraction_of_main": 0.9536634282291042,
+      "inner_pixels": 183070,
+      "main_pixels": 191965,
+      "padding_pixels": 56252,
+      "role": "tuning",
+      "slice": 35,
+      "ssim_pixels_default_inner": 177327,
+      "ssim_pixels_default_main": 186211,
+      "ssim_pixels_wang_inner": 173539,
+      "ssim_pixels_wang_main": 182423
+    },
+    {
+      "band_removed_pixels": 9551,
+      "inner_fraction_of_main": 0.950673456318301,
+      "inner_pixels": 184077,
+      "main_pixels": 193628,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 39,
+      "ssim_pixels_default_inner": 178290,
+      "ssim_pixels_default_main": 187838,
+      "ssim_pixels_wang_inner": 174475,
+      "ssim_pixels_wang_main": 184023
+    },
+    {
+      "band_removed_pixels": 9917,
+      "inner_fraction_of_main": 0.9488006856175204,
+      "inner_pixels": 183777,
+      "main_pixels": 193694,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 48,
+      "ssim_pixels_default_inner": 177937,
+      "ssim_pixels_default_main": 187843,
+      "ssim_pixels_wang_inner": 174088,
+      "ssim_pixels_wang_main": 183983
+    },
+    {
+      "band_removed_pixels": 9618,
+      "inner_fraction_of_main": 0.9497733586781694,
+      "inner_pixels": 181874,
+      "main_pixels": 191492,
+      "padding_pixels": 56252,
+      "role": "tuning",
+      "slice": 54,
+      "ssim_pixels_default_inner": 176099,
+      "ssim_pixels_default_main": 185717,
+      "ssim_pixels_wang_inner": 172291,
+      "ssim_pixels_wang_main": 181909
+    },
+    {
+      "band_removed_pixels": 9101,
+      "inner_fraction_of_main": 0.951422989880012,
+      "inner_pixels": 178251,
+      "main_pixels": 187352,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 61,
+      "ssim_pixels_default_inner": 172599,
+      "ssim_pixels_default_main": 181700,
+      "ssim_pixels_wang_inner": 168871,
+      "ssim_pixels_wang_main": 177972
+    },
+    {
+      "band_removed_pixels": 8145,
+      "inner_fraction_of_main": 0.9543282979510816,
+      "inner_pixels": 170193,
+      "main_pixels": 178338,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 70,
+      "ssim_pixels_default_inner": 164665,
+      "ssim_pixels_default_main": 172810,
+      "ssim_pixels_wang_inner": 161026,
+      "ssim_pixels_wang_main": 169171
+    },
+    {
+      "band_removed_pixels": 7627,
+      "inner_fraction_of_main": 0.9557141364053373,
+      "inner_pixels": 164595,
+      "main_pixels": 172222,
+      "padding_pixels": 56252,
+      "role": "tuning",
+      "slice": 74,
+      "ssim_pixels_default_inner": 159122,
+      "ssim_pixels_default_main": 166749,
+      "ssim_pixels_wang_inner": 155518,
+      "ssim_pixels_wang_main": 163145
+    },
+    {
+      "band_removed_pixels": 6474,
+      "inner_fraction_of_main": 0.9587653817737127,
+      "inner_pixels": 150530,
+      "main_pixels": 157004,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 84,
+      "ssim_pixels_default_inner": 145302,
+      "ssim_pixels_default_main": 151776,
+      "ssim_pixels_wang_inner": 141870,
+      "ssim_pixels_wang_main": 148344
+    },
+    {
+      "band_removed_pixels": 5447,
+      "inner_fraction_of_main": 0.9607680728315123,
+      "inner_pixels": 133394,
+      "main_pixels": 138841,
+      "padding_pixels": 56252,
+      "role": "test",
+      "slice": 93,
+      "ssim_pixels_default_inner": 128277,
+      "ssim_pixels_default_main": 133721,
+      "ssim_pixels_wang_inner": 124909,
+      "ssim_pixels_wang_main": 130353
+    }
+  ],
+  "mask_sha256_by_slice": {
+    "16": {
+      "inner": "1721d1c4aa49b74ec4efe595eeea150c02330db796d7a0acc9707140e850222e",
+      "main": "ed432849d1f4eb9788b8e5d2470c9ae9aaf661df6a1c871dcfdb3f1dd805bb86"
+    },
+    "25": {
+      "inner": "4f4960d1b2a5d391ec392ad5f40039eba0dca22eae7a47d2bdda38142009e8e7",
+      "main": "fb4ab89bf783cd19538b782848b27c923be09cdcda9a5c40a2fd8ab65deebad8"
+    },
+    "35": {
+      "inner": "20f53dd63e25e82459443cac02475f3908bfe124abb95cdc58293dfe4d61afb7",
+      "main": "bc23b53288bbcbf1692223b9b67a2bc9cd5d3926b8e329084efeb7f04ca79998"
+    },
+    "39": {
+      "inner": "da1ebd9a73c89b241145fe8bf9cc98dbdf71430199d71811f93352764856d2c5",
+      "main": "2ea89453c15cd0a458809cf074bf9b6e5785da96cfbfef50559b6c14956a942d"
+    },
+    "48": {
+      "inner": "36d6627dc55124fd0ed6cc15c3ce339c6b383f418f8a8244db098e9277ee928b",
+      "main": "496bdb4a275ad517695bb53cf70959720ae850bac529afa089a1a30ca59edbe0"
+    },
+    "54": {
+      "inner": "59979f78ae35a99397ac97c561d06b546d3096d496113bc127655fd19ec603bb",
+      "main": "dce905e99159f2e2f403cdc519a2f575855eb47f19a948fe6ee42bfe044812b9"
+    },
+    "61": {
+      "inner": "9c936f1f7334ffdc25a187487b1bb1d13bc3cf07f14fa53b232b6a91b7f76444",
+      "main": "1b937b7df28fc6184ddf5e808b03ce292cd742b8c096cbd2fa77362067299869"
+    },
+    "70": {
+      "inner": "3593b8384b679fe3a0ab77b661abc5201f617cc5c51133762f1568bad8a4a974",
+      "main": "a4e23603c1a2b30ffc223413ac3bc38a79258d2500c46b6756aa73c481d76ce7"
+    },
+    "74": {
+      "inner": "7885000c4ac789d46441a1839578720d092e0629aab662fce9d25cf86c806da8",
+      "main": "27b65c600341efd2aadb8dcb2448ef3611608761980f3e8497741c00c1b63658"
+    },
+    "84": {
+      "inner": "38aba1a694b61921a1a1fc3906590e6f49edbf417d312103a8b85a6b59c425ed",
+      "main": "e2120b546e1091e1ee1d8f9366d0351c34f271f33056fb64408a7bcd492edb96"
+    },
+    "93": {
+      "inner": "cf37e76c2416ae0f0f3a0e9af4c1cadecdae6bd09b2aa8817764be71589f2938",
+      "main": "28baac43c25a83c854ace9b2a7831f53292b364055047828de760681dd7f0c21"
+    }
+  },
+  "packages": {
+    "numpy": "2.5.4",
+    "opencv": "5.0.0",
+    "pandas": "3.1.0",
+    "pydicom": "3.0.2",
+    "python": "3.12.15",
+    "pywavelets": "1.10.0",
+    "scikit-image": "0.26.0",
+    "scipy": "1.18.1"
+  },
+  "parameters": {
+    "body_threshold_hu": -500.0,
+    "bootstrap_seed": 12345,
+    "butterworth_order": 2,
+    "conditions": [
+      {
+        "amount": null,
+        "description": "White Gaussian noise, sigma 10 HU (scenario)",
+        "group": "main",
+        "kind": "white",
+        "name": "white_10HU",
+        "sigma_hu": 10.0,
+        "variance": null
+      },
+      {
+        "amount": null,
+        "description": "White Gaussian noise, sigma 25 HU (scenario)",
+        "group": "main",
+        "kind": "white",
+        "name": "white_25HU",
+        "sigma_hu": 25.0,
+        "variance": null
+      },
+      {
+        "amount": null,
+        "description": "White Gaussian noise, sigma 50 HU (scenario)",
+        "group": "main",
+        "kind": "white",
+        "name": "white_50HU",
+        "sigma_hu": 50.0,
+        "variance": null
+      },
+      {
+        "amount": null,
+        "description": "Gaussian-smoothed noise, sigma 10 HU, 1 px correlation (unvalidated construction)",
+        "group": "main",
+        "kind": "correlated",
+        "name": "correlated_10HU",
+        "sigma_hu": 10.0,
+        "variance": null
+      },
+      {
+        "amount": null,
+        "description": "Gaussian-smoothed noise, sigma 25 HU, 1 px correlation (unvalidated construction)",
+        "group": "main",
+        "kind": "correlated",
+        "name": "correlated_25HU",
+        "sigma_hu": 25.0,
+        "variance": null
+      },
+      {
+        "amount": null,
+        "description": "Gaussian-smoothed noise, sigma 50 HU, 1 px correlation (unvalidated construction)",
+        "group": "main",
+        "kind": "correlated",
+        "name": "correlated_50HU",
+        "sigma_hu": 50.0,
+        "variance": null
+      },
+      {
+        "amount": 0.02,
+        "description": "Impulse noise, 2 % of pixels set to the display-window limits (not a CT noise model)",
+        "group": "robustness",
+        "kind": "salt_pepper",
+        "name": "robustness_salt_pepper",
+        "sigma_hu": null,
+        "variance": null
+      },
+      {
+        "amount": null,
+        "description": "Multiplicative speckle on (HU + 1000), variance 0.02 (not a CT noise model)",
+        "group": "robustness",
+        "kind": "speckle",
+        "name": "robustness_speckle",
+        "sigma_hu": null,
+        "variance": 0.02
+      }
+    ],
+    "correlation_sigma_px": 1.0,
+    "display_window_center": -600.0,
+    "display_window_width": 1500.0,
+    "eligible_slices": [
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93
+    ],
+    "grid": {
+      "Bilateral": [
+        {
+          "sigma_color_hu": null,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 5,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 8,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 12,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 16,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 20,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 25,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 32,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 40,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 50,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 65,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 80,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 100,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 130,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 160,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 200,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 260,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 320,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 500,
+          "sigma_space_px": 1.5
+        },
+        {
+          "sigma_color_hu": 800,
+          "sigma_space_px": 1.5
+        }
+      ],
+      "FFT Butterworth": [
+        {
+          "cutoff_ratio": null
+        },
+        {
+          "cutoff_ratio": 4.0
+        },
+        {
+          "cutoff_ratio": 3.0
+        },
+        {
+          "cutoff_ratio": 2.0
+        },
+        {
+          "cutoff_ratio": 1.5
+        },
+        {
+          "cutoff_ratio": 1.0
+        },
+        {
+          "cutoff_ratio": 0.8
+        },
+        {
+          "cutoff_ratio": 0.6
+        },
+        {
+          "cutoff_ratio": 0.5
+        },
+        {
+          "cutoff_ratio": 0.4
+        },
+        {
+          "cutoff_ratio": 0.3
+        },
+        {
+          "cutoff_ratio": 0.2
+        },
+        {
+          "cutoff_ratio": 0.15
+        },
+        {
+          "cutoff_ratio": 0.1
+        },
+        {
+          "cutoff_ratio": 0.08
+        },
+        {
+          "cutoff_ratio": 0.05
+        }
+      ],
+      "FFT Gaussian": [
+        {
+          "cutoff_ratio": null
+        },
+        {
+          "cutoff_ratio": 4.0
+        },
+        {
+          "cutoff_ratio": 3.0
+        },
+        {
+          "cutoff_ratio": 2.0
+        },
+        {
+          "cutoff_ratio": 1.5
+        },
+        {
+          "cutoff_ratio": 1.0
+        },
+        {
+          "cutoff_ratio": 0.8
+        },
+        {
+          "cutoff_ratio": 0.6
+        },
+        {
+          "cutoff_ratio": 0.5
+        },
+        {
+          "cutoff_ratio": 0.4
+        },
+        {
+          "cutoff_ratio": 0.3
+        },
+        {
+          "cutoff_ratio": 0.2
+        },
+        {
+          "cutoff_ratio": 0.15
+        },
+        {
+          "cutoff_ratio": 0.1
+        },
+        {
+          "cutoff_ratio": 0.08
+        },
+        {
+          "cutoff_ratio": 0.05
+        }
+      ],
+      "FFT ideal": [
+        {
+          "cutoff_ratio": null
+        },
+        {
+          "cutoff_ratio": 4.0
+        },
+        {
+          "cutoff_ratio": 3.0
+        },
+        {
+          "cutoff_ratio": 2.0
+        },
+        {
+          "cutoff_ratio": 1.5
+        },
+        {
+          "cutoff_ratio": 1.0
+        },
+        {
+          "cutoff_ratio": 0.8
+        },
+        {
+          "cutoff_ratio": 0.6
+        },
+        {
+          "cutoff_ratio": 0.5
+        },
+        {
+          "cutoff_ratio": 0.4
+        },
+        {
+          "cutoff_ratio": 0.3
+        },
+        {
+          "cutoff_ratio": 0.2
+        },
+        {
+          "cutoff_ratio": 0.15
+        },
+        {
+          "cutoff_ratio": 0.1
+        },
+        {
+          "cutoff_ratio": 0.08
+        },
+        {
+          "cutoff_ratio": 0.05
+        }
+      ],
+      "Gaussian": [
+        {
+          "kernel_size": 1,
+          "sigma": 0.0
+        },
+        {
+          "kernel_size": 3,
+          "sigma": 0.2
+        },
+        {
+          "kernel_size": 3,
+          "sigma": 0.3
+        },
+        {
+          "kernel_size": 5,
+          "sigma": 0.4
+        },
+        {
+          "kernel_size": 5,
+          "sigma": 0.5
+        },
+        {
+          "kernel_size": 7,
+          "sigma": 0.75
+        },
+        {
+          "kernel_size": 7,
+          "sigma": 1.0
+        },
+        {
+          "kernel_size": 11,
+          "sigma": 1.5
+        },
+        {
+          "kernel_size": 13,
+          "sigma": 2.0
+        },
+        {
+          "kernel_size": 19,
+          "sigma": 3.0
+        }
+      ],
+      "Mean": [
+        {
+          "kernel_size": 1
+        },
+        {
+          "kernel_size": 3
+        },
+        {
+          "kernel_size": 5
+        },
+        {
+          "kernel_size": 7
+        },
+        {
+          "kernel_size": 9
+        },
+        {
+          "kernel_size": 11
+        }
+      ],
+      "Median": [
+        {
+          "kernel_size": 1
+        },
+        {
+          "kernel_size": 3
+        },
+        {
+          "kernel_size": 5
+        },
+        {
+          "kernel_size": 7
+        },
+        {
+          "kernel_size": 9
+        },
+        {
+          "kernel_size": 11
+        }
+      ],
+      "Non-local means": [
+        {
+          "h_hu": null,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 3,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 5,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 8,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 12,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 16,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 20,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 25,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 32,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 40,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 50,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 65,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 80,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 100,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 130,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 160,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 200,
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        {
+          "h_hu": 260,
+          "patch_distance": 6,
+          "patch_size": 5
+        }
+      ],
+      "Wavelet BayesShrink": [
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": null,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 5,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 8,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 12,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 16,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 20,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 30,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 40,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 50,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 65,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 80,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 100,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 130,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 160,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 200,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 260,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 320,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 400,
+          "wavelet": "sym4"
+        },
+        {
+          "levels": 3,
+          "max_shifts": 3,
+          "sigma_hu": 500,
+          "wavelet": "sym4"
+        }
+      ]
+    },
+    "grid_version": "methods",
+    "inner_margin_px": 10,
+    "lung_threshold_hu": -400.0,
+    "min_gap": 3,
+    "min_lung_fraction": 0.1,
+    "n_boot": 10000,
+    "normalisation_range_hu": [
+      -4096.0,
+      8192.0
+    ],
+    "padding_hu": -1500.0,
+    "selection_criterion": "RMSE_HU",
+    "speckle_offset_hu": 1000.0,
+    "ssim_primary_fully_inside": true,
+    "ssim_radius_default_px": 3,
+    "ssim_radius_wang_px": 5,
+    "test_base_seed": 2000000,
+    "test_repeats": 5,
+    "test_slices": [
+      16,
+      25,
+      39,
+      48,
+      61,
+      70,
+      84,
+      93
+    ],
+    "tune_base_seed": 1000,
+    "tune_repeats": 2,
+    "tune_slices": [
+      35,
+      54,
+      74
+    ],
+    "tuning_criterion": "RMSE_HU"
+  },
+  "protocol": {
+    "added_denoisers": {
+      "Bilateral": {
+        "fixed": {
+          "sigma_space_px": 1.5,
+          "window_diameter_px": 11
+        },
+        "fixed_choice": "sigma_space fixed on sweeps over the tuning slices only; the best value differs between noise types",
+        "implementation": "cv2.bilateralFilter (float32), reflected borders",
+        "tuned": "sigma_color_hu (HU)"
+      },
+      "Non-local means": {
+        "fixed": {
+          "patch_distance": 6,
+          "patch_size": 5
+        },
+        "implementation": "skimage.restoration.denoise_nl_means, fast_mode=True, sigma=0 (noise level not supplied)",
+        "tuned": "h_hu (HU)"
+      },
+      "Wavelet BayesShrink": {
+        "fixed": {
+          "levels": 3,
+          "max_shifts": 3,
+          "shifts_averaged": 16,
+          "wavelet": "sym4"
+        },
+        "implementation": "skimage.restoration.denoise_wavelet, soft thresholds, averaged over circular shifts (cycle spinning)",
+        "tuned": "sigma_hu (HU): the noise level ASSUMED by BayesShrink, used as a strength control, not a measurement"
+      },
+      "grid_design": "fixed from sweeps on the three tuning slices only; no test slice was scored before the run; the run was executed once",
+      "grids_hu": {
+        "Bilateral": [
+          5,
+          8,
+          12,
+          16,
+          20,
+          25,
+          32,
+          40,
+          50,
+          65,
+          80,
+          100,
+          130,
+          160,
+          200,
+          260,
+          320,
+          500,
+          800
+        ],
+        "Non-local means": [
+          3,
+          5,
+          8,
+          12,
+          16,
+          20,
+          25,
+          32,
+          40,
+          50,
+          65,
+          80,
+          100,
+          130,
+          160,
+          200,
+          260
+        ],
+        "Wavelet BayesShrink": [
+          5,
+          8,
+          12,
+          16,
+          20,
+          30,
+          40,
+          50,
+          65,
+          80,
+          100,
+          130,
+          160,
+          200,
+          260,
+          320,
+          400,
+          500
+        ]
+      },
+      "not_included": {
+        "BM3D": "assumes white Gaussian noise of known variance and needs an extra compiled dependency; not tested here",
+        "learned_denoisers": "see docs/methods_and_decisions.md"
+      },
+      "status": "classical, non-learned; one tuned strength parameter per family, chosen on the tuning slices only"
+    },
+    "comparability_with_historical_results": "NOT comparable: the historical benchmark added noise and filtered AFTER clipping to the -600/1500 window, on the whole image, with different noise levels, fixed filter settings and no tuning/test split. V2 adds noise in HU, filters without clipping, windows afterwards, and averages over a fixed body mask.",
+    "display_window": {
+      "center_hu": -600.0,
+      "formula": "DICOM PS3.3 C.11.2.1.2 linear window, applied after filtering to the reference and to every output",
+      "justification": "conventional lung-window values, identical to the historical benchmark's display window; chosen for continuity and not claimed to be clinically optimal",
+      "lower_hu": -1350.0,
+      "upper_hu": 149.0,
+      "used_for": "PSNR, SSIM, RMSE_windowed, MAE_windowed only",
+      "width_hu": 1500.0
+    },
+    "evaluation_mask": {
+      "applied_to": "HU metrics and windowed metrics, for the noisy image and every filtered output",
+      "independent_of": [
+        "noise realisation",
+        "noise level",
+        "noise type",
+        "filter",
+        "filter parameters",
+        "display window"
+      ],
+      "pixels_dropped_by_hu_value_or_window": 0,
+      "rule": "largest connected region of the CLEAN reference slice above -500 HU, holes filled; computed once per slice from the reference only"
+    },
+    "inner_mask": {
+      "margin_px": 10,
+      "minimum_fraction_of_principal_mask": 0.5,
+      "padding_threshold_hu": -1500.0,
+      "parameters_are_tuned_on": "the principal mask only; every test output is scored on both masks",
+      "role": "SENSITIVITY analysis of the CT field-of-view boundary; the principal mask above stays the reference for conclusions",
+      "rule": "principal mask minus every pixel within 10 px (Euclidean distance) of the artificial padding (HU <= -1500); computed once per slice from the clean reference and reused for the noisy image and all outputs",
+      "status": "the 10 px margin is an EXPERIMENTAL choice, not clinically validated"
+    },
+    "normalisation_range_hu": {
+      "high": 8192.0,
+      "low": -4096.0,
+      "role": "linear map used so filters can run on (0, 1) images; not a display window; never clips (an out-of-range value raises an error)"
+    },
+    "ssim": {
+      "evaluated_pixels": "columns ssim_pixels_default / ssim_pixels_wang in test_per_run.csv and test_per_slice.csv, and mask_summary.csv",
+      "library": "skimage.metrics.structural_similarity, data_range=1.0, applied to the displayed (windowed) images",
+      "primary_definition": "mean of the SSIM map over the pixels whose whole window lies inside the mask (fully_inside=True); no pixel outside the mask can influence a primary score",
+      "rule_identical_for": "every filter, slice, noise condition and repeat",
+      "sensitivity_definition": "columns *_allpixels: earlier definition, mean over all mask pixels (windows may read pixels outside the mask)",
+      "windows": {
+        "SSIM_Wang2004": "11x11 Gaussian window, sigma 1.5, truncated at 3.5 sigma (pixel radius 5), use_sample_covariance=False",
+        "SSIM_skimage_default": "7x7 uniform window (pixel radius 3), use_sample_covariance=True"
+      }
+    }
+  },
+  "reference_noise_context": {
+    "interpretation": "white-noise-equivalent, rough: real CT noise is correlated and the region contains anatomy; the synthetic noise below is ADDED to this existing noise",
+    "median_hu": 3.2122999999999995,
+    "method": "median-based Immerkaer (1996) estimate on soft tissue (0 to 100 HU, body interior, eroded by 3 px) of the clean reference slices",
+    "per_slice": [
+      {
+        "slice": 16,
+        "soft_tissue_pixels": 12047,
+        "white_noise_equivalent_sd_hu": 4.2007
+      },
+      {
+        "slice": 25,
+        "soft_tissue_pixels": 13958,
+        "white_noise_equivalent_sd_hu": 3.2122999999999995
+      },
+      {
+        "slice": 35,
+        "soft_tissue_pixels": 2997,
+        "white_noise_equivalent_sd_hu": 3.2122999999999995
+      },
+      {
+        "slice": 39,
+        "soft_tissue_pixels": 4347,
+        "white_noise_equivalent_sd_hu": 2.7180999999999997
+      },
+      {
+        "slice": 48,
+        "soft_tissue_pixels": 5100,
+        "white_noise_equivalent_sd_hu": 2.7180999999999997
+      },
+      {
+        "slice": 54,
+        "soft_tissue_pixels": 2674,
+        "white_noise_equivalent_sd_hu": 3.2122999999999995
+      },
+      {
+        "slice": 61,
+        "soft_tissue_pixels": 2948,
+        "white_noise_equivalent_sd_hu": 3.4594
+      },
+      {
+        "slice": 70,
+        "soft_tissue_pixels": 8693,
+        "white_noise_equivalent_sd_hu": 3.2122999999999995
+      },
+      {
+        "slice": 74,
+        "soft_tissue_pixels": 11492,
+        "white_noise_equivalent_sd_hu": 3.2122999999999995
+      },
+      {
+        "slice": 84,
+        "soft_tissue_pixels": 16574,
+        "white_noise_equivalent_sd_hu": 2.9652
+      },
+      {
+        "slice": 93,
+        "soft_tissue_pixels": 15331,
+        "white_noise_equivalent_sd_hu": 2.9652
+      }
+    ],
+    "range_hu": [
+      2.7180999999999997,
+      4.2007
+    ]
+  },
+  "schema_version": 2,
+  "series_directory_name": "1.3.6.1.4.1.14519.5.2.1.6279.6001.309707676674808510671394142910",
+  "source_files_hash_rule": "SHA-256 of the file bytes with CRLF replaced by LF (the form Git stores), so the value does not depend on the checkout's line endings",
+  "source_files_sha256": {
+    "benchmark_v2.py": "33b63e31c015a562cd3eedbecc2f29ea9db169afd1256677751f7b717dd176aa",
+    "evaluate_denoising.py": "c9feee55825a357e95b9893cd4f1607ad9e7bead99fcf6ef998168489404c2ec",
+    "filters.py": "5f41199ff190138ab2f02355f6644d649b4c171a053541872b55f887f1147eff",
+    "requirements-api.txt": "0e83edf6729cbae1fe7a2c443178ad1d42b8f49497d0c57760e221dca84f6886",
+    "requirements.txt": "eaa0facb7d67d08d35e746540471e038474f9542b2801935f132859ca5ae0e1f",
+    "src/dicom_volume.py": "fe9ca6980a746931b12a44596b67e1960ebfcc0b16ea6457d35d211ebb4e8281"
+  },
+  "volume_shape_zyx": [
+    100,
+    512,
+    512
+  ],
+  "voxel_spacing_xyz_mm": [
+    0.54,
+    0.54,
+    3.0
+  ]
+}

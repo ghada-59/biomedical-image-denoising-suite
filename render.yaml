@@ -3,6 +3,7 @@ services:
     name: biomedical-image-denoising-api
     runtime: python
     plan: free
+    rootDir: backend
     buildCommand: pip install -r requirements-api.txt
     startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
@@ -11,12 +12,37 @@ services:
         value: 3.11.11
       - key: CORS_ORIGINS
         value: https://biomedical-image-denoising-dashboard.onrender.com
+      # The recorded Benchmark V2 run that ships with the repository (read-only CSV files; integrity is verified from run_metadata.json).
+      # The 2D images of that page need the CT series, which is not part of the repository, so they are not shown on the hosted site.
+      - key: BENCHMARK_RUN_DIRS
+        value: docs/results/benchmark_v2_methods_2026-10-25
+      # The two recorded Benchmark 3D runs (independent noise, and noise correlated between adjacent slices). Several runs are separated by ':' on Render.
+      - key: BENCHMARK_3D_RUN_DIRS
+        value: docs/results/benchmark_3d_2026-10-26:docs/results/benchmark_3d_correlated_2026-10-27
+      # Limits sized for a 512 MB instance. Measured locally (Windows, Python 3.12): importing the API takes about 170 MB;
+      # a 512x512 image through all nine methods peaks near 235 MB, 1024x1024 near 415 MB, a 2048x2048 image with the six
+      # classical methods near 1 GB; the 3D explorer adds about 4 MB per DICOM slice (576 MB peak for 100 slices).
+      # Render's own limits were not tested. Raise these values on a larger plan.
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: MAX_IMAGE_PIXELS
+        value: "1048576"
+      - key: MAX_ADVANCED_PIXELS
+        value: "262144"
+      - key: MAX_CONCURRENT_JOBS
+        value: "1"
+      - key: MAX_CT_FILES
+        value: "60"
+      - key: MAX_CT_TOTAL_MB
+        value: "40"
 
   - type: web
     name: biomedical-image-denoising-dashboard
     runtime: static
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: frontend/dist
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: VITE_API_BASE_URL
         value: https://biomedical-image-denoising-api.onrender.com

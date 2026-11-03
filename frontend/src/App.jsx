@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BarChart3, Box, ChevronRight, CircleHelp, FlaskConical, Layers3, LayoutDashboard, Menu, Moon, RefreshCw, ScanLine, ShieldCheck, Sun, TriangleAlert, X } from "lucide-react";
+import { BarChart3, Box, ChevronRight, CircleHelp, FlaskConical, Layers3, LayoutDashboard, Menu, Moon, PanelLeftClose, PanelLeftOpen, RefreshCw, ScanLine, ShieldCheck, Sun, TriangleAlert, X } from "lucide-react";
 import { api, apiHostLabel } from "./api";
 import Benchmark3D from "./Benchmark3D";
 import BenchmarkV2 from "./BenchmarkV2";
-import { BrandMark } from "./components";
+import { BrandMark, PageBoundary } from "./components";
 import CtExplorer from "./CtExplorer";
 import Guide from "./Guide";
 import Lab from "./Lab";
@@ -33,10 +33,16 @@ function storedTheme() {
   return "light";
 }
 
+/** The navigation rail (icons only) is a per-browser convenience; the page works without storage. */
+function storedRail() {
+  try { return localStorage.getItem("biomed-sidebar") === "rail"; } catch { return false; }
+}
+
 export default function App() {
   const [page, setPage] = useState("overview");
   const [theme, setTheme] = useState(storedTheme);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [rail, setRail] = useState(storedRail);
   const [health, setHealth] = useState("checking");
   const [healthError, setHealthError] = useState(null);
   const [problems, setProblems] = useState([]);
@@ -54,7 +60,9 @@ export default function App() {
       const body = await api("/api/health");
       if (healthRef.current === "offline") setApiEpoch(epoch => epoch + 1);   // pages that failed while the API was down load again
       healthRef.current = "online";
-      setHealth("online"); setHealthError(null); setProblems(body.problems || []);
+      const reported = body.problems || [];
+      setHealth("online"); setHealthError(null);
+      setProblems(current => (current.length === reported.length && current.every((text, i) => text === reported[i]) ? current : reported));   // the same list must not re-render every page every few seconds
     } catch (error) {
       healthRef.current = "offline";
       setHealth("offline"); setHealthError(error);
@@ -72,11 +80,16 @@ export default function App() {
 
   const currentNav = NAV.find(n => n.id === page);
   const go = id => { setPage(id); setSidebarOpen(false); };
+  const toggleRail = () => setRail(current => {
+    const next = !current;
+    try { localStorage.setItem("biomed-sidebar", next ? "rail" : "full"); } catch { /* storage may be unavailable */ }
+    return next;
+  });
   const offlineTitle = healthError?.kind === "dashboard-down" ? "The dashboard server is not responding" : "The API is not reachable";
   const statusText = health === "online" ? `Connected to ${apiHostLabel()}` : health === "offline" ? (healthError?.message || "Cannot reach the API.") : "Contacting the API…";
 
   return (
-    <div className="app-shell">
+    <div className={"app-shell" + (rail ? " sidebar-collapsed" : "")}>
       {sidebarOpen && <button type="button" className="sidebar-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />}
       <aside className={"sidebar" + (sidebarOpen ? " sidebar-open" : "")} aria-label="Primary">
         <div className="brand">
@@ -89,8 +102,8 @@ export default function App() {
             <div key={group.label || "top"} role="group" aria-label={group.label || "Overview"}>
               {group.label && <p className="nav-label" aria-hidden="true">{group.label}</p>}
               {group.items.map(({ id, label, icon: Icon }) => (
-                <button type="button" key={id} className={"nav-item" + (page === id ? " active" : "")} aria-current={page === id ? "page" : undefined} onClick={() => go(id)}>
-                  <Icon size={17} aria-hidden="true" /><span>{label}</span>{page === id && <ChevronRight className="nav-chevron" size={15} aria-hidden="true" />}
+                <button type="button" key={id} className={"nav-item" + (page === id ? " active" : "")} aria-current={page === id ? "page" : undefined} title={rail ? label : undefined} onClick={() => go(id)}>
+                  <Icon size={18} aria-hidden="true" /><span className="nav-text">{label}</span>
                 </button>
               ))}
             </div>
@@ -99,12 +112,15 @@ export default function App() {
         <div className="sidebar-spacer" />
         <div className="sidebar-status" data-testid="api-status">
           <div className="status-head">
-            <span className={"status-dot " + (health === "online" ? "online" : health === "offline" ? "offline" : "")} /> API {health.toUpperCase()}
+            <span className={"status-dot " + (health === "online" ? "online" : health === "offline" ? "offline" : "")} /> <span className="status-label">API {health.toUpperCase()}</span>
             {health === "offline" && <button type="button" className="icon-button" onClick={ping} aria-label="Check the API connection again"><RefreshCw size={13} aria-hidden="true" /></button>}
           </div>
           <p>{statusText}</p>
           <div className="privacy-note"><ShieldCheck size={16} aria-hidden="true" /><span>Research and education only. Not for diagnosis.</span></div>
         </div>
+        <button type="button" className="collapse-toggle" onClick={toggleRail} aria-pressed={rail} title={rail ? "Expand navigation" : "Collapse navigation"}>
+          {rail ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}<span className="nav-text">{rail ? "Expand navigation" : "Collapse navigation"}</span>
+        </button>
         <div className="sidebar-footer">Classical denoising, controlled experiments, recorded benchmarks.</div>
       </aside>
 
@@ -139,13 +155,15 @@ export default function App() {
               <div><strong>Part of the API is unavailable</strong>{problems.map(text => <p key={text}>{text}</p>)}</div>
             </div>
           )}
-          {page === "overview" && <Overview setPage={go} benchmark={benchmark} apiState={health} apiEpoch={apiEpoch} />}
-          {page === "lab" && <Lab apiOnline={health === "online"} apiEpoch={apiEpoch} />}
-          {page === "v2" && <BenchmarkV2 apiEpoch={apiEpoch} />}
-          {page === "b3d" && <Benchmark3D apiEpoch={apiEpoch} />}
-          {page === "ct" && <CtExplorer apiState={health} />}
-          {page === "results" && <Results benchmark={benchmark} apiState={health} apiMessage={healthError?.message} />}
-          {page === "guide" && <Guide apiEpoch={apiEpoch} />}
+          <PageBoundary key={page}>
+            {page === "overview" && <Overview setPage={go} benchmark={benchmark} apiState={health} apiEpoch={apiEpoch} />}
+            {page === "lab" && <Lab apiOnline={health === "online"} apiEpoch={apiEpoch} />}
+            {page === "v2" && <BenchmarkV2 apiEpoch={apiEpoch} />}
+            {page === "b3d" && <Benchmark3D apiEpoch={apiEpoch} />}
+            {page === "ct" && <CtExplorer apiState={health} />}
+            {page === "results" && <Results benchmark={benchmark} apiState={health} apiMessage={healthError?.message} />}
+            {page === "guide" && <Guide apiEpoch={apiEpoch} />}
+          </PageBoundary>
         </div>
         <footer className="main-footer"><span>Biomedical image denoising and benchmarking</span><span>Research software <b>/</b> not for diagnosis</span></footer>
       </main>

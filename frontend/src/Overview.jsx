@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { BarChart3, Box, ChevronRight, FlaskConical, Layers3, ScanLine, ShieldCheck } from "lucide-react";
-import { api } from "./api";
-import { PageHeading } from "./components";
+import { Activity, ArrowRight, BarChart3, Box, ChevronRight, FileCheck2, FlaskConical, Layers3, PlugZap, ScanLine, ShieldCheck, Waves } from "lucide-react";
+import { api, apiHostLabel } from "./api";
+import { CompareStage, MetricCard } from "./components";
+
+// The example images are real outputs of the lab (the bundled chest CT sample, Gaussian noise of variance 0.02, seed 42, median 5 x 5), see docs/overview-images.md.
+const IMAGES = { reference: "/img/ct-chest-reference.webp", noisy: "/img/ct-chest-noisy.webp", denoised: "/img/ct-chest-denoised.webp" };
 
 function WorkflowCard({ number, title, detail, icon: Icon, tag, onClick }) {
   return (
     <button type="button" className="workflow-card" onClick={onClick}>
-      <div className="workflow-card-top"><span className="workflow-number">{number}</span><span className="workflow-icon"><Icon size={18} aria-hidden="true" /></span></div>
+      <div className="workflow-card-top"><span className="workflow-number">{number}</span><span className="workflow-icon"><Icon size={19} aria-hidden="true" /></span></div>
       <p className="eyebrow">{tag}</p>
       <h3>{title}</h3>
       <p className="workflow-detail">{detail}</p>
@@ -43,10 +46,19 @@ function RecordedRuns({ runs, state }) {
   );
 }
 
+const PIPELINE = [
+  { n: "1", title: "Import", detail: "Image / DICOM", image: IMAGES.reference, alt: "Chest CT slice used as the example input" },
+  { n: "2", title: "Simulate", detail: "Synthetic noise", image: IMAGES.noisy, alt: "The same slice with synthetic Gaussian noise added" },
+  { n: "3", title: "Filter", detail: "Spatial / FFT / edge-aware / wavelet", image: IMAGES.denoised, alt: "The noisy slice after a 5 by 5 median filter" },
+  { n: "4", title: "Evaluate", detail: "RMSE, PSNR, SSIM", icon: Activity },
+  { n: "5", title: "Compare", detail: "Tables / intervals", icon: BarChart3 },
+];
+
 export default function Overview({ setPage, benchmark, apiState, apiEpoch = 0 }) {
   const [methodCount, setMethodCount] = useState(null);
   const [v2, setV2] = useState({ status: "loading", runs: [] });
   const [d3, setD3] = useState({ status: "loading", runs: [] });
+  const [divider, setDivider] = useState(50);
   useEffect(() => {
     let alive = true;
     api("/api/methods").then(b => alive && setMethodCount(b.methods.length)).catch(() => alive && setMethodCount(null));
@@ -61,12 +73,46 @@ export default function Overview({ setPage, benchmark, apiState, apiEpoch = 0 })
     ...v2.runs.map(r => ({ kind: "v2", id: r.id, study: "Benchmark V2 (2D, tuned and held-out)", noise: `${(r.conditions || []).length} synthetic scenarios`, testSlices: (r.test_slices || []).length, generated: r.generated_at, integrity: r.integrity })),
     ...d3.runs.map(r => ({ kind: "d3", id: r.id, study: "Benchmark 3D (slice-wise versus volumetric)", noise: r.noise_model?.adjacent_slice_correlation ? `white in plane, adjacent-slice correlation ${r.noise_model.adjacent_slice_correlation}` : "white, independent between slices", testSlices: (r.test_slices || []).length, generated: r.generated_at, integrity: r.integrity })),
   ];
+  const verified = recorded.filter(r => r.integrity?.status === "verified");
+  const differing = recorded.filter(r => r.integrity?.status === "mismatch");
+  const filesVerified = verified.reduce((sum, r) => sum + (Number(r.integrity.files_checked) || 0), 0);
+  const apiLabel = apiState === "online" ? "Online" : apiState === "offline" ? "Offline" : "Checking…";
 
   return (
     <section>
-      <PageHeading eyebrow="OVERVIEW" title="Biomedical image denoising and benchmarking"
-        description="Classical (non-learned) denoising of medical images. A lab runs the real filters on an image you provide; recorded benchmarks compare them on one public CT series under synthetic noise. Research and teaching software, not a diagnostic tool." />
+      <div className="hero">
+        <div className="hero-copy">
+          <p className="eyebrow">Clinical imaging research workstation</p>
+          <h1>Biomedical image denoising and benchmarking</h1>
+          <p className="hero-lead">Classical (non-learned) denoising of medical images. A lab runs the real filters on an image you provide; recorded benchmarks compare them on one public CT series under synthetic noise. Research and teaching software, not a diagnostic tool.</p>
+          <div className="hero-actions">
+            <button type="button" className="primary-button" onClick={() => setPage("lab")}>Open the 2D lab <ArrowRight size={16} aria-hidden="true" /></button>
+            <button type="button" className="secondary-button" onClick={() => setPage("v2")}><FlaskConical size={16} aria-hidden="true" /> Recorded benchmarks</button>
+          </div>
+          <ul className="hero-points">
+            <li><Waves size={15} aria-hidden="true" /> No neural network, on purpose</li>
+            <li><Layers3 size={15} aria-hidden="true" /> One public CT series</li>
+            <li><ShieldCheck size={15} aria-hidden="true" /> Research use only</li>
+          </ul>
+        </div>
+        <figure className="hero-figure">
+          <CompareStage leftSrc={IMAGES.noisy} rightSrc={IMAGES.denoised} leftLabel="Noisy input" rightLabel="Median 5 × 5" divider={divider} onDivider={setDivider} aspectRatio="1 / 1"
+            leftAlt="Chest CT slice with synthetic Gaussian noise, shown on the left of the divider" rightAlt="The same slice after a 5 by 5 median filter, shown on the right of the divider" />
+          <input className="compare-range" type="range" min="0" max="100" value={divider} onChange={e => setDivider(Number(e.target.value))} aria-label="Divider position of the example image" />
+          <figcaption>Example from the lab, not a result: slice 50 of LIDC-IDRI-0709 (The Cancer Imaging Archive, CC BY 3.0), Gaussian noise of variance 0.02 (seed 42), then a 5 × 5 median filter. One noise draw; it illustrates what the lab does and shows nothing about which filter is better.</figcaption>
+        </figure>
+      </div>
 
+      <div className="kpi-strip" aria-label="Key figures from the API">
+        <MetricCard label="Available methods" value={methodCount ?? "—"} hint="Classical and non-learned" icon={Waves} />
+        <MetricCard label="Recorded runs" value={loading ? "…" : recorded.length} icon={FlaskConical}
+          hint={loading ? "Looking for recorded runs" : recorded.length ? `${v2.runs.length} in 2D · ${d3.runs.length} in 3D` : "None configured on this server"} />
+        <MetricCard label="Result files verified" value={loading ? "…" : verified.length ? filesVerified : "—"} icon={FileCheck2} tone={differing.length ? "bad" : verified.length ? "ok" : undefined}
+          hint={differing.length ? `${differing.length} run(s) differ from their record` : verified.length ? "Match their recorded SHA-256" : "Nothing to verify"} />
+        <MetricCard label="API" value={apiLabel} icon={PlugZap} tone={apiState === "online" ? "ok" : apiState === "offline" ? "bad" : undefined} hint={apiState === "online" ? `Connected to ${apiHostLabel()}` : "The pages load their data from it"} />
+      </div>
+
+      <div className="section-heading-row"><div><p className="eyebrow">Workflows</p><h2>Choose where to start</h2></div></div>
       <div className="workflow-grid">
         <WorkflowCard number="01" title="2D Denoising Lab" icon={ScanLine} tag="Image processing" onClick={() => setPage("lab")}
           detail={`Upload an image or DICOM slice, or use a bundled sample. Add controlled noise and compare up to ${methodsText}, with scores and measured runtimes.`} />
@@ -85,18 +131,21 @@ export default function Overview({ setPage, benchmark, apiState, apiEpoch = 0 })
         <div className="panel pipeline-panel">
           <div className="panel-heading"><span>Processing pipeline</span><span className="mini-badge">5 STEPS</span></div>
           <div className="pipeline">
-            {[["01", "Import", "Image / DICOM"], ["02", "Simulate", "Synthetic noise"], ["03", "Filter", "Spatial / FFT / edge-aware / wavelet"], ["04", "Evaluate", "RMSE, PSNR, SSIM"], ["05", "Compare", "Tables / intervals"]].map(([n, t, d], i) => (
+            {PIPELINE.map(({ n, title, detail, image, alt, icon: Icon }) => (
               <div className="pipeline-step" key={n}>
-                <div className="pipeline-number">{n}</div>
-                <div><strong>{t}</strong><small>{d}</small></div>
-                {i < 4 && <ChevronRight className="pipeline-arrow" size={15} aria-hidden="true" />}
+                <div className="pipeline-visual">
+                  {image ? <img src={image} alt={alt} width="62" height="62" loading="lazy" decoding="async" /> : <Icon size={24} aria-hidden="true" />}
+                  <span className="pipeline-number" aria-hidden="true">{n}</span>
+                </div>
+                <div><strong>{title}</strong><small>{detail}</small></div>
               </div>
             ))}
           </div>
+          <p className="pipeline-caption">The first three pictures are the example of the top of this page (one noise draw, median 5 × 5); they illustrate the steps and are not results.</p>
         </div>
         <div className="panel status-panel">
           <div className="panel-heading"><span>Server status</span><ShieldCheck size={17} aria-hidden="true" /></div>
-          <div className="status-row"><span>API connection</span><strong className={apiState === "online" ? "status-good" : ""}>{apiState === "online" ? "Online" : apiState === "offline" ? "Offline" : "Checking…"}</strong></div>
+          <div className="status-row"><span>API connection</span><strong className={apiState === "online" ? "status-good" : ""}>{apiLabel}</strong></div>
           <div className="status-row"><span>Denoising methods</span><strong>{methodCount ?? "—"}</strong></div>
           <div className="status-row"><span>Benchmark V2 runs</span><strong className={v2.runs.length ? "status-good" : ""}>{v2.status === "loading" ? "Checking…" : v2.runs.length ? `${v2.runs.length} configured` : "None configured"}</strong></div>
           <div className="status-row"><span>Benchmark 3D runs</span><strong className={d3.runs.length ? "status-good" : ""}>{d3.status === "loading" ? "Checking…" : d3.runs.length ? `${d3.runs.length} configured` : "None configured"}</strong></div>

@@ -105,6 +105,27 @@ test.describe("2D lab against the real backend", () => {
     await expect(page.getByAltText(/Median, shown on the right/)).toBeVisible();
   });
 
+  test("the divider follows a drag on the image, and a hover without a press does nothing", async ({ page }) => {
+    await openLab(page);
+    await page.getByLabel("Upload an image or DICOM slice").setInputFiles(fixture("phantom.png"));
+    await page.getByTestId("lab-run").click();
+    const slider = page.getByTestId("compare-slider");
+    await expect(slider).toBeVisible();
+    const stage = page.locator(".compare-stage");
+    const box = await stage.boundingBox();
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width * 0.5, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.2, y, { steps: 8 });
+    await page.mouse.up();
+    const dragged = Number(await slider.inputValue());
+    expect(dragged).toBeGreaterThanOrEqual(17);                          // about 20 %, within a pixel or two of rounding
+    expect(dragged).toBeLessThanOrEqual(23);
+    await expect(page.locator(".compare-top")).toHaveCSS("clip-path", new RegExp(`inset\\(0(px)? ${100 - dragged}%`));
+    await page.mouse.move(box.x + box.width * 0.9, y, { steps: 4 });    // no button pressed
+    expect(Number(await slider.inputValue())).toBe(dragged);
+  });
+
   test("refuses a corrupt file with the server's message and keeps the run disabled", async ({ page }) => {
     await openLab(page);
     await page.getByLabel("Upload an image or DICOM slice").setInputFiles(fixture("corrupt.png"));
@@ -242,6 +263,99 @@ for (const [device, viewport] of [["desktop", { width: 1366, height: 900 }], ["p
     }
   });
 }
+
+const sidebarWidth = page => page.locator(".sidebar").evaluate(el => el.getBoundingClientRect().width);
+
+test.describe("navigation rail on a desktop screen", () => {
+  test.use({ viewport: { width: 1366, height: 900 } });
+
+  test("collapses to icons, keeps every page reachable by name, and is remembered after a reload", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+    expect(await sidebarWidth(page)).toBeGreaterThan(240);
+    await page.getByRole("button", { name: "Collapse navigation" }).click();
+    await expect.poll(() => sidebarWidth(page)).toBeLessThan(90);
+    const nav = page.getByRole("navigation", { name: "Pages" });
+    for (const name of [/Overview/, /2D Denoising Lab/, /3D CT Explorer/, /Benchmark V2/, /Benchmark 3D/, /Older 2D results/, /Methods & Guide/]) await expect(nav.getByRole("button", { name })).toBeVisible();
+    await nav.getByRole("button", { name: /2D Denoising Lab/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "2D Denoising Lab" })).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+    await expect.poll(() => sidebarWidth(page)).toBeLessThan(90);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    await page.getByRole("button", { name: "Expand navigation" }).click();
+    await expect.poll(() => sidebarWidth(page)).toBeGreaterThan(240);
+  });
+
+  test("the collapsed rail has no serious accessibility violations in either theme", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+    await page.getByRole("button", { name: "Collapse navigation" }).click();
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+      const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+      expect(results.violations.map(v => `${v.id}: ${v.nodes.length}`), theme).toEqual([]);
+    }
+  });
+});
+
+test.describe("navigation rail on a tablet in landscape", () => {
+  test.use({ viewport: { width: 1024, height: 768 } });
+
+  test("is always a rail, whatever was saved, and every page stays reachable", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+    expect(await sidebarWidth(page)).toBeLessThan(90);
+    const nav = page.getByRole("navigation", { name: "Pages" });
+    await nav.getByRole("button", { name: /Methods & Guide/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Methods & Guide" })).toBeVisible();
+  });
+});
+
+test.describe("overview", () => {
+  test("shows figures read from the API and a real example image, labelled as an illustration", async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto("/");
+    const strip = page.getByLabel("Key figures from the API");
+    await expect(strip.locator("article").filter({ hasText: "Available methods" })).toContainText("9");      // the real catalogue of the real API
+    await expect(strip.locator("article").filter({ has: page.getByText("API", { exact: true }) })).toContainText("Online");
+    const noisy = page.getByAltText(/Chest CT slice with synthetic Gaussian noise/);
+    await expect.poll(() => noisy.evaluate(img => img.complete && img.naturalWidth === 512)).toBe(true);     // the asset in public/img is really served
+    await expect(page.getByText(/Example from the lab, not a result/)).toContainText("CC BY 3.0");
+    await page.getByLabel("Divider position of the example image").fill("20");
+    await expect(page.locator(".hero .compare-top")).toHaveCSS("clip-path", /inset\(0(px)? 80%/);
+    expect(problems).toEqual([]);
+  });
+});
+
+/** What sticks out of the page or scrolls it sideways (an ancestor that scrolls sideways on purpose contains its content). */
+const layoutReport = page => page.evaluate(() => {
+  const width = document.documentElement.clientWidth;
+  const scrollsInside = el => { for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) if (["auto", "scroll"].includes(getComputedStyle(node).overflowX)) return true; return false; };
+  const insidePlot = el => el.closest(".js-plotly-plot") && !el.matches(".js-plotly-plot, .plot-container, .svg-container, .main-svg, .gtitle, .legend");
+  const outside = [...document.querySelectorAll("main *")].filter(el => !insidePlot(el) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().right > width + 1 && !scrollsInside(el))
+    .map(el => `${el.tagName.toLowerCase()}.${String(el.className.baseVal ?? el.className)}`.slice(0, 60));
+  const sidebar = document.querySelector(".sidebar");
+  return { sideways: document.documentElement.scrollWidth > width, outside: outside.slice(0, 6), sidebarOverflow: sidebar ? sidebar.scrollWidth > sidebar.clientWidth + 1 : false };
+});
+
+test.describe("layout at every supported width", () => {
+  for (const width of [1440, 1280, 1024, 768, 390]) {
+    test(`no page scrolls sideways, sticks out of the screen or overflows the navigation at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width <= 800 ? 1024 : 900 });
+      await page.goto("/");
+      await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+      for (const label of [/Overview/, /2D Denoising Lab/, /3D CT Explorer/, /Benchmark V2/, /Benchmark 3D/, /Older 2D results/, /Methods & Guide/]) {
+        if (width <= 900) await page.getByRole("button", { name: "Open navigation" }).click();
+        await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: label }).click();
+        await expect(page.getByRole("main")).toBeVisible();
+        if (String(label).includes("Benchmark 3D")) await expect(page.locator(".js-plotly-plot").first()).toBeVisible({ timeout: 30_000 });
+        await page.waitForTimeout(400);
+        expect(await layoutReport(page), `${label} at ${width} px`).toEqual({ sideways: false, outside: [], sidebarOverflow: false });
+      }
+    });
+  }
+});
 
 test.describe("responsive layout", () => {
   test.use({ viewport: { width: 390, height: 844 } });

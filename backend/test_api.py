@@ -123,6 +123,14 @@ def test_preview_corrupt_file_is_400(client, filename):
     _assert_detail_is_text(response)
 
 
+def test_a_corrupt_dicom_message_names_the_file_and_the_problem_without_a_hint_for_python_callers(client):
+    response = client.post("/api/image/preview", files={"file": ("bad.dcm", b"this is not a DICOM file", "application/dicom")})
+    detail = response.json()["detail"]
+    assert response.status_code == 400
+    assert detail.startswith("Could not read bad.dcm:") and "DICM" in detail                     # the file and the actual cause
+    assert "force=True" not in detail and "force reading" not in detail                         # pydicom's advice to programmers is not shown to an uploader
+
+
 # --- /api/denoise: valid requests -------------------------------------------------------
 
 

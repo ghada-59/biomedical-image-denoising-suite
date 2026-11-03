@@ -147,10 +147,11 @@ def _read_upload(upload: UploadFile, limit: int | None = None) -> bytes:
 
 
 def _scrub(message: str, *hidden: str) -> str:
-    """Remove server-side paths and object reprs from a message shown to clients."""
+    """Remove server-side paths, object reprs and library hints a client cannot act on from a message shown to clients."""
     for text in hidden:
         if text:
             message = message.replace(text, "<upload>")
+    message = re.sub(r"\s*Use force=True to force reading\.?", "", message)          # pydicom's advice to Python callers, meaningless to an uploader
     return re.sub(r"<[^<>]*object at 0x[0-9a-fA-F]+>", "the uploaded file", message)
 
 

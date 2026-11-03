@@ -62,14 +62,24 @@ export function themeColors() {
   return { text: read("--text", "#14212f"), muted: read("--muted", "#45566a"), grid: read("--border", "#d3dbe6") };
 }
 
+/** Height of a chart with a legend below it. On a phone the legend is one column, so it needs one more row of height for each entry beyond five (otherwise it turns into a scroll box). */
+export function chartHeight(base, entries) {
+  return chartWidthEstimate() < 400 ? base + 19 * Math.max(0, entries - 5) : base;
+}
+
+/** A legend pinned to the bottom-left corner of the figure, whatever the figure's height (otherwise it can land on the x-axis title). */
+export function legendBelow(entryWidth = 110) {
+  return { orientation: "h", xref: "container", x: 0, yref: "container", y: 0, yanchor: "bottom", entrywidth: entryWidth, entrywidthmode: "pixels", font: { size: 10 } };
+}
+
 export function baseLayout(title, xTitle, yTitle, extra) {
   const c = themeColors();
   const lines = wrapTitle(title, Math.max(18, Math.floor((chartWidthEstimate() - 24) / 7.2)));
-  const margin = { l: 62, r: 14, t: 42, b: 150, ...extra?.margin };
+  const margin = { l: 62, r: 14, t: 42, b: 190, ...extra?.margin };    // room for rotated tick labels, the axis title and a legend of up to five rows    // room for rotated tick labels, the axis title and a legend of up to five rows
   margin.t += 17 * (lines.length - 1);                                  // room for the extra title lines
   return {
     title: { text: lines.join("<br>"), font: { size: 13, color: c.text } }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-    font: { color: c.muted, size: 11 }, legend: { orientation: "h", x: 0, y: -0.42, yanchor: "top", entrywidth: 110, entrywidthmode: "pixels", font: { size: 10 } },
+    font: { color: c.muted, size: 11 }, legend: legendBelow(),
     xaxis: { title: { text: xTitle, standoff: 14 }, gridcolor: c.grid, automargin: true, tickangle: -30 }, yaxis: { title: { text: yTitle }, gridcolor: c.grid, zeroline: true, zerolinecolor: c.grid },
     autosize: true, ...extra, margin,
   };

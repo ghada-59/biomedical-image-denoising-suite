@@ -103,7 +103,7 @@ function PairedChart({ statements }) {
   const mean = rows.map(s => s.paired_difference_hu), low = rows.map(s => s.ci_low), high = rows.map(s => s.ci_high);
   const trace = { type: "scatter", mode: "markers", x: labels, y: mean, name: "Anisotropic 3D minus slice-wise 2D", marker: { color: METHOD_COLORS_3D["3D anisotropic Gaussian"], size: 11 }, error_y: intervalBars(mean, low, high),
     hovertemplate: "%{x}: %{y:+.3f} HU<extra></extra>" };
-  return <Plot data={[trace]} layout={baseLayout("Anisotropic 3D minus slice-wise 2D, RMSE_HU (principal mask)", "Noise standard deviation (synthetic)", "Paired difference (HU); below 0 = lower error with 3D",
+  return <Plot data={[trace]} layout={baseLayout("Anisotropic 3D minus slice-wise 2D, RMSE_HU (principal mask); below 0 = lower error with 3D", "Noise standard deviation (synthetic)", "Paired difference (HU)",
     { margin: { l: 70, r: 14, t: 42, b: 70 }, showlegend: false, xaxis: { title: { text: "Noise standard deviation (synthetic)" }, automargin: true } })}
     config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: 320 }} />;
 }

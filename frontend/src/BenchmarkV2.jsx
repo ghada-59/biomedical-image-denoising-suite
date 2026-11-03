@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDownToLine, FlaskConical, ShieldCheck } from "lucide-react";
 import { Plot } from "./plot";
 import { API_BASE_URL, api, queryString } from "./api";
-import { FAMILY_COLORS, MASK_COLORS, baseLayout, intervalBars, themeColors, useThemeTick } from "./chartTheme";
+import { FAMILY_COLORS, MASK_COLORS, baseLayout, chartHeight, intervalBars, legendBelow, themeColors, useThemeTick } from "./chartTheme";
 
 const METRICS = [
   { key: "RMSE_HU", label: "RMSE (HU)", unit: "HU", lowerIsBetter: true, note: "Error in Hounsfield units over the mask, unclipped." },
@@ -85,7 +85,7 @@ function MetricCharts({ summary, metric, scenario }) {
           error_y: intervalBars(mean, low, high),
           hovertemplate: `%{x}<br>${family}: %{y:.3f} ${def.unit}<extra></extra>` };
       });
-      return <div key={mask} className="v2-chart"><Plot data={traces} layout={baseLayout(`${def.label} — ${label}`, "Noise condition (synthetic)", `${def.label}${def.unit ? "" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: 380 }}/></div>;
+      return <div key={mask} className="v2-chart"><Plot data={traces} layout={baseLayout(`${def.label} — ${label}`, "Noise condition (synthetic)", `${def.label}${def.unit ? "" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: chartHeight(440, traces.length) }}/></div>;
     })}
   </div>;
 }
@@ -101,7 +101,7 @@ function GainChart({ summary, metric, condition }) {
       error_y: intervalBars(mean, low, high),
       hovertemplate: `%{x}: %{y:+.3f} ${def.unit}<extra>${label}</extra>` };
   });
-  return <Plot data={traces} layout={baseLayout(`Change of ${def.label} versus the unfiltered noisy image — ${condition}`, "Tuned filter", `Filtered minus unfiltered${def.unit ? " (" + def.unit + ")" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: 380 }}/>;
+  return <Plot data={traces} layout={baseLayout(`Change of ${def.label} versus the unfiltered noisy image — ${condition}`, "Tuned filter", `Filtered minus unfiltered${def.unit ? " (" + def.unit + ")" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: chartHeight(440, traces.length) }}/>;
 }
 
 function DataTable({ rows, columns, label }) {
@@ -180,7 +180,7 @@ function SliceViewer({ run, conditions }) {
       ]}/>
       <p className="footnote">The boundary band is {(data.band_fraction_of_mask * 100).toFixed(1)}% of the principal mask. Compare its error with the deeper region: RMSE_HU on the principal mask can be dominated by this thin band. The band/core split is descriptive, not a benchmark metric.</p>
       <div className="v2-controls"><label>Profile row {row ?? data.row}<input type="range" min="0" max={data.shape[0] - 1} value={row ?? data.row} onChange={e => setRow(Number(e.target.value))}/></label></div>
-      <Plot data={profileTraces} layout={baseLayout(`Intensity profile along image row ${data.profile.row}`, "Column (pixel)", "HU", { margin: { l: 62, r: 14, t: 42, b: 90 } })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: 360 }}/>
+      <Plot data={profileTraces} layout={baseLayout(`Intensity profile along image row ${data.profile.row}`, "Column (pixel)", "HU", { margin: { l: 62, r: 14, t: 42, b: 120 }, legend: legendBelow(150) })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: chartHeight(380, profileTraces.length) }}/>
     </>}
   </div>;
 }

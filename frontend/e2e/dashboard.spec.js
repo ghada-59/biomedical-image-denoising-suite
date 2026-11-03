@@ -205,6 +205,44 @@ test.describe("Benchmark 3D against the recorded run that ships with the reposit
   });
 });
 
+/** Where a Plotly legend sits relative to its figure and to the x-axis title (a legend that covers the title, or runs off the figure, is unreadable). */
+function legendProblems(page) {
+  return page.evaluate(() => {
+    const problems = [];
+    document.querySelectorAll(".js-plotly-plot").forEach((plot, index) => {
+      const legend = plot.querySelector("g.legend");
+      if (!legend) return;
+      const box = legend.getBoundingClientRect();
+      const title = plot.querySelector("g.g-xtitle")?.getBoundingClientRect();
+      const figure = plot.querySelector("svg.main-svg").getBoundingClientRect();
+      if (title && box.top < title.bottom - 1 && box.bottom > title.top + 1 && box.right > title.left && box.left < title.right) problems.push(`chart ${index}: the legend covers the x-axis title`);
+      if (box.bottom > figure.bottom + 1 || box.right > figure.right + 1) problems.push(`chart ${index}: the legend runs out of the figure`);
+    });
+    return problems;
+  });
+}
+
+for (const [device, viewport] of [["desktop", { width: 1366, height: 900 }], ["phone", { width: 390, height: 844 }]]) {
+  test.describe(`chart legends on a ${device} screen`, () => {
+    test.use({ viewport });
+
+    for (const [label, needsRun] of [["Benchmark V2", true], ["Benchmark 3D", false]]) {
+      test(`${label}: no legend covers an axis title or leaves its figure`, async ({ page }) => {
+        test.skip(needsRun && !process.env.E2E_BENCHMARK_RUN_DIR, "set E2E_BENCHMARK_RUN_DIR to a Benchmark V2 run directory");
+        await page.goto("/");
+        await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+        if (device === "phone") await page.getByRole("button", { name: "Open navigation" }).click();
+        await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: new RegExp(label) }).click();
+        await expect(page.getByText("FILES VERIFIED").first()).toBeVisible();
+        await expect(page.locator(".js-plotly-plot").first()).toBeVisible({ timeout: 30_000 });
+        await expect(page.locator(".js-plotly-plot g.legend").first()).toBeAttached();
+        await page.waitForTimeout(1500);                                  // Plotly draws the legend after the first paint
+        expect(await legendProblems(page)).toEqual([]);
+      });
+    }
+  });
+}
+
 test.describe("responsive layout", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 

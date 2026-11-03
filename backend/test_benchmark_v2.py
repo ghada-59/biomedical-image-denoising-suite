@@ -56,6 +56,16 @@ def test_body_mask_fills_lungs_and_excludes_air_and_small_blobs():
     assert mask.sum() == 30 * 30
 
 
+def test_the_body_threshold_is_minus_500_hu_material_above_it_is_body_and_lighter_material_is_not():
+    assert B.BODY_THRESHOLD_HU == -500.0                            # the principal mask named in the README and in run_metadata.json
+    hu = np.full((40, 40), -1000.0)
+    hu[5:35, 5:35] = 30.0           # body
+    hu[10:30, 1:5] = -300.0         # low-density tissue touching the body, above the threshold: part of the body
+    hu[10:30, 35:39] = -700.0       # lighter material touching the body (lung-like, foam), below the threshold: not part of the body
+    mask = B.body_mask(hu)
+    assert mask[10:30, 1:5].all() and not mask[10:30, 35:39].any()
+
+
 def test_body_mask_of_all_air_is_empty():
     assert not B.body_mask(np.full((10, 10), -1000.0)).any()
 
@@ -456,7 +466,16 @@ def test_bootstrap_ci_of_constant_values_has_zero_width():
 def test_bootstrap_ci_matches_the_normal_theory_width_for_a_large_sample():
     values = np.random.default_rng(0).normal(0, 1, 400)
     low, high = B.bootstrap_ci(values, n_boot=4000)
-    assert (high - low) == pytest.approx(2 * 1.96 / math.sqrt(400), rel=0.15)
+    # the bootstrap standard error of a mean is the (ddof=0) SD over sqrt(n); the correct code stays within 5 % of this for any seed
+    # (measured over 200 seeds: 0.95 to 1.04), while an interval taken at the wrong level is about 8 % too narrow
+    assert (high - low) == pytest.approx(2 * 1.96 * np.std(values) / math.sqrt(400), rel=0.05)
+
+
+@pytest.mark.parametrize("alpha, levels", [(0.05, (0.025, 0.975)), (0.10, (0.05, 0.95)), (0.50, (0.25, 0.75))])
+def test_bootstrap_ci_is_the_central_percentile_interval_at_the_requested_level(alpha, levels):
+    values = np.array([1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0])
+    resampled_means = values[np.random.default_rng(12345).integers(0, values.size, size=(3000, values.size))].mean(axis=1)   # slices with replacement
+    assert B.bootstrap_ci(values, n_boot=3000, alpha=alpha) == pytest.approx(tuple(np.quantile(resampled_means, levels)))
 
 
 def test_bootstrap_ci_is_wider_with_fewer_slices():

@@ -112,6 +112,15 @@ def test_the_filter_with_a_field_of_view_is_still_linear():
     assert np.allclose(b3.smooth(a + b, params, SPACING, valid), b3.smooth(a, params, SPACING, valid) + b3.smooth(b, params, SPACING, valid), atol=1e-9)
 
 
+def test_the_field_of_view_normalisation_also_holds_along_z_when_one_slice_has_a_different_valid_region():
+    volume = np.full((9, 30, 30), 50.0)
+    valid = np.ones(volume.shape, bool)
+    valid[4] = False                                                 # one slice entirely outside the field of view
+    volume[4] = PADDING
+    out = b3.smooth(volume, {"sigma_xy_mm": 1.0, "sigma_z_mm": 3.0}, SPACING, valid)
+    assert np.allclose(out[valid], 50.0, atol=1e-9)                  # the neighbours of that slice must not be pulled towards 0 or towards -2048
+
+
 # --- the error decomposition ----------------------------------------------------------------------------
 
 
@@ -253,6 +262,57 @@ def test_the_figures_are_written_from_the_tables(runs, tmp_path):
     _volume, _tune, _test, tables = runs["same"]
     paths = b3.make_figures(tables, tmp_path)
     assert [p.name for p in paths] == ["tradeoff_curves.png", "test_rmse.png"] and all(p.stat().st_size > 5000 for p in paths)
+
+
+def test_the_selected_parameters_are_the_first_minimum_of_the_tuning_error_on_the_principal_mask(runs):
+    assert b3.PRIMARY_MASK == "main"                                 # the principal mask named in the README and in run_metadata.json
+    for _volume, _tune, _test, tables in runs.values():
+        grid, selected = tables["tuning_grid"], tables["selected_parameters"]
+        assert len(selected) == len(b3.NOISE_SIGMAS_HU) * len(b3.METHODS)
+        for _, row in selected.iterrows():
+            group = grid[(grid["condition"] == row["condition"]) & (grid["method"] == row["method"])]
+            first_minimum = group.loc[group["RMSE_HU_main"].idxmin()]
+            assert json.loads(row["params"]) == json.loads(first_minimum["params"])           # an exact tie goes to the weaker (earlier) setting
+
+
+def test_the_reported_intervals_use_the_documented_bootstrap_seed():
+    rng = np.random.default_rng(0)
+    rows = [{"condition": "white_10HU", "mask": "main", "slice": s, "method": m, **{k: float(rng.normal(10, 2)) for k in b3.SUMMARY_METRICS}, "n_repeats": 5}
+            for s in range(8) for m in b3.METHODS]
+    per_slice = pd.DataFrame(rows)
+    assert b3.BOOTSTRAP_SEED == 12345                                # the seed recorded in run_metadata.json: changing it would change every recorded interval
+    summary = b3.summarise(per_slice, n_boot=300)
+    row = summary[summary.method == b3.METHODS[0]].iloc[0]
+    values = per_slice[per_slice.method == b3.METHODS[0]].sort_values("slice")["RMSE_HU"].to_numpy()
+    assert (row["RMSE_HU_ci_low"], row["RMSE_HU_ci_high"]) == b2.bootstrap_ci(values, 300, seed=12345)
+    a, b = b3.PAIRS[0]
+    paired = b3.pairwise(per_slice, n_boot=300)
+    row = paired[(paired.A == a) & (paired.B == b) & (paired.metric == "RMSE_HU")].iloc[0]
+    wide = per_slice.pivot(index="slice", columns="method", values="RMSE_HU")
+    assert (row["ci_low"], row["ci_high"]) == b2.bootstrap_ci((wide[a] - wide[b]).to_numpy(), 300, seed=12345)
+
+
+def test_tuning_and_test_noise_come_from_separate_seed_bases_and_never_coincide(monkeypatch):
+    calls = []
+    real = b2.condition_seed
+
+    def spy(base, index, condition_index, repeat):
+        seed = real(base, index, condition_index, repeat)
+        calls.append((base, index, seed))
+        return seed
+
+    monkeypatch.setattr(b2, "condition_seed", spy)
+    volume = phantom("same")
+    tune_slices, test_slices = b3.plan_slices(volume, n_tune=2, n_test=2)
+    tables = b3.run(volume, SPACING, tune_slices, test_slices, tune_repeats=1, test_repeats=1, n_boot=50)
+    assert b3.TUNING_BASE_SEED != b3.TEST_BASE_SEED
+    assert {base for base, _, _ in calls} == {b3.TUNING_BASE_SEED, b3.TEST_BASE_SEED}        # no other source of noise seeds
+    tuning = {seed for base, _, seed in calls if base == b3.TUNING_BASE_SEED}
+    testing = {seed for base, _, seed in calls if base == b3.TEST_BASE_SEED}
+    assert tuning and testing and not tuning & testing
+    assert {index for base, index, _ in calls if base == b3.TUNING_BASE_SEED} == set(tune_slices)
+    assert {index for base, index, _ in calls if base == b3.TEST_BASE_SEED} == set(test_slices)
+    assert set(tables["test_per_run"]["seed"]) == testing                                    # the recorded seeds are exactly the test seeds
 
 
 # --- the shipped run --------------------------------------------------------------------------------------

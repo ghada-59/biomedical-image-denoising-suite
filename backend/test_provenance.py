@@ -129,11 +129,11 @@ def test_api_without_any_results_has_no_provenance(client, tmp_path, monkeypatch
     assert body["available"] is False and body["provenance"] is None
 
 
-def test_the_repository_reports_folder_is_never_called_a_documented_run_without_metadata():
-    """The real backend/reports folder holds a copy of the historical snapshot and no metadata."""
-    reports = Path(api.ROOT) / "reports"
-    if not (reports / provenance.SUMMARY_NAME).is_file():
-        pytest.skip("no local reports folder")
-    if (reports / provenance.METADATA_NAME).is_file():
-        pytest.skip("a run_metadata.json exists locally")
-    assert provenance.results_provenance(reports)["status"] == "historical_unverified"
+RESULTS = Path(__file__).resolve().parent / "docs" / "results"
+
+
+def test_the_committed_historical_snapshot_is_never_called_a_documented_run_without_metadata():
+    """The snapshot committed in docs/results (the file that a developer's local reports/ folder copies) has no run metadata."""
+    assert (RESULTS / provenance.SUMMARY_NAME).is_file(), "the committed historical snapshot is missing"
+    assert not (RESULTS / provenance.METADATA_NAME).exists(), "docs/results is the historical snapshot and must not carry run metadata"
+    assert provenance.results_provenance(RESULTS)["status"] == "historical_unverified"

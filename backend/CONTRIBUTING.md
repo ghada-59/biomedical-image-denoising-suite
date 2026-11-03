@@ -37,11 +37,11 @@ python -m pytest -q
 
 Add or update tests when changing filtering, metric calculations, DICOM loading, volume geometry, or rendering behavior. For numerical changes, include tests for invalid inputs as well as expected outputs.
 
-Other checks, all of which the GitHub workflows also run (they have not been executed on GitHub yet):
+Other checks, all of which the GitHub workflows also run (the versions in this branch have not run on GitHub yet):
 
 ```bash
 python -m pip install "ruff==0.17.2"
-ruff check .                      # from backend/: pyflakes-class errors (configuration in ruff.toml)
+ruff check --config ruff.toml . ../scripts   # from backend/: pyflakes-class errors (configuration in ruff.toml); also lints scripts/smoke_test.py
 
 cd ../frontend                    # Node.js 22.12 or newer
 npm ci

@@ -16,6 +16,9 @@ services:
       # The 2D images of that page need the CT series, which is not part of the repository, so they are not shown on the hosted site.
       - key: BENCHMARK_RUN_DIRS
         value: docs/results/benchmark_v2_methods_2026-10-25
+      # The two recorded Benchmark 3D runs (independent noise, and noise correlated between adjacent slices). Several runs are separated by ':' on Render.
+      - key: BENCHMARK_3D_RUN_DIRS
+        value: docs/results/benchmark_3d_2026-10-26:docs/results/benchmark_3d_correlated_2026-10-27
       # Limits sized for a 512 MB instance. Measured locally (Windows, Python 3.12): importing the API takes about 170 MB;
       # a 512x512 image through all nine methods peaks near 235 MB, 1024x1024 near 415 MB, a 2048x2048 image with the six
       # classical methods near 1 GB; the 3D explorer adds about 4 MB per DICOM slice (576 MB peak for 100 slices).

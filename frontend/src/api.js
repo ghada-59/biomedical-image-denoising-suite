@@ -108,7 +108,10 @@ export async function fetchFile(path, filename, type) {
   const response = await send(path);
   if (!response.ok) throw await failureFor(response, path);
   const blob = await response.blob();
-  return new File([blob], filename, { type: type || blob.type });
+  // Read bytes before constructing File: in jsdom/Node CI, Response.blob() and File
+  // can come from different realms, where passing the Blob directly stringifies it.
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  return new File([bytes], filename, { type: type || blob.type });
 }
 
 export function queryString(params) {

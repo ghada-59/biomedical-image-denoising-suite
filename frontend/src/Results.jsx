@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Activity, ArrowDownToLine, BarChart3, FileText, ScanLine, Waves } from "lucide-react";
 import { DataTable, EmptyState, MetricCard, PageHeading } from "./components";
 
-const COLORS = ["#7188ff", "#22a699", "#e3a64f", "#b18aff", "#5ca8e8", "#e27d9b", "#8d9aa8"];
 const NOISE = ["Gaussian", "Salt & Pepper", "Speckle (synthetic)", "None"];
 
 /** The older file holds a spatial and a frequency-domain table, each with its own unfiltered baseline, and a "Gauss" next to a "Gaussian": the domain tells them apart. */
@@ -19,7 +18,7 @@ function MetricBars({ title, rows, field }) {
       {values.map((row, i) => (
         <div className="bar-row" key={`${String(row.Filter)}-${String(row.Domain ?? "none")}-${i}`}>
           <div className="bar-label">{filterLabel(row)}</div>
-          <div className="bar-track"><div className="bar-fill" style={{ width: Math.max(2, Number(row[field]) / max * 100) + "%", background: COLORS[i % COLORS.length] }} /></div>
+          <div className="bar-track"><div className="bar-fill" style={{ width: Math.max(2, Number(row[field]) / max * 100) + "%", background: i === 0 ? "var(--teal)" : "color-mix(in srgb, var(--accent) 72%, var(--surface))" }} /></div>
           <strong>{Number(row[field]).toFixed(field === "Mean_SSIM" ? 4 : 2)}</strong>
         </div>
       ))}

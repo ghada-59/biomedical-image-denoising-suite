@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownToLine, Box, ShieldCheck } from "lucide-react";
+import { ArrowDownToLine, Box, FileCheck2, Layers3, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { Plot } from "./plot";
 import { API_BASE_URL, api, queryString } from "./api";
 import { METHOD_COLORS_3D, baseLayout, intervalBars, themeColors, useThemeTick } from "./chartTheme";
-import { PageHeading } from "./components";
+import { MetricCard, PageHeading } from "./components";
 
 const METRICS = [
   { key: "RMSE_HU", label: "RMSE (HU)", unit: "HU", lowerIsBetter: true, note: "Error against the reference slice in Hounsfield units, unclipped, over the mask." },
@@ -163,13 +163,21 @@ export default function Benchmark3D({ apiEpoch = 0 }) {
 
     <Notice tone="warn"><ShieldCheck size={15} aria-hidden="true" /> Exploratory study: one patient, 8 held-out slices, a noisy clinical reference and synthetic noise. Only Gaussian smoothing is compared. Not clinically validated and not evidence that volumetric smoothing is better or worse in general.</Notice>
 
+    <div className="kpi-strip" aria-label="Facts of this run">
+      <MetricCard label="Smoothing families" value={(run.methods || []).filter(m => m !== "Noisy (no filter)").length || "—"} hint="Slice-wise, isotropic 3D and anisotropic 3D Gaussian" icon={Box} />
+      <MetricCard label="Noise levels" value={conditions.length} hint={correlated ? "White in plane, correlated between adjacent slices" : "White, independent for every voxel"} icon={SlidersHorizontal} />
+      <MetricCard label="Held-out slices" value={run.test_slices.length} hint={`× ${run.test_repeats} noise realisations each; tuned on ${run.tune_slices.length} others`} icon={Layers3} />
+      <MetricCard label="Recorded files" value={integrityOk ? run.integrity.files_checked : "Check"} hint={integrityOk ? "Match their recorded SHA-256" : "Differ from the recorded SHA-256"} icon={FileCheck2} tone={integrityOk ? "ok" : "bad"} />
+    </div>
+
     <Section title="Run and provenance" badge={integrityOk ? "FILES VERIFIED" : "CHECK FILES"}>
       <div className="v2-controls"><label>Run<select value={runId} onChange={e => setRunId(e.target.value)}>{state.runs.map(r => <option key={r.id} value={r.id}>{r.id}</option>)}</select></label></div>
       <ul className="v2-facts">
         <li><strong>Noise model</strong> {run.noise_model.kind}{correlated ? ` (correlation ${run.noise_model.adjacent_slice_correlation} with the adjacent slice)` : ""}</li>
         {run.noise_model.note && <li><strong>Reading</strong> {run.noise_model.note}</li>}
         <li><strong>Voxel spacing</strong> {spacing.map(v => fixed(v, 2)).join(" x ")} mm (x, y, z); volume {run.volume_shape_zyx?.join(" x ")} (z, y, x)</li>
-        <li><strong>Tuning slices</strong> {run.tune_slices.join(", ")} x {run.tune_repeats} realisations; <strong>test slices</strong> {run.test_slices.join(", ")} x {run.test_repeats} realisations</li>
+        <li><strong>Tuning slices</strong> {run.tune_slices.join(", ")} x {run.tune_repeats} realisations</li>
+        <li><strong>Test slices</strong> {run.test_slices.join(", ")} x {run.test_repeats} realisations</li>
         <li><strong>Selection</strong> {run.selection_criterion} on the {run.primary_mask} mask, tuning slices only; bootstrap seed {run.bootstrap_seed}, {run.n_boot} resamples</li>
         <li><strong>Generated</strong> {run.generated_at}; <strong>source state</strong> {run.git_commit.slice(0, 12)} — {run.source_state}</li>
         <li><strong>Source files recorded</strong> {run.source_files.join(", ")} (SHA-256 in the run metadata)</li>

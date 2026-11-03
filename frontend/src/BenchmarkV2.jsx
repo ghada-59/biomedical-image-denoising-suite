@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownToLine, FlaskConical, ShieldCheck } from "lucide-react";
+import { ArrowDownToLine, FileCheck2, FlaskConical, Layers3, ShieldCheck, SlidersHorizontal, Waves } from "lucide-react";
 import { Plot } from "./plot";
 import { API_BASE_URL, api, queryString } from "./api";
+import { MetricCard } from "./components";
 import { FAMILY_COLORS, MASK_COLORS, baseLayout, chartHeight, intervalBars, legendBelow, themeColors, useThemeTick } from "./chartTheme";
 
 const METRICS = [
@@ -101,7 +102,7 @@ function GainChart({ summary, metric, condition }) {
       error_y: intervalBars(mean, low, high),
       hovertemplate: `%{x}: %{y:+.3f} ${def.unit}<extra>${label}</extra>` };
   });
-  return <Plot data={traces} layout={baseLayout(`Change of ${def.label} versus the unfiltered noisy image — ${condition}`, "Tuned filter", `Filtered minus unfiltered${def.unit ? " (" + def.unit + ")" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: chartHeight(440, traces.length) }}/>;
+  return <Plot data={traces} layout={baseLayout(`Change of ${def.label} versus the unfiltered noisy image — ${condition}`, "Tuned filter", `Filtered minus unfiltered${def.unit ? " (" + def.unit + ")" : ""}`, { barmode: "group", legend: legendBelow(260) })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: chartHeight(440, traces.length) }}/>;
 }
 
 function DataTable({ rows, columns, label }) {
@@ -229,6 +230,13 @@ export default function BenchmarkV2({ apiEpoch = 0 }) {
       <p className="page-description">{(run.families || []).length || "Several"} classical denoisers compared under synthetic noise on one CT series. Every number below is read from the files of a recorded run or recomputed from its recorded seeds.</p></div></div>
 
     <Notice tone="warn"><ShieldCheck size={15}/> Exploratory study: one patient, few slices, a noisy clinical reference and synthetic noise. Not clinically validated and not evidence that any filter is best in general.</Notice>
+
+    <div className="kpi-strip" aria-label="Facts of this run">
+      <MetricCard label="Methods compared" value={(run.families || []).length || "—"} hint="Each tuned separately, plus the unfiltered image" icon={Waves} />
+      <MetricCard label="Noise scenarios" value={conditions.length} hint="Synthetic, defined in Hounsfield units" icon={SlidersHorizontal} />
+      <MetricCard label="Held-out slices" value={run.test_slices.length} hint={`× ${run.test_repeats} noise realisations each; tuned on ${run.tune_slices.length} others`} icon={Layers3} />
+      <MetricCard label="Recorded files" value={integrityOk ? run.integrity.files_checked : "Check"} hint={integrityOk ? "Match their recorded SHA-256" : "Differ from the recorded SHA-256"} icon={FileCheck2} tone={integrityOk ? "ok" : "bad"} />
+    </div>
 
     <Section title="Run and provenance" badge={integrityOk ? "FILES VERIFIED" : "CHECK FILES"}>
       <div className="v2-controls"><label>Run<select value={runId} onChange={e => setRunId(e.target.value)}>{state.runs.map(r => <option key={r.id} value={r.id}>{r.id}</option>)}</select></label></div>

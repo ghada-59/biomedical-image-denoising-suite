@@ -84,7 +84,7 @@ export function startPreview(port, apiPort, outDir) {
 
 /** A plain static file server with single-page fallback (what a static host does): it has NO /api and no backend behind it. */
 export async function startStaticHost(port, directory) {
-  const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
+  const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
     const requested = path.join(directory, decodeURIComponent(new URL(request.url, "http://x").pathname));
     const file = requested.startsWith(directory) && fs.existsSync(requested) && fs.statSync(requested).isFile() ? requested : path.join(directory, "index.html");
@@ -92,5 +92,7 @@ export async function startStaticHost(port, directory) {
     fs.createReadStream(file).pipe(response);
   });
   await new Promise(resolve => server.listen(port, "127.0.0.1", resolve));
-  return { close: () => new Promise(resolve => server.close(resolve)) };
+  // server.close() only closes connections that are idle at that instant; a keep-alive connection that is busy then stays open, and the page, which polls
+  // /api/health every 2 s, keeps reusing it, so close() could wait until the test timeout. The test is over when it closes the host: drop every connection.
+  return { close: () => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }) };
 }

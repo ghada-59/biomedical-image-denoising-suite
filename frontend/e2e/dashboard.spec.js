@@ -294,7 +294,15 @@ test.describe("navigation rail on a desktop screen", () => {
     for (const theme of ["light", "dark"]) {
       await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
       const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
-      expect(results.violations.map(v => `${v.id}: ${v.nodes.length}`), theme).toEqual([]);
+      const details = results.violations.map(violation => ({
+        id: violation.id,
+        nodes: violation.nodes.map(node => ({
+          target: node.target,
+          html: node.html,
+          failureSummary: node.failureSummary,
+        })),
+      }));
+      expect(details, theme).toEqual([]);
     }
   });
 });

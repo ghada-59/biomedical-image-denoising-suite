@@ -212,10 +212,14 @@ test.describe("accessibility (axe-core, WCAG 2 A and AA rules)", () => {
         .map(v => `${v.id} (${v.impact}): ${v.nodes.slice(0, 4).map(n => `${n.target.join(" ")} [${(n.any[0]?.message || "").slice(0, 150)}]`).join(" | ")}`);
       expect(serious(await scan()), "overview").toEqual([]);
       await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /2D Denoising Lab/ }).click();
-      await page.getByLabel(/bundled sample/i).selectOption("head_ct");
+      await page.getByLabel(/bundled sample/i).selectOption("chest_ct");
       await page.getByTestId("lab-run").click();
       await expect(page.getByTestId("lab-results-table")).toBeVisible();
       expect(serious(await scan()), "lab with results").toEqual([]);
+      await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /Benchmark 3D/ }).click();
+      await expect(page.getByText("FILES VERIFIED")).toBeVisible();
+      await expect(page.locator(".js-plotly-plot").first()).toBeVisible({ timeout: 30_000 });
+      expect(serious(await scan()), "Benchmark 3D with charts").toEqual([]);
     });
   }
 });

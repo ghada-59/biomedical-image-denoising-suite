@@ -32,8 +32,8 @@ def test_every_endpoint_in_the_readme_table_exists():
 def test_the_readme_example_request_uses_real_fields_and_files():
     command = re.search(r"curl -X POST (\S+) \\\n\s+(.*)", README)
     assert command and command.group(1).endswith("/api/denoise")
-    assert "file=@backend/samples/head_ct.png" in command.group(2)
-    assert (ROOT / "backend" / "samples" / "head_ct.png").is_file()
+    assert "file=@backend/samples/chest_ct.png" in command.group(2)
+    assert (ROOT / "backend" / "samples" / "chest_ct.png").is_file()
     for field in re.findall(r"-F \"?(\w+)=", command.group(2)):
         assert field in {"file", "noise_type", "seed", "methods"}
 

@@ -159,7 +159,7 @@ To see what the browser sends, open the developer tools (F12), tab *Network*, an
 
 ### Using the lab
 
-Open the **2D Denoising Lab**: choose *Cell in saline* or *Head CT slice* from the sample list (or upload a PNG, JPEG or DICOM slice), tick the methods to compare, press *Run denoising*, and use the divider to compare the outputs. The table shows the scores the API computed for that run, the parameters actually used and each method's measured runtime. Interface details are in [frontend/README.md](frontend/README.md).
+Open the **2D Denoising Lab**: choose *Cell in saline* or *Chest CT slice (LIDC-IDRI)* from the sample list (or upload a PNG, JPEG or DICOM slice), tick the methods to compare, press *Run denoising*, and use the divider to compare the outputs. The table shows the scores the API computed for that run, the parameters actually used and each method's measured runtime. Interface details are in [frontend/README.md](frontend/README.md).
 
 ### Production build
 
@@ -192,7 +192,7 @@ The Streamlit application (`streamlit run app.py` from `backend/`) is the earlie
 | --- | --- |
 | `GET /api/health` | Liveness check |
 | `GET /api/methods` | The nine methods with parameter limits, defaults, assumptions and references, plus the server's size and concurrency limits |
-| `GET /api/samples`, `GET /api/samples/{id}/file` | Bundled sample images with provenance, licence and cautions (ids only; no client path is ever opened). Ids: `synthetic_ct`, `head_ct`, `cell_phase`; `head_ct` replaced the earlier id `brain_mri` (the old id now answers 404) |
+| `GET /api/samples`, `GET /api/samples/{id}/file` | Bundled sample images with provenance, licence and cautions (ids only; no client path is ever opened). Ids: `synthetic_ct`, `chest_ct`, `cell_phase`; the retired ids `brain_mri` and `head_ct` answer 404 |
 | `POST /api/image/preview` | Decode an upload and return its size and a PNG preview |
 | `POST /api/denoise` | Add noise, run the selected methods, return images, PSNR/SSIM, the parameters used and per-method runtimes |
 | `POST /api/ct/volume` | Reconstruct an interactive volume from the slices of one DICOM series |
@@ -203,7 +203,7 @@ Example (from the repository root, API running):
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/denoise \
-  -F "file=@backend/samples/head_ct.png" -F noise_type=Gaussian -F seed=7 -F methods=mean,nlm
+  -F "file=@backend/samples/chest_ct.png" -F noise_type=Gaussian -F seed=7 -F methods=mean,nlm
 ```
 
 The reply contains `images` (PNG data URLs), `results` (PSNR and SSIM per output), `methods` (the parameters actually used), `settings` (noise and seed) and `timings_ms`. Errors are plain text in `detail` with a meaningful status: 422 for an invalid parameter, method or image, 413 when an upload or an image is over its limit (25 MB and 4 MP by default; 1 MP for the slower methods), 400 for an unreadable file, 503 with `Retry-After` when every processing slot is busy. Messages never contain server paths. Limits are set with `MAX_UPLOAD_MB`, `MAX_IMAGE_PIXELS`, `MAX_ADVANCED_PIXELS`, `MAX_CONCURRENT_JOBS`, `MAX_CT_FILES` and `MAX_CT_TOTAL_MB`. The API has no authentication or rate limiting and should not be exposed to the open internet without them.
@@ -418,22 +418,22 @@ python -m src.evaluate_volume_denoising "path/to/one_dicom_series" --sigma-mm 1.
 
 ## Tests and checks
 
-| Check | Command | Last result (2026-10-26) |
+| Check | Command | Last result (every row: 2026-10-29, on the final working tree) |
 | --- | --- | --- |
-| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 800 passed, 1 skipped, 129 s |
-| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 800 passed, 1 skipped, 150 s |
-| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 16 API-related test files | 704 passed, 1 skipped, 101 s |
-| Python lint | `cd backend && ruff check .` | All checks passed |
+| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 915 passed, 1 skipped, 163 s |
+| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 915 passed, 1 skipped, 201 s |
+| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 25 test files other than `test_vtk_viewer.py` (needs VTK) and `test_benchmark_3d.py` (in that environment only one test of the file fails, the one that draws figures and needs matplotlib) -- `pytest --ignore=test_vtk_viewer.py --ignore=test_benchmark_3d.py` | 876 passed, 1 skipped, 134 s |
+| Python lint | `cd backend && ruff check --config ruff.toml . ../scripts` | All checks passed |
 | Frontend lint | `cd frontend && npm run lint` | No problems (`--max-warnings 0`) |
-| Frontend unit and component tests | `npm test` | 72 passed (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend) |
-| Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 21 passed, 1 skipped (the skipped one needs `E2E_BENCHMARK_RUN_DIR`; with it set, that test runs and passes and the "no run configured" test is skipped) |
-| Production build | `npm run build` | Succeeds; entry chunk 227 kB (Plotly, 4.7 MB, loads on demand) |
-| **Separate copy of the working tree, documented commands only** (2026-10-26): plain CPython 3.10.21 (not Conda), new `.venv` with `requirements.txt` + `ruff==0.17.2`, `npm ci` | `ruff check .`, `python -m pytest -q`, `npm run lint`, `npm test`, `npm run build`, `npm run e2e` (the venv's `python` on the `PATH`) | ruff clean; pytest 799 passed, 2 skipped; lint clean; 72 unit tests passed; build succeeds; 21 browser tests passed, 1 skipped. Every step exited 0. |
-| Dependency vulnerabilities | `pip-audit`; `npm audit` | None known (Python environment of the full requirements; npm 0 findings) |
+| Frontend unit and component tests | `npm test` | 95 passed (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend) |
+| Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 25 passed, 1 skipped, 2.8 min (run with `E2E_BENCHMARK_RUN_DIR` set, so the test that shows a recorded Benchmark V2 run passes and the "no run configured" test is the one skipped; without the variable the two swap) |
+| Production build | `npm run build` | Succeeds; entry chunk 249 kB (Plotly, 4.7 MB, loads on demand) |
+| **Separate copy of the working tree, documented commands only** (2026-10-29): the tree (uncommitted and untracked files included, `.git` included) copied to another folder without `node_modules/`, `dist/`, caches and the Git-ignored `reports/`, `outputs/`, `data/` and `logs/`; plain CPython 3.10.21 (not Conda) in the virtual environment built from `requirements.txt`; `ruff==0.17.2`; a fresh `npm ci` | `ruff check --config ruff.toml . ../scripts`, `python -m pytest -q`, `npm run lint`, `npm test`, `npm run build`, `npm run e2e` (that venv's `python` as `E2E_PYTHON`) | ruff clean; pytest 914 passed, 2 skipped (147 s); lint clean; 95 unit tests passed; build succeeds; 25 browser tests passed, 1 skipped (3.1 min). Every step exited 0. |
+| Dependency vulnerabilities | `pip-audit`; `npm audit` | None known on 2026-10-29 (`pip-audit` on the Python 3.12 test environment; `npm audit` 0 findings) |
 
 **Checked by hand on Windows 11 (not automated):** `.\dev.cmd start` run from a real console window, that window closed the way the X button does, then both services probed on `127.0.0.1` and `localhost` (API health, dashboard page, `/api/health` through the dashboard): all six answers were HTTP 200 before and after, with the same process ids. The previous design, which gave each service its own terminal window, stopped a service when *that* window was closed. A stop issued from another clone of the project leaves the services of this one alone. The console used for the test was a classic console window; a Windows Terminal tab was not closed in the test, but the services have no terminal of any kind (no console window, no Windows Terminal session), so there is nothing for it to close.
 
-The skipped backend test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). A clone or copy without local outputs skips one more (`test_provenance.py`, "no local reports folder"): it checks the locally generated `backend/reports/`, which is ignored by Git and therefore absent from a clone, hence 799 passed / 2 skipped there against 800 / 1 on the development machine. The frontend tests mock the API with fixtures generated from the real backend, and a backend test fails if those fixtures drift. The GitHub Actions workflows run the same checks on pushes and pull requests to `main`; **they have not been executed on GitHub**, so the existence of a workflow does not confirm that the latest commit passed there.
+The skipped backend test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). A second skip appears wherever the local series is absent, as in the separate copy (914 passed / 2 skipped) and in a clone: the test in `test_download_data.py` that checks that the shipped `chest_ct.png` is exactly slice 50 of the local LIDC-IDRI series. The development machine, which has the series, shows 915 passed / 1 skipped. On Linux the three Windows-only tests of `test_dev_scripts.py` are skipped as well. An earlier separate-copy run (2026-10-26: 799 passed / 2 skipped) skipped one more test, because `test_provenance.py` then read the Git-ignored, locally generated `backend/reports/`; it now reads the historical snapshot committed in `backend/docs/results/`. The copy is of the working tree, not of a commit: nothing in this branch is committed yet beyond `ffc184a`, so a clone of that commit lacks the files that are still untracked. The frontend tests mock the API with fixtures generated from the real backend, and a backend test fails if those fixtures drift. The GitHub Actions workflows run the same checks on pushes and pull requests to `main`; **the versions in this branch have not run on GitHub yet** (earlier versions ran on `main`, with different jobs), so the existence of a workflow does not confirm that the latest commit passed there.
 
 ## Deployment (Render)
 
@@ -445,15 +445,23 @@ The skipped backend test is an optional comparison with an external metadata fil
 2. Push the branch (or merge it into `main`) to GitHub, then confirm the workflows pass.
 3. In the Render dashboard choose *New → Blueprint* and select the repository. It creates both services from `render.yaml`.
 4. After the first deploy, check that the two `*.onrender.com` hostnames match the ones written in `render.yaml` (`CORS_ORIGINS` on the API, `VITE_API_BASE_URL` on the site); Render appends a suffix if a name is taken. Fix them and redeploy if they differ.
-5. Verify the public URLs: `GET <api>/api/health`, open the dashboard, run the lab on a sample, open Benchmark V2 (it should report 12 verified files; images need the CT series and are not available on the hosted site).
+5. Verify the public URLs with the smoke test, which needs only Python and sends nothing from your disk (the first request can take up to a minute while a free service wakes up):
+
+   ```bash
+   python scripts/smoke_test.py --api https://<your-api>.onrender.com --site https://<your-dashboard>.onrender.com
+   ```
+
+   It checks the health endpoint, the method catalogue, the bundled samples, that every recorded file of the Benchmark V2 and 3D runs still matches its SHA-256, that an invalid upload is refused without exposing server paths, one real `/api/denoise` call (repeated: same seed, same scores), that the API allows the dashboard's origin and no other, and that the dashboard build contains the API's address. `PASS`, `WARN` (for example a benchmark run that is not configured) or `FAIL` is printed per check, and the exit status is 1 if any failed. Then open the dashboard and run the lab on a sample yourself; the Benchmark V2 images need the CT series and are not available on the hosted site.
+
+   The script was run against a local API (started with `--env-file`) and a local production build, where all 11 checks passed (2026-10-27). It has never been run against Render. There is no `vercel.json` or similar file for other hosts: the dashboard has no path-based routes (the page is chosen in the application, not by the URL), so any static host can serve `frontend/dist` without rewrite rules, but only the Render definition is checked by tests.
 
 The free plan sleeps when idle, so the first request after a pause is slow. The 3D explorer accepts at most 60 slices there.
 
 ## Data and privacy
 
-- The CT series used for benchmark development is local and is not included in this repository; only derived results are (aggregated metrics, no pixel data and no patient identifiers).
+- The CT series used for benchmark development (LIDC-IDRI-0709) is local and is not included in this repository. The repository does include **pixel data derived from it**: one 8-bit, display-windowed slice (`backend/samples/chest_ct.png`) and the figures in `backend/docs/images/` that show slice 50 (original, noisy and filtered panels) or 3D renderings of the volume, under the collection's CC BY 3.0 licence with attribution. The recorded benchmark results (CSV tables, run metadata and their charts) hold aggregated metrics and file hashes, no pixel data; they identify the series only by its public TCIA series UID, and none of the recorded files contains a patient name, ID, birth date or study date (checked by searching them for those fields).
 - The LIDC-IDRI collection is hosted by [The Cancer Imaging Archive (TCIA)](https://www.cancerimagingarchive.net/collection/lidc-idri/) under CC BY 3.0. Follow the collection's data-use and attribution requirements.
-- Bundled samples (details and checks in [backend/samples/README.md](backend/samples/README.md)): `head_ct.png` is most likely a head CT slice (judged from the image, not from metadata; scikit-image's `data.brain()`, University of North Carolina volume-rendering test data; **its terms could not be verified at the source**); `cell_phase.png` is a quantitative phase image of a cell in saline (scikit-image's `data.cell()`, CC0 per its documentation; it is not tissue); `synthetic_ct_scan.dcm` is a two-disc phantom generated by `download_data.py`. Earlier names (`brain_mri.png`, `cells_tissue.png`) were inaccurate.
+- Bundled samples (details and checks in [backend/samples/README.md](backend/samples/README.md)): `chest_ct.png` is slice 50 of the LIDC-IDRI-0709 series, windowed and saved as 8 bit (The Cancer Imaging Archive, **CC BY 3.0, attribution required**; data citation DOI 10.7937/K9/TCIA.2015.LO9QL9SX); `cell_phase.png` is a quantitative phase image of a cell in saline (scikit-image's `data.cell()`, CC0 per its documentation; it is not tissue); `synthetic_ct_scan.dcm` is a two-disc phantom generated by `download_data.py`. An earlier bundled image (`brain_mri.png`, later `head_ct.png`, from scikit-image's `data.brain()`) was removed because its terms of use could not be verified at the source; it remains in the Git history of earlier commits (it was published on `main` as `brain_mri.png`).
 - `download_data.py` can generate a fictional synthetic DICOM example locally and optionally download third-party examples. Review the terms of any external dataset before use or redistribution.
 - Use only images you are authorized to process. A locally run API keeps files on your computer; a hosted one receives them. Do not upload identifiable patient data to a public deployment (the dashboard states which case applies). DICOM files and exported HTML reports can contain sensitive metadata or image content.
 
@@ -461,9 +469,9 @@ The free plan sleeps when idle, so the first request after a pause is slow. The 
 
 - The quantitative experiments add synthetic noise to a source slice and use that same slice as the reference. They do not provide a clean ground truth for real clinical noise, and the scores say nothing about diagnostic value or preserved small structures.
 - The documented CT benchmarks are based on one local series of one patient and do not establish generalization across patients, scanners, protocols, or modalities. The local series agrees with TCIA's public record for this series on every compared field (UIDs, modality, scanner, software version, image count, total size of the 100 files), but its files were not hashed against a fresh download.
-- Benchmark V2 and Benchmark 3D results are exploratory: noisy clinical reference, synthetic noise whose resemblance to real CT noise is not established, few slices of one patient, test slices that were inspected during development (V2), and bootstrap intervals from only 8 slices that may be too narrow (see [backend/docs/benchmark_v2.md](backend/docs/benchmark_v2.md)). Benchmark 3D uses noise that is independent between slices, which favours smoothing across slices, and tests only Gaussian filters.
+- Benchmark V2 and Benchmark 3D results are exploratory: noisy clinical reference, synthetic noise whose resemblance to real CT noise is not established, few slices of one patient, test slices that were inspected during development (V2), and bootstrap intervals from only 8 slices that may be too narrow (a simulation gives 78 to 89 % coverage for a nominal 95 %, `python diagnostics.py bootstrap-coverage`; see [backend/docs/benchmark_v2.md](backend/docs/benchmark_v2.md)). Benchmark 3D uses noise that is independent between slices, which favours smoothing across slices, and tests only Gaussian filters.
 - No learned denoising model is included, because the available data (one patient, no clean reference) cannot support an honest training and validation protocol; see [methods_and_decisions.md](backend/docs/methods_and_decisions.md). BM3D was considered and not implemented.
-- Synthetic speckle is included as a mathematical noise model; it is not presented as a CT-specific noise model. The Gaussian noise added to the bundled head CT sample in the lab is a teaching device, not a model of CT noise.
+- Synthetic speckle is included as a mathematical noise model; it is not presented as a CT-specific noise model. The Gaussian noise added to the bundled chest CT sample in the lab is a teaching device, not a model of CT noise.
 - The filters are classical image-processing methods, not a trained AI model.
 - The API has no authentication, and its limits are sized for a small instance; the hosted memory behaviour is untested.
 - **A repository-wide software license has not been declared.** Do not assume the code is licensed for reuse; the owner must choose and add one before inviting redistribution.

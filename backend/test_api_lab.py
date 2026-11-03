@@ -276,9 +276,11 @@ def test_the_sample_listing_states_provenance_licence_and_cautions(client):
         assert sample["file_url"] == f"/api/samples/{sample['id']}/file" and sample["size_bytes"] > 0
     by_id = {s["id"]: s for s in samples}
     assert "phantom" in by_id["synthetic_ct"]["modality"] and "not tissue" in by_id["cell_phase"]["description"]
-    head = by_id["head_ct"]   # the file scikit-image calls "brain" shows a skull: it is a CT slice, and the catalogue must not call it an MRI
-    assert head["modality"].startswith("CT") and "MRI" not in head["label"] and "not an MRI" in head["description"]
-    assert "teaching device" in head["caution"] and "not verified" in head["licence"].lower()
+    chest = by_id["chest_ct"]   # a slice of a public series whose licence is established at the source (the collection's own record)
+    assert chest["modality"].startswith("CT") and "MRI" not in chest["label"] and "LIDC-IDRI-0709" in chest["description"]
+    assert "CC BY 3.0" in chest["licence"] and "Attribution is required" in chest["licence"] and "not verified" not in chest["licence"].lower()
+    assert "10.7937/K9/TCIA.2015.LO9QL9SX" in chest["provenance"] and "teaching device" in chest["caution"]
+    assert set(by_id) == {"synthetic_ct", "chest_ct", "cell_phase"}      # a sample whose terms cannot be verified is not bundled
 
 
 def test_sample_files_are_served_exactly_and_unknown_ids_are_404(client):
@@ -286,7 +288,7 @@ def test_sample_files_are_served_exactly_and_unknown_ids_are_404(client):
         response = client.get(f"/api/samples/{sample.id}/file")
         assert response.status_code == 200 and response.content == sample.path().read_bytes()
         assert response.headers["content-type"].startswith(sample.media_type)
-    for bad in ("nope", "..", "%2e%2e%2fapi.py", "head_ct.png", "brain_mri", "synthetic_ct%2f..%2f..%2fapi.py"):
+    for bad in ("nope", "..", "%2e%2e%2fapi.py", "chest_ct.png", "head_ct", "brain_mri", "synthetic_ct%2f..%2f..%2fapi.py"):    # file names and the retired ids are not sample ids
         assert client.get(f"/api/samples/{bad}/file").status_code == 404
 
 

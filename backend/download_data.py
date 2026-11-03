@@ -23,22 +23,15 @@ PYDICOM_TEST_SAMPLES = {
 
 
 def generate_skimage_samples() -> None:
-    """Saves sample images from scikit-image."""
+    """Saves the cell image of scikit-image (CC0 according to its documentation).
+
+    The scikit-image array called "brain" is no longer used: its source terms could not be verified (see samples/README.md).
+    """
     import matplotlib.pyplot as plt
     from skimage import data
 
     print("-> scikit-image samples...")
     SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
-
-    try:
-        # scikit-image calls this array "brain", but slice 5 shows a skull with bright bone: it is a head CT slice
-        # (see samples/README.md), so the sample is saved as head_ct.png.
-        volume = data.brain()
-        head_ct_img = volume[5] if volume.ndim == 3 else volume
-        plt.imsave(SAMPLES_DIR / "head_ct.png", head_ct_img, cmap="gray")
-        print("  ok head_ct.png")
-    except Exception as exc:
-        print(f"  FAILED head_ct.png skipped ({exc})")
 
     try:
         cells = data.cell()
@@ -52,6 +45,43 @@ def generate_skimage_samples() -> None:
         print("  ok cell_phase.png")
     except Exception as exc:
         print(f"  FAILED cell_phase.png skipped ({exc})")
+
+
+CHEST_CT_SLICE = 50
+
+
+def generate_chest_ct_sample(series_dir: Path, slice_index: int = CHEST_CT_SLICE, *, overwrite: bool = False) -> Path:
+    """Saves one slice of a LOCAL CT series as an 8-bit PNG: stored values converted to Hounsfield units with the DICOM rescale, then
+    displayed with the -600/1500 HU lung window. The series (LIDC-IDRI-0709, The Cancer Imaging Archive, CC BY 3.0) is not part of the
+    repository; the PNG keeps neither HU values nor the DICOM header.
+
+    The bundled sample is documented as slice 50 of that series (samples/README.md), so an existing chest_ct.png is never replaced by
+    different pixels unless ``overwrite`` is true; identical pixels leave the file untouched (no spurious change in Git)."""
+    from PIL import Image
+
+    from evaluate_denoising import DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH, window_ct_slice
+    from src.dicom_volume import load_dicom_volume
+
+    volume, *_ = load_dicom_volume(series_dir)
+    if not 0 <= slice_index < volume.shape[0]:
+        raise ValueError(f"slice_index {slice_index} is outside the series ({volume.shape[0]} slices).")
+    displayed = window_ct_slice(volume[slice_index].astype(np.float64), DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH)
+    pixels = np.round(displayed * 255.0).astype(np.uint8)                                            # a uint8 2-D array is an 8-bit greyscale image
+    SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
+    path = SAMPLES_DIR / "chest_ct.png"
+    if path.exists() and not overwrite:
+        try:
+            with Image.open(path) as existing:
+                unchanged = existing.mode == "L" and np.array_equal(np.asarray(existing), pixels)
+        except Exception:
+            unchanged = False                                                                        # a file that cannot be read counts as different
+        if unchanged:
+            return path
+        raise FileExistsError(f"{path.name} already exists and these pixels differ from it. The bundled sample is documented as slice "
+                              f"{CHEST_CT_SLICE} of LIDC-IDRI-0709: use --overwrite-chest-ct only to replace it on purpose, then update "
+                              "samples/README.md and sample_images.py.")
+    Image.fromarray(pixels).save(path, optimize=True)
+    return path
 
 
 def generate_synthetic_dicom() -> None:
@@ -208,6 +238,10 @@ def main() -> None:
     parser.add_argument("--skip-synthetic-dicom", action="store_true", help="Skip synthetic DICOM.")
     parser.add_argument("--skip-dicom-test-files", "--skip-orthanc", dest="skip_dicom_test_files", action="store_true", help="Skip optional pydicom DICOM test fixtures.")
     parser.add_argument("--skip-kaggle", action="store_true", help="Skip Kaggle dataset download.")
+    parser.add_argument("--ct-series", type=Path, default=None,
+                        help="A LOCAL CT series (for example LIDC-IDRI-0709, CC BY 3.0): writes samples/chest_ct.png from its slice 50.")
+    parser.add_argument("--overwrite-chest-ct", action="store_true",
+                        help="Replace an existing samples/chest_ct.png even if the new pixels differ (by default it is protected).")
     parser.add_argument(
         "--kaggle-per-class",
         type=int,
@@ -226,6 +260,12 @@ def main() -> None:
         generate_skimage_samples()
     if not args.skip_synthetic_dicom:
         generate_synthetic_dicom()
+    if args.ct_series is not None:
+        print("-> chest CT slice from a local series...")
+        try:
+            print(f"  ok {generate_chest_ct_sample(args.ct_series, overwrite=args.overwrite_chest_ct).name}")
+        except Exception as exc:
+            print(f"  FAILED chest_ct.png skipped ({exc})")
     if not args.skip_dicom_test_files:
         download_pydicom_test_samples()
     if not args.skip_kaggle:

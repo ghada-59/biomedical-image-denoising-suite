@@ -82,7 +82,13 @@ describe("fetchFile() with a mocked fetch", () => {
     const file = await fetchFile("/api/samples/a/file", "a.png", "image/png");
     expect(file).toBeInstanceOf(File);
     expect([file.name, file.type, file.size]).toEqual(["a.png", "image/png", 3]);
-    expect([...new Uint8Array(await file.arrayBuffer())]).toEqual([1, 2, 3]);
+    const actualBytes = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve([...new Uint8Array(reader.result)]);
+      reader.onerror = () => reject(reader.error || new Error("Could not read the downloaded file."));
+      reader.readAsArrayBuffer(file);
+    });
+    expect(actualBytes).toEqual([1, 2, 3]);
   });
 
   it("reports an unknown sample and a lost connection with the same classification as api()", async () => {

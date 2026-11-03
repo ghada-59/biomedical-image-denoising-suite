@@ -17,7 +17,7 @@ function MetricBars({ title, rows, field }) {
     <div className="bar-chart">
       <h3>{title}</h3>
       {values.map((row, i) => (
-        <div className="bar-row" key={String(row.Filter) + String(row.Domain)}>
+        <div className="bar-row" key={`${String(row.Filter)}-${String(row.Domain ?? "none")}-${i}`}>
           <div className="bar-label">{filterLabel(row)}</div>
           <div className="bar-track"><div className="bar-fill" style={{ width: Math.max(2, Number(row[field]) / max * 100) + "%", background: COLORS[i % COLORS.length] }} /></div>
           <strong>{Number(row[field]).toFixed(field === "Mean_SSIM" ? 4 : 2)}</strong>

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Results, { filterLabel } from "../Results";
 
@@ -34,6 +34,17 @@ describe("older 2D results", () => {
     const documented = { ...benchmark(ROWS), provenance: { status: "documented_run", label: "Documented run" } };
     render(<Results benchmark={documented} />);
     expect(screen.queryByTestId("cutoff-note")).toBeNull();
+  });
+
+  it("uses unique React keys when rows have no domain", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const withoutDomain = ROWS.map(({ Domain: _domain, ...rest }) => rest);
+      render(<Results benchmark={benchmark(withoutDomain)} />);
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("keeps the plain filter name when a row has no domain", () => {

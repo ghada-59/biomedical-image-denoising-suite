@@ -32,6 +32,7 @@ from filters import (
     calculate_metrics,
     load_medical_image,
 )
+from api_3d import router as benchmark_3d_router
 from api_v2 import router as benchmark_v2_router
 from provenance import results_provenance
 from src.dicom_volume import load_dicom_volume
@@ -99,6 +100,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(benchmark_v2_router)
+app.include_router(benchmark_3d_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -203,7 +205,7 @@ def root():
         "service": "Biomedical Imaging API",
         "status": "ok",
         "message": "This is the API, not the dashboard. Open the dashboard (default http://127.0.0.1:5173/) to use the application.",
-        "links": {"health": "/api/health", "methods": "/api/methods", "samples": "/api/samples", "benchmark_runs": "/api/v2/runs",
+        "links": {"health": "/api/health", "methods": "/api/methods", "samples": "/api/samples", "benchmark_runs": "/api/v2/runs", "benchmark_3d_runs": "/api/3d/runs",
                   "interactive_documentation": "/docs", "openapi_schema": "/openapi.json"},
     }
 

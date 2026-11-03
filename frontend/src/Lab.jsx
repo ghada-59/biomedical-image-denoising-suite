@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, BarChart3, Check, FlaskConical, Info, RefreshCw, ScanLine, Settings2, ShieldCheck, UploadCloud } from "lucide-react";
 import { api, apiHostLabel, apiIsLocal, fetchFile } from "./api";
-import { EmptyState, Notice, PageHeading, RangeField, formatParams } from "./components";
+import { CompareStage, EmptyState, Notice, PageHeading, RangeField, formatParams } from "./components";
 
 const FAMILY_ORDER = ["Spatial", "Frequency", "Edge-preserving", "Wavelet"];
 const MAX_KERNEL_SLIDER = 31;
@@ -299,11 +299,13 @@ export default function Lab({ apiOnline = true, apiEpoch = 0 }) {
               <span>{heavySelected.map(m => m.label).join(", ")} {heavySelected.length === 1 ? "is" : "are"} limited to {catalogue.limits.max_advanced_pixels.toLocaleString("en-US")} pixels; this image has {pixels.toLocaleString("en-US")}. Deselect {heavySelected.length === 1 ? "it" : "them"} or use a smaller image.</span>
             </div>
           )}
-          <button type="button" className="primary-button full-width" disabled={!canRun} onClick={run} aria-busy={busy} data-testid="lab-run">
-            {busy ? <span className="spinner" aria-hidden="true" /> : <Activity size={17} aria-hidden="true" />} {busy ? "Processing image…" : "Run denoising"}
-          </button>
-          {!input && !previewBusy && catalogue.status === "ready" && <p className="field-help">Choose an image or a sample to enable the run.</p>}
-          {runError && <div className="error-box" role="alert" data-testid="lab-error"><span>{runError}</span></div>}
+          <div className="run-dock">
+            <button type="button" className="primary-button full-width" disabled={!canRun} onClick={run} aria-busy={busy} data-testid="lab-run">
+              {busy ? <span className="spinner" aria-hidden="true" /> : <Activity size={17} aria-hidden="true" />} {busy ? "Processing image…" : "Run denoising"}
+            </button>
+            {!input && !previewBusy && catalogue.status === "ready" && <p className="field-help">Choose an image or a sample to enable the run.</p>}
+            {runError && <div className="error-box" role="alert" data-testid="lab-error"><span>{runError}</span></div>}
+          </div>
         </aside>
 
         <div className="lab-results" aria-live="polite">
@@ -328,7 +330,8 @@ export default function Lab({ apiOnline = true, apiEpoch = 0 }) {
               <div className="panel preview-info">
                 <p className="eyebrow">READY</p>
                 <h3>{busy ? "Processing…" : "Choose methods, then run"}</h3>
-                <p className="muted">{busy ? "The API is filtering the image. Larger images and the slower methods take longer." : "Nothing has been computed yet. Scores and images appear here after you run the experiment."}</p>
+                {busy && <div className="progress" role="progressbar" aria-label="Processing the image" />}
+                <p className="muted">{busy ? `The API is filtering the image with ${orderedSelected.length} method${orderedSelected.length === 1 ? "" : "s"}. Larger images and the slower methods take longer.` : "Nothing has been computed yet. Scores and images appear here after you run the experiment."}</p>
                 {preview.format === "DICOM" && <p className="field-help">DICOM intensities are mapped to [0, 1] with the file's window (or min–max). Scores are on that display scale, not in Hounsfield units.</p>}
               </div>
             </div>
@@ -337,6 +340,13 @@ export default function Lab({ apiOnline = true, apiEpoch = 0 }) {
           {result && (
             <>
               <p className="sr-only" role="status">Processing finished: {result.results.length - 1} outputs in {Math.round(result.timings_ms.total)} milliseconds.</p>
+              <ul className="run-summary" aria-label="Settings of this run">
+                <li className="tag">{result.noise_type === "None" ? "No noise added" : `${result.noise_type} noise`}</li>
+                {result.settings.seed != null && <li className="tag">Seed {result.settings.seed}</li>}
+                <li className="tag">{result.results.length - 1} output{result.results.length - 1 === 1 ? "" : "s"}</li>
+                <li className="tag">{result.width} × {result.height} px</li>
+                <li className="tag">{Math.round(result.timings_ms.total)} ms in total</li>
+              </ul>
               <div className="compare" data-testid="compare">
                 <div className="compare-controls">
                   <label className="field-label" htmlFor="cmp-left">Left</label>
@@ -344,13 +354,8 @@ export default function Lab({ apiOnline = true, apiEpoch = 0 }) {
                   <label className="field-label" htmlFor="cmp-right">Right</label>
                   <select id="cmp-right" value={right} onChange={e => setRight(e.target.value)}>{sources.map(s => <option key={s.label}>{s.label}</option>)}</select>
                 </div>
-                <div className="compare-stage" style={{ aspectRatio: `${result.width} / ${result.height}` }}>
-                  <img className="compare-img" src={sourceOf(right)} alt={`${right}, shown on the right of the divider`} />
-                  <img className="compare-img compare-top" src={sourceOf(left)} alt={`${left}, shown on the left of the divider`} style={{ clipPath: `inset(0 ${100 - divider}% 0 0)` }} />
-                  <span className="compare-tag compare-tag-left">{left}</span>
-                  <span className="compare-tag compare-tag-right">{right}</span>
-                  <span className="compare-line" style={{ left: `${divider}%` }} aria-hidden="true" />
-                </div>
+                <CompareStage leftSrc={sourceOf(left)} rightSrc={sourceOf(right)} leftLabel={left} rightLabel={right} divider={divider} onDivider={setDivider} aspectRatio={`${result.width} / ${result.height}`}
+                  leftAlt={`${left}, shown on the left of the divider`} rightAlt={`${right}, shown on the right of the divider`} />
                 <label className="field-label" htmlFor="cmp-divider">Divider position</label>
                 <input id="cmp-divider" className="compare-range" type="range" min="0" max="100" value={divider} onChange={e => setDivider(Number(e.target.value))} data-testid="compare-slider" />
               </div>

@@ -1,12 +1,65 @@
 # Biomedical Image Denoising and Benchmarking
 
-A biomedical image-processing project for **comparing classical denoising methods** on grayscale images and CT slices. It combines controlled synthetic-noise experiments, a tuned and held-out CT benchmark, a React dashboard backed by a FastAPI service that runs the real denoising code, a Streamlit application, and optional 3D DICOM CT visualization.
+> **Scientific disclaimer.** Research and teaching software for classical image processing. It is **not a medical device**, it has **not been clinically validated**, and nothing here shows diagnostic performance, clinical benefit, or results that carry over to other patients, scanners or noise. Every quantitative result rests on one public CT series from one patient and on synthetic noise.
 
-> **Scope:** educational and experimental image processing only. This project is not a diagnostic system and has not been clinically validated.
+A suite for **comparing classical (non-learned) denoising methods** on grayscale images and CT slices: nine spatial, frequency-domain, edge-preserving and wavelet filters; a tuned and held-out CT benchmark in Hounsfield units; a study of slice-wise versus volumetric smoothing; and an interactive dashboard (React and FastAPI) that runs the real code. A Streamlit application and optional 3D DICOM tools are included.
 
-![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.12-blue?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-pytest%20%7C%20vitest%20%7C%20playwright-informational)
-![Interface](https://img.shields.io/badge/interface-React%20%2B%20FastAPI%20%2B%20Streamlit-6b8e23)
+![Python 3.10 to 3.12](https://img.shields.io/badge/Python-3.10%E2%80%933.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
+![React 18 and Vite](https://img.shields.io/badge/Dashboard-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
+![Plotly](https://img.shields.io/badge/Charts-Plotly-3F4F75?logo=plotly&logoColor=white)
+![NumPy, SciPy, scikit-image, OpenCV, pydicom](https://img.shields.io/badge/Imaging-NumPy%20%C2%B7%20SciPy%20%C2%B7%20scikit--image%20%C2%B7%20OpenCV%20%C2%B7%20pydicom-5C3EE8)
+![Tests: pytest, Vitest, Playwright](https://img.shields.io/badge/tests-pytest%20%7C%20Vitest%20%7C%20Playwright-informational)
+![Classical methods only](https://img.shields.io/badge/methods-classical%2C%20no%20neural%20network-6b8e23)
+
+**Hosted deployments.** The Render-hosted instance checked on 2026-11-03 is an earlier revision without this redesign: [dashboard](https://biomedical-image-denoising-dashboard.onrender.com) and [API health](https://biomedical-image-denoising-api.onrender.com/api/health). A Vercel preview for the redesigned frontend was marked **Ready** by Vercel for commit `00a8ccdc` on 2026-11-03: [open preview](https://biomedical-image-denoising-suite-git-ui-dashboar-291495-gh-0fe7.vercel.app). This is a frontend preview, not proof of a new backend deployment. The Render plan in `render.yaml` is free and sleeps when idle; the first request after a pause can take up to a minute. Details and limits: [Deployment](#deployment-render).
+
+## Screenshots
+
+Real captures of the redesigned dashboard (the interface of this branch), taken on 2026-11-03 from the production build with the real API and the recorded benchmark runs behind it. How they were made, their sizes and their attribution: [docs/screenshots/README.md](docs/screenshots/README.md). The chest CT slice is from LIDC-IDRI-0709 (The Cancer Imaging Archive, CC BY 3.0). The images illustrate the interface; they are not results and say nothing about clinical performance.
+
+![Redesigned Overview page: a before/after example of the 2D lab on a chest CT slice, key figures read from the API (methods, recorded runs, verified result files, connection) and the main navigation](docs/screenshots/dashboard-overview.png)
+
+*Overview. A before/after example from the lab (labelled on the page as an illustration, not a result), key figures that the API supplies (methods, recorded runs, result files matching their SHA-256, connection), and the four workflows below.*
+
+![Redesigned 2D Denoising Lab: method and parameter settings on the left, a draggable before/after comparison of a noisy chest CT slice and the mean filter output, and the first outputs with their PSNR and SSIM](docs/screenshots/dashboard-lab.png)
+
+*2D Denoising Lab. Settings grouped by method family, a before/after comparison you can drag, the outputs with their scores, and the settings of the run (here: the bundled chest CT slice, Gaussian noise of variance 0.02, seed 42, the six default methods). Scores are on the display scale, and the page says what the reference is.*
+
+![Redesigned 3D CT Explorer with a 100-slice series loaded: series figures, the interactive 3D volume and the central axial slice](docs/screenshots/dashboard-3d-explorer.png)
+
+*3D CT Explorer. The real 100-slice series (0.54 x 0.54 x 3 mm voxels): series figures, the interactive Plotly volume and its central axial slice. The API returns these two views; coronal and sagittal views come from the command-line viewers (see [3D tools](#3d-tools-what-exists-and-what-does-not)).*
+
+![Redesigned Benchmark V2 page: run facts, provenance and file integrity, then RMSE in Hounsfield units of nine tuned methods under six synthetic noise conditions for two masks](docs/screenshots/dashboard-benchmark-v2.png)
+
+*Benchmark V2. Run facts, provenance and file integrity of the recorded run, then RMSE in Hounsfield units of the nine tuned methods under six synthetic noise conditions, for two masks, with 95 % bootstrap intervals. The page states that the study is exploratory and that a lower error is not evidence of preserved anatomy.*
+
+![Redesigned Benchmark 3D page: run facts, provenance and held-out RMSE of slice-wise, isotropic and anisotropic Gaussian smoothing](docs/screenshots/dashboard-benchmark-3d.png)
+
+*Benchmark 3D. The first of the two recorded runs (noise independent between slices): slice-wise, isotropic and anisotropic Gaussian smoothing on held-out slices. The page lists its limits, among them that bootstrap intervals over 8 slices under-cover.*
+
+![The Overview page in the dark theme](docs/screenshots/dashboard-overview-dark.png)
+
+*Dark theme (Overview). Both themes use the same design tokens; the contrast of every text colour is checked by the frontend tests.*
+
+## The scientific problem in brief
+
+CT images contain noise, and every denoising method trades noise reduction against blurring of edges and small structures. Classical filters (local averaging, median, Gaussian, frequency-domain low-pass, bilateral, non-local means, wavelet shrinkage) state their assumptions explicitly, so they can be compared under controlled conditions. This project asks two narrow, testable questions on one public CT series:
+
+1. When each filter is tuned fairly on some slices and judged on other slices, how close does it bring a noisy slice back to the original, measured as an error in Hounsfield units?
+2. With 3 mm slices, does smoothing across neighbouring slices help, compared with smoothing each slice alone?
+
+It does not ask, and cannot answer, whether a denoised image is better for diagnosis: the reference is itself a noisy clinical slice, the noise is added synthetically, and there is one patient.
+
+## Dashboard and recorded benchmarks: two different things
+
+| | Interactive dashboard | Recorded benchmarks |
+| --- | --- | --- |
+| What it is | The 2D Denoising Lab and the 3D CT Explorer | Benchmark V2 (2D), Benchmark 3D, and an older fixed-setting 2D snapshot |
+| Where the numbers come from | Computed by the API at the moment you press the button, on your image or a bundled sample | Computed once, offline, from recorded seeds and source-file hashes; the dashboard reads and displays the recorded files (the Benchmark V2 image viewer recomputes images from the recorded seeds when the CT series is configured on the server) |
+| What it is for | Seeing what each filter does, with its parameters, scores and runtimes | The exploratory comparison: tuned on some slices, tested on others, errors in Hounsfield units, bootstrap intervals |
+| How it is checked | Tests against the real API; scores for an upload are on a display scale, not in Hounsfield units | Every result file is checked against the SHA-256 recorded in its run metadata, and the page says if one differs |
+| Evidential weight | None: a demonstration | Exploratory: one patient, noisy reference, synthetic noise; not an independent validation |
 
 ## Summary for reviewers
 
@@ -16,28 +69,8 @@ A biomedical image-processing project for **comparing classical denoising method
   - In Benchmark V2 the three added filters (bilateral, non-local means, wavelet shrinkage) had a lower RMSE in Hounsfield units than the best of the six original filters, with the whole paired interval below zero, in 7, 6 and 4 of the 8 noise conditions. Which method is lowest depends on the noise: wavelet shrinkage on white noise of 10 and 25 HU, non-local means on white noise of 50 HU and on the correlated noise, the median filter on impulse noise, the bilateral filter on speckle ([table](#benchmark-v2-nine-classical-filters-tuned-and-tested-on-separate-slices)).
   - In Benchmark 3D, weak smoothing minimises the error, and smoothing across slices brings almost nothing on 3 mm slices: identical results at 10 and 25 HU, and 0.5 % lower error at 50 HU, with a sign that is not the same on every slice ([table](#benchmark-3d-slice-wise-versus-volumetric-gaussian-smoothing)).
 - **What they do not show.** Anything clinical. The reference is itself a noisy clinical slice, the noise is synthetic, there is one patient, and no measure of preserved small structures was computed. No learned model is included, on purpose ([why](backend/docs/methods_and_decisions.md)).
-- **Engineering evidence.** Python tests (915 passed, 1 skipped), frontend unit tests (100 passed), browser tests against the real API and real servers (29 passed, 1 skipped), lint, and a smoke-test script that checks a running API from outside (details in [Tests and checks](#tests-and-checks)).
-- **Release status.** The branch is published and under review in [Pull Request #15](https://github.com/ghada-59/biomedical-image-denoising-suite/pull/15). GitHub Actions checks for this PR are the release gate; check the PR for the latest result. The API has not been deployed, and no software licence has been chosen.
-
-## Screenshots
-
-Taken on 2026-11-03 from the working tree of this branch, with the real API and the recorded benchmark runs ([how](docs/screenshots/README.md)).
-
-![Overview page of the dashboard](docs/screenshots/dashboard-overview.png)
-
-*Overview: scope statement, the four workflows and the recorded runs the API serves. Each run is checked against the SHA-256 hashes written in its metadata; "12 files match" means none of the result files changed since the run.*
-
-![2D denoising lab](docs/screenshots/dashboard-lab.png)
-
-*2D Denoising Lab on the bundled chest CT slice (LIDC-IDRI-0709, slice 50; The Cancer Imaging Archive, CC BY 3.0). Gaussian noise of variance 0.02, seed 42, the six default methods. The divider compares two outputs (here the noisy input and the mean filter). Every score is computed by the API for that run on the display scale, and the page says what the reference is.*
-
-![Benchmark V2 page](docs/screenshots/dashboard-benchmark-v2.png)
-
-*Benchmark V2: provenance and file-integrity status of the recorded run, then RMSE in Hounsfield units of nine tuned methods under six synthetic noise conditions, over two masks, with 95 % bootstrap intervals over test slices. The page states that the study is exploratory.*
-
-![Benchmark 3D page](docs/screenshots/dashboard-benchmark-3d.png)
-
-*Benchmark 3D: held-out RMSE in Hounsfield units without filtering and with slice-wise, isotropic and anisotropic Gaussian smoothing, one recorded run per noise model. The drawn recorded figures, the selected parameters and statements computed from the tables follow further down the page.*
+- **Engineering evidence.** Python tests (915 passed, 1 skipped), frontend unit tests (122 passed on Node 22.12), browser tests against the real API and real servers (39 passed, 1 skipped), lint, and a smoke-test script that checks a running API from outside. These are local results with their dates in [Tests and checks](#tests-and-checks); the GitHub Actions result is a separate fact, given in [Project status](#project-status).
+- **Review status.** The backend/frontend migration is under review in [PR #15](https://github.com/ghada-59/biomedical-image-denoising-suite/pull/15). The complete migration plus redesign is also proposed in [PR #16](https://github.com/ghada-59/biomedical-image-denoising-suite/pull/16) targeting `main`; the UI-only changes are isolated in [PR #17](https://github.com/ghada-59/biomedical-image-denoising-suite/pull/17) targeting `refactor/backend-migration`. All remain open; none is merged. On commit `00a8ccdc`, GitHub Actions completed successfully: Python tests on 3.10 and 3.12, frontend lint/unit/build, and browser tests against the real API. A Vercel frontend preview is Ready; the Render-hosted demo is still the earlier revision. No software licence has been chosen.
 
 ## Project status
 
@@ -45,10 +78,10 @@ Taken on 2026-11-03 from the working tree of this branch, with the real API and 
 | --- | --- |
 | Denoising methods | Nine classical, non-learned methods: mean, median, Gaussian, FFT ideal / Gaussian / Butterworth low-pass, **bilateral, non-local means and wavelet (BayesShrink)**. No neural network, on purpose ([why](backend/docs/methods_and_decisions.md)). |
 | Benchmarks | **V2 (2D):** synthetic noise in Hounsfield units on one public CT series, parameters tuned on 3 slices and tested on 8 others, two masks, bootstrap intervals. **3D:** slice-wise versus volumetric Gaussian smoothing, same protocol, with the error split into structure change and residual noise; run twice, with noise independent between slices and with noise correlated between adjacent slices as measured on the series. A legacy fixed-setting benchmark is kept apart. **All exploratory: one patient, noisy reference, not an independent validation.** How the recorded runs were reproduced: [Reproducibility of the recorded runs](#reproducibility-of-the-recorded-runs). |
-| Dashboard | React + FastAPI. The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes. The Benchmark V2 and Benchmark 3D pages read recorded runs, check their files against the SHA-256 hashes recorded in each run's metadata (and list any file the metadata does not cover), and say when no run is configured. |
-| Tests | Backend 915 passed / 1 skipped (Python 3.12, rerun on 2026-11-03; also Python 3.10 on 2026-10-29); API-only environment (Python 3.11) 876 passed / 1 skipped; frontend 100 unit/component tests (5 of them start the real Vite server); 29 browser tests against the real API and real servers (1 skipped, see below). Lint clean (ruff, ESLint). Dependency audit: nothing known in the Python packages (pip-audit, 2026-10-29) or in what the dashboard ships; one moderate advisory in a development-only tool, see [Tests and checks](#tests-and-checks). |
-| Continuous integration | Pull Request [#15](https://github.com/ghada-59/biomedical-image-denoising-suite/pull/15) runs the workflows for this branch. The PR checks show the result for the current revision; earlier `main` runs (2026-10-17) tested a different layout and different jobs and are not evidence for this branch. |
-| Deployment | `render.yaml` is configured and checked against the code; **it has not been deployed**, so there is no public URL. |
+| Dashboard | React + FastAPI, redesigned in this branch (design tokens, light and dark themes, a collapsible navigation, a before/after viewer you can drag, key figures read from the API); the API and its contracts were not changed by the redesign. The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes. The Benchmark V2 and Benchmark 3D pages read recorded runs, check their files against the SHA-256 hashes recorded in each run's metadata (and list any file the metadata does not cover), and say when no run is configured. |
+| Tests (local) | Backend 915 passed / 1 skipped (Python 3.12, 2026-11-03; also Python 3.10 on 2026-10-29); API-only environment (Python 3.11, 2026-10-29) 876 passed / 1 skipped; the dashboard redesign did not touch `backend/`, and the backend suites were not rerun for it. Frontend, **Node 22.12.0, 2026-11-03**: 122 unit/component tests passed (5 of them start the real Vite server); 39 browser tests against the real API and real servers passed, 1 skipped (see below). On the local Node 24.21 two unit tests fail; they failed identically on the commit before the redesign (`37d7cd1`) and pass on Node 22.12, the version CI uses. Lint clean (ruff, ESLint). Dependency audit: nothing known in the Python packages (pip-audit, 2026-10-29) or in what the dashboard ships (`npm audit --omit=dev`, 2026-11-03); one moderate advisory in a development-only tool, see [Tests and checks](#tests-and-checks). |
+| Continuous integration (GitHub Actions) | On commit `00a8ccdc` of `ui/dashboard-redesign` (2026-11-03), the **Tests** workflow completed successfully on Python 3.10 and 3.12; the **React Dashboard** workflow completed successfully for lint, 122 unit/component tests, production build, and 39 browser tests against the real API (1 skipped). These are GitHub-hosted runner results, distinct from local runs. The separate SurgiTrack CI results are not relevant to this repository. |
+| Deployment (Render) | Hosted on Render (the plan in `render.yaml` is the free one); checked on 2026-11-03 with read-only requests: API `/api/health` HTTP 200 (status ok), 9 methods, 1 Benchmark V2 run and 2 Benchmark 3D runs configured; dashboard HTTP 200. The hosted dashboard is an **earlier revision without the redesign**; the redesign is not deployed. `render.yaml` is configured and checked against the code and was not changed by the redesign. See [Deployment (Render)](#deployment-render). |
 
 ## What the project does
 
@@ -191,7 +224,7 @@ To see what the browser sends, open the developer tools (F12), tab *Network*, an
 
 ### Using the lab
 
-Open the **2D Denoising Lab**: choose *Cell in saline* or *Chest CT slice (LIDC-IDRI)* from the sample list (or upload a PNG, JPEG or DICOM slice), tick the methods to compare, press *Run denoising*, and use the divider to compare the outputs. The table shows the scores the API computed for that run, the parameters actually used and each method's measured runtime. Interface details are in [frontend/README.md](frontend/README.md).
+Open the **2D Denoising Lab**: choose *Cell in saline* or *Chest CT slice (LIDC-IDRI)* from the sample list (or upload a PNG, JPEG or DICOM slice), tick the methods to compare, press *Run denoising*, and use the divider (drag it on the image, or use the slider under the image) to compare the outputs. The table shows the scores the API computed for that run, the parameters actually used and each method's measured runtime. Interface details are in [frontend/README.md](frontend/README.md).
 
 ### Production build
 
@@ -214,7 +247,7 @@ The API in production: `uvicorn api:app --host 0.0.0.0 --port $PORT` from `backe
 
 ### React dashboard and FastAPI
 
-`frontend/` is a React + Vite interface; `backend/api.py` provides the FastAPI service, and `backend/api_v2.py` and `backend/api_3d.py` serve recorded benchmark runs. Pages: Overview (scope, limits, live API and benchmark status), 2D Denoising Lab, 3D CT Explorer, Benchmark V2, Benchmark 3D, Older 2D results, Methods & Guide. Benchmark 3D shows the two recorded runs side by side: provenance and file integrity, held-out results by method with intervals, the trade-off between structure change and residual noise, the selected parameters, statements computed from the tables, and the recorded figures. Every number on a page comes from the API (a computation done for that request, or a recorded file labelled with its provenance); there are no built-in demo values. The dashboard shows when the API is offline and offers a retry.
+`frontend/` is a React + Vite interface; `backend/api.py` provides the FastAPI service, and `backend/api_v2.py` and `backend/api_3d.py` serve recorded benchmark runs. Pages: Overview (scope, limits, live API and benchmark status), 2D Denoising Lab, 3D CT Explorer, Benchmark V2, Benchmark 3D, Older 2D results, Methods & Guide. Benchmark 3D shows the two recorded runs side by side: provenance and file integrity, held-out results by method with intervals, the trade-off between structure change and residual noise, the selected parameters, statements computed from the tables, and the recorded figures. Every number on a page comes from the API (a computation done for that request, or a recorded file labelled with its provenance); there are no built-in demo values. The dashboard shows when the API is offline and offers a retry. The interface was redesigned in the branch `ui/dashboard-redesign` (design tokens, light and dark themes, a collapsible navigation, key figures read from the API, a before/after viewer you can drag); no API route, request or response was changed, and `frontend/src/api.js` is unchanged.
 
 The Streamlit application (`streamlit run app.py` from `backend/`) is the earlier exploratory 2D/3D lab; the React dashboard is the main interface and the only one that shows the tuned benchmark.
 
@@ -299,11 +332,11 @@ Definitions, assumptions, implementations and the parameter-selection rules are 
 │   ├── requirements.txt            # Full development / Streamlit / test dependencies
 │   ├── requirements-api.txt        # Runtime dependencies of the hosted API
 │   └── ruff.toml                   # Lint configuration
-├── frontend/                       # React + Vite dashboard (src/test: Vitest, e2e: Playwright)
+├── frontend/                       # React + Vite dashboard (src/test: Vitest, e2e: Playwright; public/img: Overview example images, docs/overview-images.md: their provenance)
 ├── docs/screenshots/               # Dashboard screenshots used in this README (README.md: how they were made)
 ├── dev.cmd, scripts/dev.ps1        # Optional Windows launcher (start / status / stop); not needed to run the project
 ├── scripts/smoke_test.py           # Checks a running API (and a deployed dashboard) from outside; standard library only
-├── render.yaml                     # Render deployment (not deployed)
+├── render.yaml                     # Render deployment definition (a hosted instance of an earlier revision exists; see Deployment)
 ├── .gitattributes                  # Keeps recorded runs byte-exact
 └── .github/workflows/              # Python tests + lint, frontend lint/test/build, browser tests
 ```
@@ -312,7 +345,7 @@ Local datasets (`backend/data/`), generated outputs (`backend/reports/`, `backen
 
 ## Development
 
-Python 3.10, 3.11 (API-only) and 3.12 were exercised; the workflow in this branch is configured for 3.10 and 3.12 but has not run yet (an earlier version ran on `main`). Install the full development environment once (from `backend/`, with a virtual environment activated as in the quick start):
+Python 3.10, 3.11 (API-only) and 3.12 were exercised; the workflow is configured for 3.10 and 3.12 and succeeded for both on Pull Request #15 (commit `37d7cd1`, 2026-11-03). Install the full development environment once (from `backend/`, with a virtual environment activated as in the quick start):
 
 ```bash
 cd backend
@@ -467,25 +500,35 @@ python -m src.evaluate_volume_denoising "path/to/one_dicom_series" --sigma-mm 1.
 | Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 2026-10-29: 915 passed, 1 skipped, 201 s (no backend file has changed since) |
 | Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 25 test files other than `test_vtk_viewer.py` (needs VTK) and `test_benchmark_3d.py` (in that environment only one test of the file fails, the one that draws figures and needs matplotlib) -- `pytest --ignore=test_vtk_viewer.py --ignore=test_benchmark_3d.py` | 2026-10-29: 876 passed, 1 skipped, 134 s |
 | Python lint | `cd backend && ruff check --config ruff.toml . ../scripts` | 2026-11-03: All checks passed |
-| Frontend lint | `cd frontend && npm run lint` | 2026-11-03: No problems (`--max-warnings 0`) |
-| Frontend unit and component tests | `npm test` | 2026-11-03: 100 passed (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend) |
-| Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds, chart legends | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 2026-11-03: 29 passed, 1 skipped, 2.6 min (run with `E2E_BENCHMARK_RUN_DIR` set, so the tests that show a recorded Benchmark V2 run pass and the "no run configured" test is the one skipped; without the variable they swap) |
-| Production build | `npm run build` | 2026-11-03: Succeeds; entry chunk 249 kB (Plotly, 4.7 MB, loads on demand) |
+| Frontend lint | `cd frontend && npm run lint` | 2026-11-03, Node 22.12.0: No problems (`--max-warnings 0`) |
+| Frontend unit and component tests | `npm test` | 2026-11-03, Node 22.12.0: 122 passed in 9 files (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend; `design.test.jsx` also checks the contrast of the real colour tokens in both themes). On the local Node 24.21, 2 of them fail (`fetchFile` in `api.test.js` and the bundled-sample test in `Lab.test.jsx`): they fail identically on the commit before the redesign (`37d7cd1`) and pass on Node 22.12, the version CI uses |
+| Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds, chart legends, the navigation rail, and the layout at 1440, 1280, 1024, 768 and 390 px | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 2026-11-03, Node 22.12.0: 39 passed, 1 skipped, 3.7 min (run with `E2E_BENCHMARK_RUN_DIR` set, so the tests that show a recorded Benchmark V2 run pass and the "no run configured" test is the one skipped; without the variable they swap) |
+| Production build | `npm run build` | 2026-11-03, Node 22.12.0: Succeeds; entry chunk 262 kB (Plotly, 4.7 MB, loads on demand) |
+| Responsive and visual review of the redesign | A Playwright script (not part of the repository) visited every page at 1440, 1280, 1024, 768 and 390 px in both themes, with the real 100-slice CT series loaded in the 3D explorer | 2026-11-03: 70 combinations, **0** sideways scrolls, **0** elements outside the viewport, **0** axe-core violations (WCAG 2 A and AA), **0** console or HTTP errors. The browser tests above repeat the layout check for every page and width |
 | **Separate copy of the working tree, documented commands only** (2026-10-29, before the chart-legend fix of 2026-11-03, so its frontend counts are 95 unit and 25 browser tests): the tree (uncommitted and untracked files included, `.git` included) copied to another folder without `node_modules/`, `dist/`, caches and the Git-ignored `reports/`, `outputs/`, `data/` and `logs/`; plain CPython 3.10.21 (not Conda) in the virtual environment built from `requirements.txt`; `ruff==0.17.2`; a fresh `npm ci` | `ruff check --config ruff.toml . ../scripts`, `python -m pytest -q`, `npm run lint`, `npm test`, `npm run build`, `npm run e2e` (that venv's `python` as `E2E_PYTHON`) | ruff clean; pytest 914 passed, 2 skipped (147 s); lint clean; 95 unit tests passed; build succeeds; 25 browser tests passed, 1 skipped (3.1 min). Every step exited 0. |
 | Dependency vulnerabilities | `pip-audit`; `npm audit` | `pip-audit` (Python 3.12 test environment), 2026-10-29: none known (not repeated on 2026-11-03). `npm audit`, 2026-11-03: **none in the packages the dashboard ships** (`npm audit --omit=dev`: 0). One moderate advisory remains in a development tool: `minimatch` below 11.0.1 (denial of service through crafted glob patterns), reached through ESLint and `eslint-plugin-react`; the only fix offered, `npm audit fix --force`, downgrades `eslint-plugin-react` (a breaking change), so it was left. A second advisory found that day, in the Vite development server (`server.fs.deny` bypass; the server listens on 127.0.0.1 only), was fixed by updating Vite 6.4.4 to 6.4.5 in `package-lock.json`. |
 
 **Checked by hand on Windows 11 (not automated):** `.\dev.cmd start` run from a real console window, that window closed the way the X button does, then both services probed on `127.0.0.1` and `localhost` (API health, dashboard page, `/api/health` through the dashboard): all six answers were HTTP 200 before and after, with the same process ids. The previous design, which gave each service its own terminal window, stopped a service when *that* window was closed. A stop issued from another clone of the project leaves the services of this one alone. The console used for the test was a classic console window; a Windows Terminal tab was not closed in the test, but the services have no terminal of any kind (no console window, no Windows Terminal session), so there is nothing for it to close.
 
-The skipped backend test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). A second skip appears wherever the local series is absent, as in the separate copy (914 passed / 2 skipped) and in a clone: the test in `test_download_data.py` that checks that the shipped `chest_ct.png` is exactly slice 50 of the local LIDC-IDRI series. The development machine, which has the series, shows 915 passed / 1 skipped. On Linux the three Windows-only tests of `test_dev_scripts.py` are skipped as well. An earlier separate-copy run (2026-10-26: 799 passed / 2 skipped) skipped one more test, because `test_provenance.py` then read the Git-ignored, locally generated `backend/reports/`; it now reads the historical snapshot committed in `backend/docs/results/`. The copy is of the working tree, not of a commit: nothing in this branch is committed yet beyond `ffc184a`, so a clone of that commit lacks the files that are still untracked. The frontend tests mock the API with fixtures generated from the real backend, and a backend test fails if those fixtures drift. The GitHub Actions workflows run the same checks on pushes and pull requests to `main`; **the versions in this branch have not run on GitHub yet** (earlier versions ran on `main`, with different jobs), so the existence of a workflow does not confirm that the latest commit passed there.
+**The browser tests on a small machine.** They start Chrome, the API and two production builds, so they need free memory. On the development laptop one run failed for that reason alone (Windows reported "out of memory" during a build step, and two tests timed out); in two of five full-file runs of the production spec, one test finished its checks in half a second and then waited until its timeout while closing its stand-in static server (the page keeps polling the API, so a connection that was busy at that moment stayed open); the test helper now closes every connection when it closes that server. The result above is from a complete run after that change; if the suite fails on a machine short of memory, run it again when memory is free before suspecting the code.
+
+The skipped backend test is an optional comparison with an external metadata file (`BENCHMARK_V2_INITIAL_RUN_METADATA`). A second skip appears wherever the local series is absent, as in the separate copy (914 passed / 2 skipped) and in a clone: the test in `test_download_data.py` that checks that the shipped `chest_ct.png` is exactly slice 50 of the local LIDC-IDRI series. The development machine, which has the series, shows 915 passed / 1 skipped. On Linux the three Windows-only tests of `test_dev_scripts.py` are skipped as well. An earlier separate-copy run (2026-10-26: 799 passed / 2 skipped) skipped one more test, because `test_provenance.py` then read the Git-ignored, locally generated `backend/reports/`; it now reads the historical snapshot committed in `backend/docs/results/`. That copy was of the uncommitted working tree of 2026-10-29. The commits were later tested in a clean clone of commit `9de72f1` (2026-11-03, before Pull Request #15 received two follow-up commits): backend 914 passed, 2 skipped on Python 3.12, without the local series. The frontend tests mock the API with fixtures generated from the real backend, and a backend test fails if those fixtures drift. The GitHub Actions workflows run the same checks on pushes and pull requests to `main`. On Pull Request #15 both succeeded for commit `37d7cd1` (see [Project status](#project-status)); **they have not run for the dashboard redesign**, which is a later, separate branch, so the existence of a workflow does not confirm that the latest commit passed there.
 
 ## Deployment (Render)
 
 `render.yaml` defines a Python web service for the API (`rootDir: backend`) and a static site for the dashboard (`npm ci && npm run build` on Node 22). It sets limits for a 512 MB instance from measured peak memory (importing the API takes about 170 MB; a 512 × 512 image through all nine methods peaks near 235 MB, 1024 × 1024 near 415 MB, a 2048 × 2048 image with the six classical methods near 1 GB; the 3D explorer adds about 4 MB per slice) and serves the shipped benchmark run. A test checks the file against the variables the API reads and the files it names.
 
-**Status: not deployed. No URL exists and nothing has been tested on Render.** The measurements were made on Windows, not on Render. To publish:
+**Status, checked on 2026-11-03 with read-only HTTP requests (nothing was restarted, redeployed or changed):**
 
-1. Review and decide on what to publish (the branch is local; nothing has been pushed). Add a software licence first, if the code is to be reusable.
-2. Push the branch (or merge it into `main`) to GitHub, then confirm the workflows pass.
+- API, `https://biomedical-image-denoising-api.onrender.com`: `GET /api/health` answered HTTP 200 with `{"status":"ok",...,"unavailable_methods":[],"problems":[]}`; `/api/methods` lists 9 methods; `/api/v2/runs` lists 1 run and `/api/3d/runs` 2 runs.
+- Dashboard, `https://biomedical-image-denoising-dashboard.onrender.com`: HTTP 200, the single-page application.
+- **Which revision is hosted:** an earlier one. Its JavaScript bundle (249.7 kB, about the size of the pre-redesign build; the redesign's is 262 kB) contains none of the texts of the redesigned interface, such as the collapsible navigation or the key-figure cards. The commit it was built from cannot be read from outside. The redesign on the branch `ui/dashboard-redesign` is **not deployed**, and this repository's `render.yaml` was not changed by it.
+- **Not verified:** the smoke test below was not run against the hosted services for this update (it sends POST requests), Render's environment variables were not read, and the memory measurements above were made on Windows, not on Render.
+
+To deploy or to update a deployment:
+
+1. Review and decide on what to publish. Add a software licence first, if the code is to be reusable.
+2. Make sure the branch that Render builds from contains the revision to publish, then confirm the workflows pass.
 3. In the Render dashboard choose *New → Blueprint* and select the repository. It creates both services from `render.yaml`.
 4. After the first deploy, check that the two `*.onrender.com` hostnames match the ones written in `render.yaml` (`CORS_ORIGINS` on the API, `VITE_API_BASE_URL` on the site); Render appends a suffix if a name is taken. Fix them and redeploy if they differ.
 5. Verify the public URLs with the smoke test, which needs only Python and sends nothing from your disk (the first request can take up to a minute while a free service wakes up):
@@ -496,13 +539,13 @@ The skipped backend test is an optional comparison with an external metadata fil
 
    It checks the health endpoint, the method catalogue, the bundled samples, that every recorded file of the Benchmark V2 and 3D runs still matches its SHA-256, that an invalid upload is refused without exposing server paths, one real `/api/denoise` call (repeated: same seed, same scores), that the API allows the dashboard's origin and no other, and that the dashboard build contains the API's address. `PASS`, `WARN` (for example a benchmark run that is not configured) or `FAIL` is printed per check, and the exit status is 1 if any failed. Then open the dashboard and run the lab on a sample yourself; the Benchmark V2 images need the CT series and are not available on the hosted site.
 
-   The script was run against a local API (started with `--env-file`) and a local production build, where all 11 checks passed (2026-10-27). It has never been run against Render. There is no `vercel.json` or similar file for other hosts: the dashboard has no path-based routes (the page is chosen in the application, not by the URL), so any static host can serve `frontend/dist` without rewrite rules, but only the Render definition is checked by tests.
+   The script was run against a local API (started with `--env-file`) and a local production build, where all 11 checks passed (2026-10-27). No run against the hosted services is recorded here. There is no `vercel.json` or similar file for other hosts: the dashboard has no path-based routes (the page is chosen in the application, not by the URL), so any static host can serve `frontend/dist` without rewrite rules, but only the Render definition is checked by tests.
 
 The free plan sleeps when idle, so the first request after a pause is slow. The 3D explorer accepts at most 60 slices there.
 
 ## Data and privacy
 
-- The CT series used for benchmark development (LIDC-IDRI-0709) is local and is not included in this repository. The repository does include **pixel data derived from it**: one 8-bit, display-windowed slice (`backend/samples/chest_ct.png`) and the figures in `backend/docs/images/` that show slice 50 (original, noisy and filtered panels) or 3D renderings of the volume, under the collection's CC BY 3.0 licence with attribution. The recorded benchmark results (CSV tables, run metadata and their charts) hold aggregated metrics and file hashes, no pixel data; they identify the series only by its public TCIA series UID, and none of the recorded files contains a patient name, ID, birth date or study date (checked by searching them for those fields).
+- The CT series used for benchmark development (LIDC-IDRI-0709) is local and is not included in this repository. The repository does include **pixel data derived from it**: one 8-bit, display-windowed slice (`backend/samples/chest_ct.png`) and the figures in `backend/docs/images/` that show slice 50 (original, noisy and filtered panels) or 3D renderings of the volume, the three Overview example images in `frontend/public/img/` (slice 50 as a reference, with synthetic noise, and after a median filter; [provenance](frontend/docs/overview-images.md)) and the dashboard screenshots in `docs/screenshots/`, under the collection's CC BY 3.0 licence with attribution. The recorded benchmark results (CSV tables, run metadata and their charts) hold aggregated metrics and file hashes, no pixel data; they identify the series only by its public TCIA series UID, and none of the recorded files contains a patient name, ID, birth date or study date (checked by searching them for those fields).
 - The LIDC-IDRI collection is hosted by [The Cancer Imaging Archive (TCIA)](https://www.cancerimagingarchive.net/collection/lidc-idri/) under CC BY 3.0. Follow the collection's data-use and attribution requirements.
 - Bundled samples (details and checks in [backend/samples/README.md](backend/samples/README.md)): `chest_ct.png` is slice 50 of the LIDC-IDRI-0709 series, windowed and saved as 8 bit (The Cancer Imaging Archive, **CC BY 3.0, attribution required**; data citation DOI 10.7937/K9/TCIA.2015.LO9QL9SX); `cell_phase.png` is a quantitative phase image of a cell in saline (scikit-image's `data.cell()`, CC0 per its documentation; it is not tissue); `synthetic_ct_scan.dcm` is a two-disc phantom generated by `download_data.py`. An earlier bundled image (`brain_mri.png`, later `head_ct.png`, from scikit-image's `data.brain()`) was removed because its terms of use could not be verified at the source; it remains in the Git history of earlier commits (it was published on `main` as `brain_mri.png`).
 - `download_data.py` can generate a fictional synthetic DICOM example locally and optionally download third-party examples. Review the terms of any external dataset before use or redistribution.

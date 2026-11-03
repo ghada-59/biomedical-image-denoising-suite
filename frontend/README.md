@@ -31,14 +31,23 @@ To see recorded benchmark results, start the API with `BENCHMARK_RUN_DIRS` point
 
 ## Pages
 
-- **Overview:** scope and limits, API and benchmark status read from the API.
-- **2D Denoising Lab:** upload an image or DICOM slice, or pick a bundled sample (with provenance, licence and cautions); choose noise and any of the nine methods; parameters come from the API's method catalogue (`/api/methods`), so the controls always match what the server accepts. Results show PSNR/SSIM, the parameters that were actually used, measured runtimes and a before/after comparison viewer. Slower methods are limited by image size, and the page says so before the request is sent.
+- **Overview:** an introduction with a before/after example, key figures read from the API (number of methods, recorded runs, how many result files match their SHA-256, connection), the four workflows, the recorded runs with their integrity status, the processing pipeline, and the scope and limits.
+- **2D Denoising Lab:** upload an image or DICOM slice, or pick a bundled sample (with provenance, licence and cautions); choose noise and any of the nine methods; parameters come from the API's method catalogue (`/api/methods`), so the controls always match what the server accepts. Results show PSNR/SSIM, the parameters that were actually used, measured runtimes and a before/after comparison viewer (drag the divider on the image, or use the slider under it). Slower methods are limited by image size, and the page says so before the request is sent.
 - **Benchmark V2:** recorded runs with their provenance and file integrity, metrics with bootstrap intervals for both masks, tuned parameters, and (when a CT series is configured on the server) images recomputed from the recorded seeds.
-- **3D CT Explorer:** a single DICOM slice is previewed in 2D; select all slices of one series for the interactive Plotly volume.
+- **3D CT Explorer:** a single DICOM slice is previewed in 2D; select all slices of one series for the interactive Plotly volume and its central axial slice. The API returns those two views only; coronal and sagittal views are produced by the command-line viewers described in the root README.
 - **Older 2D results:** the earlier benchmark file found by the API, labelled with its provenance status.
 - **Methods & Guide:** the method descriptions are read from the API.
 
-Plotly (about 4.7 MB) is loaded only when a page that draws a chart is opened.
+Plotly (about 4.7 MB) is loaded only when a page that draws a chart is opened. If a page fails to render (for example, that download fails), the other pages stay usable and the page shows what failed and a reload button.
+
+## Design system
+
+All of it is in `src/styles.css` (custom CSS, no framework). The identity colours are tokens at the top of the file: deep navy `#10243A` (sidebar), medical blue `#176B87` (actions and links), teal `#16A6A0` (accent, used for fills and decoration only: it is 3:1 on white), ice background `#F4F7FB`, text `#172B4D`, borders `#E2E8F0`; red, amber and green carry status only. A dark theme redefines the same tokens.
+
+- **Contrast is tested.** `src/test/design.test.jsx` reads the real token values and require 4.5:1 for every text colour on every surface it can sit on, and 3:1 for the border of a form control, in both themes. The specified secondary text colour `#64748B` is 4.8:1 on white but only 4.4:1 on the ice background, so `--text-2` keeps that value for white surfaces and `--muted` (`#56667B`) is the standard secondary text colour.
+- **Navigation.** The sidebar can be collapsed to a rail of icons (the choice is stored in the browser when storage is allowed); between 901 and 1100 px it is always a rail, and below 900 px it is a drawer. The labels stay in the page, visually hidden, so every button keeps its name.
+- **Images on the Overview** are in `public/img/` (provenance and licence: `docs/overview-images.md`): real outputs of the lab for the bundled chest CT sample, CC BY 3.0 (The Cancer Imaging Archive), shown as an illustration and never as a result.
+- **Chart colours** (`src/chartTheme.js`) are colour-blind-safe and identical for the same method on every page; they were not changed by the redesign.
 
 ## Checks
 

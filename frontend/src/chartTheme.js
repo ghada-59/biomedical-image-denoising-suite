@@ -10,6 +10,9 @@ export const METHOD_COLORS_3D = {
 };
 export const MASK_COLORS = ["#0072B2", "#E69F00", "#009E73"];
 
+/** The application's own font stack, so chart text matches the page. */
+export const CHART_FONT = 'Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif';
+
 const WIDTH_STEP = 60;
 
 /** Re-render when the theme attribute of the page changes (new colours) or the window width changes by a step (titles are wrapped to the width). */
@@ -79,7 +82,7 @@ export function baseLayout(title, xTitle, yTitle, extra) {
   margin.t += 17 * (lines.length - 1);                                  // room for the extra title lines
   return {
     title: { text: lines.join("<br>"), font: { size: 13, color: c.text } }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-    font: { color: c.muted, size: 11 }, legend: legendBelow(),
+    font: { family: CHART_FONT, color: c.muted, size: 11 }, legend: legendBelow(),
     xaxis: { title: { text: xTitle, standoff: 14 }, gridcolor: c.grid, automargin: true, tickangle: -30 }, yaxis: { title: { text: yTitle }, gridcolor: c.grid, zeroline: true, zerolinecolor: c.grid },
     autosize: true, ...extra, margin,
   };

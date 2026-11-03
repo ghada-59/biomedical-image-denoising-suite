@@ -1,0 +1,527 @@
+{
+  "benchmark": "3D smoothing: slice-wise versus volumetric, noise correlated between adjacent slices",
+  "dicom_conversion": {
+    "BitsStored": "16",
+    "ConvolutionKernel": "FC01",
+    "Modality": "CT",
+    "PhotometricInterpretation": "MONOCHROME2",
+    "PixelRepresentation": "1",
+    "RescaleIntercept": "0",
+    "RescaleSlope": "1",
+    "WindowCenter": "-500",
+    "WindowWidth": "2000",
+    "hu = stored * RescaleSlope + RescaleIntercept (pydicom apply_modality_lut)": true,
+    "note": "the WindowCenter/WindowWidth tags are NOT used by benchmark V2"
+  },
+  "figures_sha256": {
+    "test_rmse.png": "8789c394a83c395e55afff8104ef4bddd69c27e46a549545c8408d641709535a",
+    "tradeoff_curves.png": "7ec000b8378a9b08c9a93377774978949253a7b35e4868f2bed5215045279060"
+  },
+  "files_sha256": {
+    "selected_parameters.csv": "7d4c815e2fa17ca6dff1f88411f8ba973d36ec3e2e4b4450730c7d47206893ba",
+    "test_pairwise.csv": "03c607cdf357f090f7f4423e59ec08a6f9b41904cd6e26aaed17123a6e24e2ee",
+    "test_per_run.csv": "3b5d9cbe04c32a1e305dd348926092245fcbb81174c18abffd042cc8dba2ce11",
+    "test_per_slice.csv": "cf69b67ee56cbbce87735d38f3c54e2775ac2cc9d8d80458d4f5074c4bfcaeee",
+    "test_summary.csv": "4991ec55fb8f0e5f5d7c53b067e3d8632a9452ef6c591f00b1d5cdc1aad41955",
+    "tuning_grid.csv": "b7e4a2fe30549d43429db71d861bedde563ff10099e61bbbb814394844476ebc"
+  },
+  "generated_at": "2026-10-27T09:42:15+00:00",
+  "git_commit": "ffc184a91ac7bb101972036bb764b37df4840022+dirty",
+  "input_series": {
+    "dicom_instances": 100,
+    "files_in_directory": 101,
+    "files_sha256": {
+      "1-001.dcm": "778d414eba7eb839984b11c787ff66ca1b9ae082942c48d876a2f243640811b7",
+      "1-002.dcm": "5b2fa77715ec519b02dfe6e85b0cff346b1ed043ce8b5ec7d4aa6bf01661786a",
+      "1-003.dcm": "6b728305a14259bbf92136827003ec2736a00f40254f56f7cf5bb022fbe2aa5f",
+      "1-004.dcm": "e02eeb551bece9dce30214068d6e2654ea02bba714b8e7a9f8015a2ce62be576",
+      "1-005.dcm": "49af7f1fa3ff2c7f341956fc809cca5d294075f9d2893b607f44a4c2352832e9",
+      "1-006.dcm": "8ae7b02d55de6ba1cca71d23d661989b5f8d52f9980c22fb5c9d070d0d02dc07",
+      "1-007.dcm": "5c220aea7739632ca3f52e20cabc58f043334d2daa6fff0bf491b692344429d5",
+      "1-008.dcm": "898ff8fd019a635b65e88189b38a1c8ab4859d7b0ec6352f2a1ac68befe3a461",
+      "1-009.dcm": "3589861a576854e6cb4813272fcc18e2df4ea06f9565e6bd9451422bc78c85d2",
+      "1-010.dcm": "cb65f969be53cf67c35374b23bf7feec24504b591f2f8175ade95e6ca3c7dd08",
+      "1-011.dcm": "295dc0867e7bb14b7847fde7d69fc830d557b22b7c75746e1a0ba15188f9de7e",
+      "1-012.dcm": "68f40f89958d8142975b3ffbf8c04b6a9e2d42fe15b481492d867332e5a1afd4",
+      "1-013.dcm": "27d3402d87fc4f02d1d78e99ad8de1d3c028d3b3bfad1f5f2c64248c3042a40f",
+      "1-014.dcm": "7888b0193d6f076d3a994871d6c0b1449d4ad21454204a1a9ada4e296bfffbf4",
+      "1-015.dcm": "f5ba1e1cd230d447d06fbd8924900dae8a862f81e6dce213a5a87817f315ba0b",
+      "1-016.dcm": "7c61b10532c0e87a495185510bcc6a1dc01dd79a9e7aedd5df25f6d84a9b9cee",
+      "1-017.dcm": "48fc9b6e589aa305b4d070fabb6343633bded61f9ce6e33b7fedb86a5024ecb0",
+      "1-018.dcm": "ecc194dba73f544cf28dc5469d0d117553247997e5c569050611f406f0f609b9",
+      "1-019.dcm": "2cf3a0f348f07b35d1351a9188b1bac78d26eeea647aaeb812591bc5a7813cd2",
+      "1-020.dcm": "42a6a374e2448032f3a52308ad57342a9755cbc41dc18b7434f9d2f0d22eea3d",
+      "1-021.dcm": "186a1b72053a54ce7704f456951ba553ba624aa58504c11c9cc8e76c01a97a4a",
+      "1-022.dcm": "9f8956001e30cbc0602b75ac76b334abe07341b14337026418947c05e4e471ea",
+      "1-023.dcm": "2c5eb09586613668e1a6d7533313ca716af05b00f4dfaec6b1f56df430577740",
+      "1-024.dcm": "b1318ec10fdbb263f74da702ff07a91eb55b05eaf0c6ea44c68cded5dfccdd2a",
+      "1-025.dcm": "32dde66d7b6249ea7c1edb589a4dcdec8477d441146e8478c0624b3f6eb01bc5",
+      "1-026.dcm": "65ae1f181377a95c00a418d5fc3d895f36fad76bb2170dafb3a36c67152756b9",
+      "1-027.dcm": "3ec8d672c068e9406d4280e30e154a449c25c61ffabbd39620c299d17e8d327e",
+      "1-028.dcm": "172486ed85876afe2c1db94d8f1a1a1b8c0cc64f6f6d009c52f8b18f72b4b483",
+      "1-029.dcm": "b93feb3a81e6dfc9f8fdc40c872ad517d041b4b7249825c1fdc9d29f5d12b412",
+      "1-030.dcm": "3be634d8a930206647a5df12da7b834238f62095f8c1cc0bbe76c5b781f581fc",
+      "1-031.dcm": "2a7c75b8b93ce1a0e440e7e44ef4a4db75cc79b67b28e15a420141a742e07cb1",
+      "1-032.dcm": "0c2225a52d316212134d5945d51457e2569d13a9cb55b70c5c0e6e5a94e650a4",
+      "1-033.dcm": "3f8bdbab029f1c9003eb08dc382dc14bfae9caa1e1dc0821b199b1fbc7aee7ac",
+      "1-034.dcm": "13466b65f7dc859c969abe58f98ff93ea54bbc0903497a8df5cb8288e64de26e",
+      "1-035.dcm": "5aca612eda4db821bf10da2f3092d1fb27bf9ffa39e48d093f4256f0b8149e22",
+      "1-036.dcm": "cb2e979a028ca24f9af244e238172563c3cd4a4f903c18e272c4b40785ed0c24",
+      "1-037.dcm": "ab60a109aa23e245c0ac7f88a3b4a4eab2ace62fa29ce2ece0787d1e8cf81bf5",
+      "1-038.dcm": "04537864bf7c067832ee4f0f5fea4f1fd90a275d87977e2c0bb7ba3adf99ca2f",
+      "1-039.dcm": "4545648160f449dd6fd2c9cc18550120c7387dc5799a1a9185c83c0f7b4fe47c",
+      "1-040.dcm": "fb82ad774e4e62f71ae81fc58c4235b85e00612444b2c7b0652b3d0ed67ed598",
+      "1-041.dcm": "f677048f17f2adf683a791a4626cf8d89a3eb5746d468453de29b48b00d22a85",
+      "1-042.dcm": "660ff92c1a56a301195fb6ddc9ed588c8852424f5004c99bf6c42c6da1789a0a",
+      "1-043.dcm": "0f03dc681d7fbe8d8c6957d9669d5c2406fc414720b813a8bb99b4f58dd1d9d8",
+      "1-044.dcm": "984b6568117ded2df42b8462c5af7e595b72a0a6a4979a11a1343f8b8cb4e943",
+      "1-045.dcm": "713cdcb57c7914421552d4670e317477b078412005927c262aa9f711867de789",
+      "1-046.dcm": "18094ec7c6415528d1f1082430b74a4a677d8bcdc9b92fb429a06639c57f7498",
+      "1-047.dcm": "3c235ae64610855a28bd6e55f08532fb82fbb5d33b939c12c6972deeae80094e",
+      "1-048.dcm": "39e5477010b41e75d2cd75c7082b4141dbf165935b3e77bbc8408785f2d24860",
+      "1-049.dcm": "229dc8b9f87c18e63846a63672811c9f6fbaa528cf7237534c390e069135b7f5",
+      "1-050.dcm": "a0175d3d1e1bed02ef612822625b1c734adaada73e1d3570223b094047676635",
+      "1-051.dcm": "71598e05748926916752516e146d882524a9abf71d08986d2ec275ae071fdba8",
+      "1-052.dcm": "051792ac65bd088868ee57787bc070cafe0c0f9d259a2cd224ca0af2e4091862",
+      "1-053.dcm": "a6e5d4270c7a6e421ad15129a8b74505be1c577c46c2dba840bfdd96cd4483ed",
+      "1-054.dcm": "bfbde3c1a13a5ff6dcc1e82b11b7d71ab3991a49b5ec91d617296f69ba9f191a",
+      "1-055.dcm": "abbcd502d0f02315a091317b79a77ad1b9bef58ada475420de9c75c2ab55fbea",
+      "1-056.dcm": "04634683647852415e29f3a221f53a0dbd1cec8c616ad90aa2461593407effad",
+      "1-057.dcm": "699ae189e057c086d0d8cfab53b4589ed23db323a3cd308ed361edcce326cf67",
+      "1-058.dcm": "5923bd6370b3f20f0998cfad5b210bd02d9563400f848ce2ff3c59a9a447bfb1",
+      "1-059.dcm": "114273c4142164d7c3471bf64106696d59531f0cee7c04e897a7c1b25769da4e",
+      "1-060.dcm": "28055f3db0d99e292bfed6eccdca0003a005a85a7956257bcda1462f691b364c",
+      "1-061.dcm": "16b5de2dae274031a9a7798a36bba7f140f78fdf61d33c9d5c7db31a25194bb1",
+      "1-062.dcm": "d70b285199d3c09e4fd6a75f12b31a61ee89985d1f3b4bea18cca4d55d13ae94",
+      "1-063.dcm": "8652197a8b8a5be66ed9be379a3eb8071c43fb7f71b9bda3762ec68d29986956",
+      "1-064.dcm": "f320f645f01536488fb1b03855d857472580d53c8b7ccb3be8bcb2b6a389f7cd",
+      "1-065.dcm": "e2efe37f7d8ec34dde308f976304b60d8234ff77d4b0cc8ca7ce7e1137f4a8f9",
+      "1-066.dcm": "9c6209b4d93f56d4651faaf1e24b31be549e6a2cc288074c52c07372722474fd",
+      "1-067.dcm": "0e9b6de7058695ec8a766d43d2fdb4247292b6709ee944f7a4747ef09e3b508b",
+      "1-068.dcm": "be04bd09645e6f8ad2218d62b1abf5a10ae398f45a2b18b12b50b59b4d5f3b41",
+      "1-069.dcm": "498399d48cca1e0946a1a8ba5701dd1c6a1a833dd8aa057b7025ddf7ddf8024b",
+      "1-070.dcm": "980339eb4fc809a71efd7f67bd6dc0c9c2642c90fa9ea3b9a86814f2786649f6",
+      "1-071.dcm": "391986b82e8b8d9c727fbf9989d41a0a76ffeda98ae8907351dbd30379350a8f",
+      "1-072.dcm": "8cb9d675834c2262b9e54e7b404559e0bab4568bf78783cb0a015753b91a4573",
+      "1-073.dcm": "771839f14352d97e8e491265b4946f3e8b046c2cabb5d059137838c516938b13",
+      "1-074.dcm": "ad4f49f9a48f055796025b9139d87aff400fc90e899f8b1abddbca9ddb7460d2",
+      "1-075.dcm": "22bcceac5876d1fe903b426d765fd931c4782bec6d332557a88a5502c23e5dde",
+      "1-076.dcm": "195c0ed63e726ac601eb1f675b83c4c13edb6244854d221cad07dc86af6b8bca",
+      "1-077.dcm": "84a096478e3a3a37c7f8821498342f42d6f70c3dc0672aa5da34507f8c1f1c22",
+      "1-078.dcm": "e01a21a83a4d7b86b6e516c2724364f61e4059fcefa6e47cbe151f3541d15559",
+      "1-079.dcm": "2a7cdf6a0e13fee8e21a34e7e7e7a7d79e3b704383cafdf2c26029a3202b86ec",
+      "1-080.dcm": "ac595875277fc8b84e8b0bc658616d0d1451dfe92377be48121a91b9efcd1c2a",
+      "1-081.dcm": "9dc51689c83d8121223afe4d4223465dae02168172d4f339bbf509f595df810b",
+      "1-082.dcm": "7d835b07e34e2580b3e348b6d775ffc158375635ebe3d07ffce89af1ac28fd65",
+      "1-083.dcm": "09a8047a8245ee94b702c6ca84752d14cba2b3f6125a21cb6841d84d958fd3eb",
+      "1-084.dcm": "09e0af888a97f38d1aff9e34837a956e83b422cd25bf6308bdee9efd59c53c1b",
+      "1-085.dcm": "b68e005cc79af32968441bce1d03a00d3d9686014b3f547a63812d9ac2ae3441",
+      "1-086.dcm": "a07869f40508661216dde752d9d3035a79ad1e047b4c96331aab50f0a0cf5429",
+      "1-087.dcm": "0575c62930ea8e8b88176cdf60fb1b5e5fd50c9f270ddbe100e2a93ab2ee8814",
+      "1-088.dcm": "71c7d34b4d3a29fe5db1360adec17ce93e721435cdfd0bffc868188837c74e15",
+      "1-089.dcm": "336727a0e58bbf454cc0b70b83f733d691dfe4582341bca647262b9fa2a89611",
+      "1-090.dcm": "82a409d62fc2468b27c8e7a5e36123077e9a3a721c335a049c37913e027ed643",
+      "1-091.dcm": "85b59c7ae816f1714350cef34d44071554554aa9b9c8cfe73f2eecf0b0326865",
+      "1-092.dcm": "e93a93c6431b4378121114546063f51da4d5bc1df1a2c075cb009965201b962c",
+      "1-093.dcm": "22ca3e8c2343367980f19f6eb8c61e407536badf2507bd8ddfb8e5f79e66e7a0",
+      "1-094.dcm": "6f37cd04b5b33a464db982e0fe006c641cc730234051ee85c84115cdcb0535c2",
+      "1-095.dcm": "4ae48994c0bde0933501d38a3ee335a4444812512fcd2ed9ae9ecf906814311f",
+      "1-096.dcm": "5f9e177d093d98f4e6a706967dc6336166ce566b72e5df4b92f25ec5de2edade",
+      "1-097.dcm": "1395e80cdd9c9ceabb0fe65491a92dc5f244ba385e8b4151b8e7f349d4343e1d",
+      "1-098.dcm": "ad574c0ff701fd805ba43b4f8be2e0f7a11b3417f79f35365318b9dd2a16a0b3",
+      "1-099.dcm": "73daec6a55d34d8bbe4ce14810024709cbdb5fa6b04415e510da28611a853752",
+      "1-100.dcm": "9d613f57fb37cd7aec6d315a6f243f1a5c446ae78d262720fb053fb0899f0098",
+      "LICENSE": "549adb2471a8adc13da32860115c5559971b06097bba2922634a5e49f1800e0b"
+    },
+    "manifest_format": "<sha256>  <relative path>\\n per file, sorted by path, LF",
+    "manifest_sha256": "5b602fdf0a93ea3f671d2f30f6c93c0215028cd0afdce494615f3957b8ca6ac7",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.6279.6001.309707676674808510671394142910"
+  },
+  "limitations": "Synthetic noise: white inside each slice and correlated only with the adjacent slice (a model of one measured property, not of a scanner); noisy clinical reference; one patient, 8 test slices; Gaussian smoothing only; no clinical meaning.",
+  "packages": {
+    "numpy": "2.5.4",
+    "opencv": "5.0.0",
+    "pandas": "3.1.0",
+    "pydicom": "3.0.2",
+    "python": "3.12.15",
+    "pywavelets": "1.10.0",
+    "scikit-image": "0.26.0",
+    "scipy": "1.18.1"
+  },
+  "parameters": {
+    "body_threshold_hu": -500.0,
+    "bootstrap_seed": 12345,
+    "boundary_mode": "reflect",
+    "display_window": [
+      -600.0,
+      1500.0
+    ],
+    "gaussian_truncate": 4.0,
+    "grids_mm": {
+      "2D slice-wise Gaussian": [
+        {
+          "sigma_xy_mm": 0.0,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 0.0
+        }
+      ],
+      "3D anisotropic Gaussian": [
+        {
+          "sigma_xy_mm": 0.0,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.0,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 0.0,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 0.0,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 0.0,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 0.0,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 6.0
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 0.0
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 1.0
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 1.5
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 6.0
+        }
+      ],
+      "3D isotropic Gaussian": [
+        {
+          "sigma_xy_mm": 0.25,
+          "sigma_z_mm": 0.25
+        },
+        {
+          "sigma_xy_mm": 0.4,
+          "sigma_z_mm": 0.4
+        },
+        {
+          "sigma_xy_mm": 0.55,
+          "sigma_z_mm": 0.55
+        },
+        {
+          "sigma_xy_mm": 0.8,
+          "sigma_z_mm": 0.8
+        },
+        {
+          "sigma_xy_mm": 1.1,
+          "sigma_z_mm": 1.1
+        },
+        {
+          "sigma_xy_mm": 1.6,
+          "sigma_z_mm": 1.6
+        },
+        {
+          "sigma_xy_mm": 2.2,
+          "sigma_z_mm": 2.2
+        },
+        {
+          "sigma_xy_mm": 3.0,
+          "sigma_z_mm": 3.0
+        },
+        {
+          "sigma_xy_mm": 4.5,
+          "sigma_z_mm": 4.5
+        },
+        {
+          "sigma_xy_mm": 6.0,
+          "sigma_z_mm": 6.0
+        }
+      ]
+    },
+    "half_slab": 8,
+    "inner_margin_px": 10,
+    "min_gap_slices": 8,
+    "min_soft_pixels": 1000,
+    "n_boot": 10000,
+    "noise_model": {
+      "adjacent_slice_correlation": 0.3,
+      "companion_of": "benchmark_3d.py (independent noise); same protocol, grids, slices and seed bases",
+      "construction": "noise[k] = (e[k] + c * e[k + 1]) / sqrt(1 + c**2) with independent white e; correlation c / (1 + c**2) with the next slice, 0 beyond",
+      "kind": "white inside a slice, correlated with the adjacent slice",
+      "mixing_weight": 0.33333333333333326,
+      "reference": "measured in this series with diagnostics.py noise-texture (high-pass residual, rough estimator)"
+    },
+    "noise_sigmas_hu": [
+      10.0,
+      25.0,
+      50.0
+    ],
+    "padding_handling": "normalised convolution over voxels above padding_hu",
+    "padding_hu": -1500.0,
+    "primary_mask": "main",
+    "selection_criterion": "RMSE_HU",
+    "soft_tissue_erosion_px": 3,
+    "soft_tissue_hu": [
+      0.0,
+      100.0
+    ],
+    "test_base_seed": 4000000,
+    "test_repeats": 5,
+    "test_slices": [
+      16,
+      21,
+      25,
+      45,
+      64,
+      84,
+      88,
+      93
+    ],
+    "tune_base_seed": 3000,
+    "tune_repeats": 2,
+    "tune_slices": [
+      35,
+      54,
+      74
+    ]
+  },
+  "schema_version": 1,
+  "series_directory_name": "1.3.6.1.4.1.14519.5.2.1.6279.6001.309707676674808510671394142910",
+  "source_files_hash_rule": "SHA-256 of the file bytes with CRLF replaced by LF (the form Git stores), so the value does not depend on the checkout's line endings",
+  "source_files_sha256": {
+    "benchmark_3d.py": "9596439c5f0760dcbfe9770a1fc7ded5d231f3933094d97205432a7269574749",
+    "benchmark_3d_correlated.py": "c116033a6c42e1b7ccbc9362a8b39a01492495627ca7eba8ff24dbb6c2cb269c",
+    "benchmark_v2.py": "ee387043fe7e50619499eebc3952b376d68af8471ec4747204f21baf344efd4e",
+    "requirements.txt": "eaa0facb7d67d08d35e746540471e038474f9542b2801935f132859ca5ae0e1f",
+    "src/dicom_volume.py": "7df68dd175cbe7798cb8a2270cc0433c5051abf8f4ee92c84c90f874edc700f0"
+  },
+  "volume_shape_zyx": [
+    100,
+    512,
+    512
+  ],
+  "voxel_spacing_xyz_mm": [
+    0.54,
+    0.54,
+    3.0
+  ]
+}

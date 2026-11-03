@@ -65,6 +65,11 @@ export default function Results({ benchmark, apiState = "online", apiMessage = "
             {provenance?.reason ? ". " + provenance.reason : ""}
             {provenance?.file_modified ? (provenance?.reason ? " " : ". ") + "File modified: " + provenance.file_modified + "." : ""}
           </p>
+          {provenance?.status !== "documented_run" && (
+            <p className="footnote" data-testid="cutoff-note">
+              The frequency-filter rows depend on the cutoff the file was generated with. The older snapshot kept in <code>docs/results</code> used a cutoff of 0.10, whereas the lab and the benchmark script now default to 0.15, so a file without run metadata cannot be read as a measurement of the current settings.
+            </p>
+          )}
           <div className="metrics-grid">
             <MetricCard label="Highest mean SSIM" value={best ? filterLabel(best) : "—"} hint="Within selected noise model" icon={Activity} />
             <MetricCard label="Mean SSIM" value={best ? Number(best.Mean_SSIM).toFixed(4) : "—"} hint="Structural similarity" icon={ScanLine} />

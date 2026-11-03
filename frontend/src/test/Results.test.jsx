@@ -27,6 +27,15 @@ describe("older 2D results", () => {
     expect(screen.getByText("Highest mean SSIM").closest("article")).toHaveTextContent("Gauss (frequency)");
   });
 
+  it("says that an undocumented file may come from the earlier 0.10 cutoff, and drops that note for a documented run", () => {
+    const { unmount } = render(<Results benchmark={benchmark(ROWS)} />);
+    expect(screen.getByTestId("cutoff-note")).toHaveTextContent(/cutoff of 0\.10.*default to 0\.15/);
+    unmount();
+    const documented = { ...benchmark(ROWS), provenance: { status: "documented_run", label: "Documented run" } };
+    render(<Results benchmark={documented} />);
+    expect(screen.queryByTestId("cutoff-note")).toBeNull();
+  });
+
   it("keeps the plain filter name when a row has no domain", () => {
     const withoutDomain = ROWS.map(({ Domain: _domain, ...rest }) => rest);
     const { container } = render(<Results benchmark={benchmark(withoutDomain)} />);

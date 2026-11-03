@@ -144,7 +144,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .sidebar-collapsed .brand-copy, .sidebar-collapsed .nav-text, .sidebar-collapsed .sidebar-status > p, .sidebar-collapsed .privacy-note span, .sidebar-collapsed .sidebar-footer, .sidebar-collapsed .collapse-toggle .nav-text, .sidebar-collapsed .status-head .status-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .sidebar-collapsed .nav-item, .sidebar-collapsed .collapse-toggle { justify-content: center; padding: 11px 0; }
 .sidebar-collapsed .nav-item.active::before { left: -12px; }
-.sidebar-collapsed .nav-label { height: 1px; margin: 12px 14px; padding: 0; overflow: hidden; background: var(--sb-border); color: transparent; font-size: 0; }
+.sidebar-collapsed .nav-label { display: none; }
 .sidebar-collapsed .sidebar-status { padding: 10px 0; display: grid; justify-items: center; gap: 8px; }
 .sidebar-collapsed .status-head { justify-content: center; }
 .sidebar-collapsed .privacy-note { border-top: 0; padding-top: 0; }

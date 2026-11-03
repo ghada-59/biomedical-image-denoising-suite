@@ -8,15 +8,46 @@ A biomedical image-processing project for **comparing classical denoising method
 ![Tests](https://img.shields.io/badge/tests-pytest%20%7C%20vitest%20%7C%20playwright-informational)
 ![Interface](https://img.shields.io/badge/interface-React%20%2B%20FastAPI%20%2B%20Streamlit-6b8e23)
 
-## At a glance
+## Summary for reviewers
 
-| What | Status (2026-10-29, one Windows laptop; the workflows of this branch have not run on GitHub yet, although earlier versions ran on `main`; nothing has run on Render) |
+- **Question.** How close do classical, non-learned filters bring a noisy CT slice back to the original slice when each filter is tuned fairly, and does smoothing across neighbouring CT slices help?
+- **What was built.** A FastAPI service that runs the real filters; a React dashboard (2D lab, 3D CT explorer, two recorded benchmarks, a methods guide); two benchmark protocols (2D "Benchmark V2" and "Benchmark 3D") with a tuning/test split of slices, errors in Hounsfield units, bootstrap intervals, run metadata and SHA-256 integrity checks of every recorded file; a strict DICOM series loader that refuses tilted, damaged or unevenly spaced series.
+- **What the recorded runs show** (one patient, synthetic noise, exploratory):
+  - In Benchmark V2 the three added filters (bilateral, non-local means, wavelet shrinkage) had a lower RMSE in Hounsfield units than the best of the six original filters, with the whole paired interval below zero, in 7, 6 and 4 of the 8 noise conditions. Which method is lowest depends on the noise: wavelet shrinkage on white noise of 10 and 25 HU, non-local means on white noise of 50 HU and on the correlated noise, the median filter on impulse noise, the bilateral filter on speckle ([table](#benchmark-v2-nine-classical-filters-tuned-and-tested-on-separate-slices)).
+  - In Benchmark 3D, weak smoothing minimises the error, and smoothing across slices brings almost nothing on 3 mm slices: identical results at 10 and 25 HU, and 0.5 % lower error at 50 HU, with a sign that is not the same on every slice ([table](#benchmark-3d-slice-wise-versus-volumetric-gaussian-smoothing)).
+- **What they do not show.** Anything clinical. The reference is itself a noisy clinical slice, the noise is synthetic, there is one patient, and no measure of preserved small structures was computed. No learned model is included, on purpose ([why](backend/docs/methods_and_decisions.md)).
+- **Engineering evidence.** Python tests (915 passed, 1 skipped), frontend unit tests (100 passed), browser tests against the real API and real servers (29 passed, 1 skipped), lint, and a smoke-test script that checks a running API from outside (details in [Tests and checks](#tests-and-checks)).
+- **Not done yet.** The branch has not been pushed and its workflows have not run on GitHub; the API has not been deployed; no software licence has been chosen.
+
+## Screenshots
+
+Taken on 2026-11-03 from the working tree of this branch, with the real API and the recorded benchmark runs ([how](docs/screenshots/README.md)).
+
+![Overview page of the dashboard](docs/screenshots/dashboard-overview.png)
+
+*Overview: scope statement, the four workflows and the recorded runs the API serves. Each run is checked against the SHA-256 hashes written in its metadata; "12 files match" means none of the result files changed since the run.*
+
+![2D denoising lab](docs/screenshots/dashboard-lab.png)
+
+*2D Denoising Lab on the bundled chest CT slice (LIDC-IDRI-0709, slice 50; The Cancer Imaging Archive, CC BY 3.0). Gaussian noise of variance 0.02, seed 42, the six default methods. The divider compares two outputs (here the noisy input and the mean filter). Every score is computed by the API for that run on the display scale, and the page says what the reference is.*
+
+![Benchmark V2 page](docs/screenshots/dashboard-benchmark-v2.png)
+
+*Benchmark V2: provenance and file-integrity status of the recorded run, then RMSE in Hounsfield units of nine tuned methods under six synthetic noise conditions, over two masks, with 95 % bootstrap intervals over test slices. The page states that the study is exploratory.*
+
+![Benchmark 3D page](docs/screenshots/dashboard-benchmark-3d.png)
+
+*Benchmark 3D: held-out RMSE in Hounsfield units without filtering and with slice-wise, isotropic and anisotropic Gaussian smoothing, one recorded run per noise model. The drawn recorded figures, the selected parameters and statements computed from the tables follow further down the page.*
+
+## Project status
+
+| What | Status (one Windows laptop; dates are those of the last run of each check) |
 | --- | --- |
 | Denoising methods | Nine classical, non-learned methods: mean, median, Gaussian, FFT ideal / Gaussian / Butterworth low-pass, **bilateral, non-local means and wavelet (BayesShrink)**. No neural network, on purpose ([why](backend/docs/methods_and_decisions.md)). |
-| Benchmarks | **V2 (2D):** synthetic noise in Hounsfield units on one public CT series, parameters tuned on 3 slices and tested on 8 others, two masks, bootstrap intervals. **3D:** slice-wise versus volumetric Gaussian smoothing, same protocol, with the error split into structure change and residual noise; run twice, with noise independent between slices and with noise correlated between adjacent slices as measured on the series. A legacy fixed-setting benchmark is kept apart. **All exploratory: one patient, noisy reference, not an independent validation.** |
-| Reproducibility | **V2:** the recorded run was produced from a clean commit with source-file hashes and the input manifest recorded; two full runs from two commits gave byte-identical result files and the six original filters reproduce an earlier recorded run. On 2026-10-27 the **complete benchmark was run again with the current code and gave 12 result files byte-identical to the recorded run** (three source files had changed since the recorded run; their new hashes are the only difference in the metadata; [details](backend/docs/benchmark_v2.md#provenance-and-reproduction)). **3D:** two complete executions of the first run gave identical tables and 72 recorded rows were recomputed independently; both runs were made from uncommitted code, so their `git_commit` reads `+dirty` and the source hashes identify the code. |
+| Benchmarks | **V2 (2D):** synthetic noise in Hounsfield units on one public CT series, parameters tuned on 3 slices and tested on 8 others, two masks, bootstrap intervals. **3D:** slice-wise versus volumetric Gaussian smoothing, same protocol, with the error split into structure change and residual noise; run twice, with noise independent between slices and with noise correlated between adjacent slices as measured on the series. A legacy fixed-setting benchmark is kept apart. **All exploratory: one patient, noisy reference, not an independent validation.** How the recorded runs were reproduced: [Reproducibility of the recorded runs](#reproducibility-of-the-recorded-runs). |
 | Dashboard | React + FastAPI. The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes. The Benchmark V2 and Benchmark 3D pages read recorded runs, check their files against the SHA-256 hashes recorded in each run's metadata (and list any file the metadata does not cover), and say when no run is configured. |
-| Tests | Backend 915 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, the 25 test files other than `test_vtk_viewer.py` and `test_benchmark_3d.py`) 876 passed / 1 skipped; frontend 95 unit/component tests (5 of them start the real Vite server); 25 browser tests against the real API and real servers (1 skipped when a benchmark run is configured). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies on 2026-10-29. |
+| Tests | Backend 915 passed / 1 skipped (Python 3.12, rerun on 2026-11-03; also Python 3.10 on 2026-10-29); API-only environment (Python 3.11) 876 passed / 1 skipped; frontend 100 unit/component tests (5 of them start the real Vite server); 29 browser tests against the real API and real servers (1 skipped, see below). Lint clean (ruff, ESLint). Dependency audit: nothing known in the Python packages (pip-audit, 2026-10-29) or in what the dashboard ships; one moderate advisory in a development-only tool, see [Tests and checks](#tests-and-checks). |
+| Continuous integration | The workflows of this branch **have not run on GitHub yet**. Earlier versions ran on `main`; the last runs there (2026-10-17) succeeded, and they tested a different layout and different jobs. |
 | Deployment | `render.yaml` is configured and checked against the code; **it has not been deployed**, so there is no public URL. |
 
 ## What the project does
@@ -269,6 +300,7 @@ Definitions, assumptions, implementations and the parameter-selection rules are 
 │   ├── requirements-api.txt        # Runtime dependencies of the hosted API
 │   └── ruff.toml                   # Lint configuration
 ├── frontend/                       # React + Vite dashboard (src/test: Vitest, e2e: Playwright)
+├── docs/screenshots/               # Dashboard screenshots used in this README (README.md: how they were made)
 ├── dev.cmd, scripts/dev.ps1        # Optional Windows launcher (start / status / stop); not needed to run the project
 ├── scripts/smoke_test.py           # Checks a running API (and a deployed dashboard) from outside; standard library only
 ├── render.yaml                     # Render deployment (not deployed)
@@ -320,6 +352,10 @@ Three experiments are kept apart on purpose. The API and the dashboard serve Ben
 | Status | Exploratory, reproducible, one patient | Exploratory, reproducible, one patient | Historical snapshot, kept for traceability |
 
 All three use the same public CT series (`LIDC-IDRI-0709`: one patient, 100 axial slices, 0.54 mm pixels, 3 mm slices), which is **not** part of this repository. The reference is a real clinical slice with its own noise, so every score measures similarity to a *noisy* reference, never accuracy against the true anatomy.
+
+### Reproducibility of the recorded runs
+
+**V2:** the recorded run was produced from a clean commit with source-file hashes and the input manifest recorded; two full runs from two commits gave byte-identical result files and the six original filters reproduce an earlier recorded run. On 2026-10-27 the **complete benchmark was run again with the current code and gave 12 result files byte-identical to the recorded run** (three source files had changed since the recorded run; their new hashes are the only difference in the metadata; [details](backend/docs/benchmark_v2.md#provenance-and-reproduction)). **3D:** two complete executions of the first run gave identical tables and 72 recorded rows were recomputed independently; both runs were made from uncommitted code, so their `git_commit` reads `+dirty` and the source hashes identify the code.
 
 ### Benchmark V2: nine classical filters, tuned and tested on separate slices
 
@@ -397,7 +433,7 @@ The first experiment: three noise models (variance 0.02 or amount 0.02 on the di
 python evaluate_denoising.py --dicom-series "path/to/one_dicom_series" --repeats 3 --seed 42
 ```
 
-The script writes to `backend/reports/` (ignored by Git). The committed `backend/docs/results/denoising_benchmark.csv` and `denoising_summary.csv` are **historical snapshots from the earlier `0.10` cutoff** and must not be presented as results of the current default (0.15); a controlled synthetic check of the cutoff is in [frequency cutoff validation](backend/docs/results/frequency_cutoff_validation.md) (a single-image sweep, not evidence that 0.15 is optimal). The three spatial-filter figures below were produced by this script, slice 50, first noise draw; their parameters and the table values behind them are listed in [backend/docs/images/README.md](backend/docs/images/README.md).
+The script writes to `backend/reports/` (ignored by Git). The committed `backend/docs/results/denoising_benchmark.csv` and `denoising_summary.csv` are **historical snapshots from the earlier `0.10` cutoff** and must not be presented as results of the current default (0.15); the *Older 2D results* page of the dashboard says the same next to the numbers whenever the file is not a documented run; a controlled synthetic check of the cutoff is in [frequency cutoff validation](backend/docs/results/frequency_cutoff_validation.md) (a single-image sweep, not evidence that 0.15 is optimal). The three spatial-filter figures below were produced by this script, slice 50, first noise draw; their parameters and the table values behind them are listed in [backend/docs/images/README.md](backend/docs/images/README.md).
 
 | Gaussian noise (seed 5000293) | Salt and pepper (seed 5000403) | Synthetic speckle (seed 5000499) |
 | --- | --- | --- |
@@ -425,18 +461,18 @@ python -m src.evaluate_volume_denoising "path/to/one_dicom_series" --sigma-mm 1.
 
 ## Tests and checks
 
-| Check | Command | Last result (every row: 2026-10-29, on the final working tree) |
+| Check | Command | Last result (date of the run, on the working tree of that day) |
 | --- | --- | --- |
-| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 915 passed, 1 skipped, 163 s |
-| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 915 passed, 1 skipped, 201 s |
-| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 25 test files other than `test_vtk_viewer.py` (needs VTK) and `test_benchmark_3d.py` (in that environment only one test of the file fails, the one that draws figures and needs matplotlib) -- `pytest --ignore=test_vtk_viewer.py --ignore=test_benchmark_3d.py` | 876 passed, 1 skipped, 134 s |
-| Python lint | `cd backend && ruff check --config ruff.toml . ../scripts` | All checks passed |
-| Frontend lint | `cd frontend && npm run lint` | No problems (`--max-warnings 0`) |
-| Frontend unit and component tests | `npm test` | 95 passed (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend) |
-| Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 25 passed, 1 skipped, 2.8 min (run with `E2E_BENCHMARK_RUN_DIR` set, so the test that shows a recorded Benchmark V2 run passes and the "no run configured" test is the one skipped; without the variable the two swap) |
-| Production build | `npm run build` | Succeeds; entry chunk 249 kB (Plotly, 4.7 MB, loads on demand) |
-| **Separate copy of the working tree, documented commands only** (2026-10-29): the tree (uncommitted and untracked files included, `.git` included) copied to another folder without `node_modules/`, `dist/`, caches and the Git-ignored `reports/`, `outputs/`, `data/` and `logs/`; plain CPython 3.10.21 (not Conda) in the virtual environment built from `requirements.txt`; `ruff==0.17.2`; a fresh `npm ci` | `ruff check --config ruff.toml . ../scripts`, `python -m pytest -q`, `npm run lint`, `npm test`, `npm run build`, `npm run e2e` (that venv's `python` as `E2E_PYTHON`) | ruff clean; pytest 914 passed, 2 skipped (147 s); lint clean; 95 unit tests passed; build succeeds; 25 browser tests passed, 1 skipped (3.1 min). Every step exited 0. |
-| Dependency vulnerabilities | `pip-audit`; `npm audit` | None known on 2026-10-29 (`pip-audit` on the Python 3.12 test environment; `npm audit` 0 findings) |
+| Backend, Python 3.12.15 (NumPy 2.5.4) | `cd backend && python -m pytest -q` | 2026-11-03: 915 passed, 1 skipped, 141 s |
+| Backend, Python 3.10.21 (NumPy 2.2.6, pandas 2.3.3, scikit-image 0.25.2) | same | 2026-10-29: 915 passed, 1 skipped, 201 s (no backend file has changed since) |
+| Hosted-API environment, Python 3.11.16, `requirements-api.txt` only | pytest on the 25 test files other than `test_vtk_viewer.py` (needs VTK) and `test_benchmark_3d.py` (in that environment only one test of the file fails, the one that draws figures and needs matplotlib) -- `pytest --ignore=test_vtk_viewer.py --ignore=test_benchmark_3d.py` | 2026-10-29: 876 passed, 1 skipped, 134 s |
+| Python lint | `cd backend && ruff check --config ruff.toml . ../scripts` | 2026-11-03: All checks passed |
+| Frontend lint | `cd frontend && npm run lint` | 2026-11-03: No problems (`--max-warnings 0`) |
+| Frontend unit and component tests | `npm test` | 2026-11-03: 100 passed (fetch is mocked in the client and page tests; `proxy.integration.test.js` starts the real Vite server in front of a stand-in backend) |
+| Browser tests (real Chrome, real API and dashboard servers) incl. axe-core in both themes, start-up orders, API and dashboard stopped and restarted, `localhost` and `127.0.0.1`, production builds, chart legends | `npm run e2e` (needs `E2E_PYTHON` unless `python` has the API requirements) | 2026-11-03: 29 passed, 1 skipped, 2.6 min (run with `E2E_BENCHMARK_RUN_DIR` set, so the tests that show a recorded Benchmark V2 run pass and the "no run configured" test is the one skipped; without the variable they swap) |
+| Production build | `npm run build` | 2026-11-03: Succeeds; entry chunk 249 kB (Plotly, 4.7 MB, loads on demand) |
+| **Separate copy of the working tree, documented commands only** (2026-10-29, before the chart-legend fix of 2026-11-03, so its frontend counts are 95 unit and 25 browser tests): the tree (uncommitted and untracked files included, `.git` included) copied to another folder without `node_modules/`, `dist/`, caches and the Git-ignored `reports/`, `outputs/`, `data/` and `logs/`; plain CPython 3.10.21 (not Conda) in the virtual environment built from `requirements.txt`; `ruff==0.17.2`; a fresh `npm ci` | `ruff check --config ruff.toml . ../scripts`, `python -m pytest -q`, `npm run lint`, `npm test`, `npm run build`, `npm run e2e` (that venv's `python` as `E2E_PYTHON`) | ruff clean; pytest 914 passed, 2 skipped (147 s); lint clean; 95 unit tests passed; build succeeds; 25 browser tests passed, 1 skipped (3.1 min). Every step exited 0. |
+| Dependency vulnerabilities | `pip-audit`; `npm audit` | `pip-audit` (Python 3.12 test environment), 2026-10-29: none known (not repeated on 2026-11-03). `npm audit`, 2026-11-03: **none in the packages the dashboard ships** (`npm audit --omit=dev`: 0). One moderate advisory remains in a development tool: `minimatch` below 11.0.1 (denial of service through crafted glob patterns), reached through ESLint and `eslint-plugin-react`; the only fix offered, `npm audit fix --force`, downgrades `eslint-plugin-react` (a breaking change), so it was left. A second advisory found that day, in the Vite development server (`server.fs.deny` bypass; the server listens on 127.0.0.1 only), was fixed by updating Vite 6.4.4 to 6.4.5 in `package-lock.json`. |
 
 **Checked by hand on Windows 11 (not automated):** `.\dev.cmd start` run from a real console window, that window closed the way the X button does, then both services probed on `127.0.0.1` and `localhost` (API health, dashboard page, `/api/health` through the dashboard): all six answers were HTTP 200 before and after, with the same process ids. The previous design, which gave each service its own terminal window, stopped a service when *that* window was closed. A stop issued from another clone of the project leaves the services of this one alone. The console used for the test was a classic console window; a Windows Terminal tab was not closed in the test, but the services have no terminal of any kind (no console window, no Windows Terminal session), so there is nothing for it to close.
 

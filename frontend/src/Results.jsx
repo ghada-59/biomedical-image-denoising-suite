@@ -5,6 +5,11 @@ import { DataTable, EmptyState, MetricCard, PageHeading } from "./components";
 const COLORS = ["#7188ff", "#22a699", "#e3a64f", "#b18aff", "#5ca8e8", "#e27d9b", "#8d9aa8"];
 const NOISE = ["Gaussian", "Salt & Pepper", "Speckle (synthetic)", "None"];
 
+/** The older file holds a spatial and a frequency-domain table, each with its own unfiltered baseline, and a "Gauss" next to a "Gaussian": the domain tells them apart. */
+export function filterLabel(row) {
+  return row.Domain ? `${row.Filter} (${String(row.Domain).toLowerCase()})` : String(row.Filter);
+}
+
 function MetricBars({ title, rows, field }) {
   const values = rows.filter(row => Number.isFinite(Number(row[field]))).sort((a, b) => Number(b[field]) - Number(a[field]));
   const max = Math.max(...values.map(row => Number(row[field])), 0.001);
@@ -13,7 +18,7 @@ function MetricBars({ title, rows, field }) {
       <h3>{title}</h3>
       {values.map((row, i) => (
         <div className="bar-row" key={String(row.Filter) + String(row.Domain)}>
-          <div className="bar-label">{row.Filter}</div>
+          <div className="bar-label">{filterLabel(row)}</div>
           <div className="bar-track"><div className="bar-fill" style={{ width: Math.max(2, Number(row[field]) / max * 100) + "%", background: COLORS[i % COLORS.length] }} /></div>
           <strong>{Number(row[field]).toFixed(field === "Mean_SSIM" ? 4 : 2)}</strong>
         </div>
@@ -61,7 +66,7 @@ export default function Results({ benchmark, apiState = "online", apiMessage = "
             {provenance?.file_modified ? (provenance?.reason ? " " : ". ") + "File modified: " + provenance.file_modified + "." : ""}
           </p>
           <div className="metrics-grid">
-            <MetricCard label="Highest mean SSIM" value={best?.Filter || "—"} hint="Within selected noise model" icon={Activity} />
+            <MetricCard label="Highest mean SSIM" value={best ? filterLabel(best) : "—"} hint="Within selected noise model" icon={Activity} />
             <MetricCard label="Mean SSIM" value={best ? Number(best.Mean_SSIM).toFixed(4) : "—"} hint="Structural similarity" icon={ScanLine} />
             <MetricCard label="Mean PSNR" value={best ? Number(best.Mean_PSNR_dB).toFixed(2) + " dB" : "—"} hint="Peak signal-to-noise ratio" icon={Waves} />
             <MetricCard label="Runs evaluated" value={best?.Runs_Evaluated ?? "—"} hint="Repeated synthetic-noise runs" icon={BarChart3} />

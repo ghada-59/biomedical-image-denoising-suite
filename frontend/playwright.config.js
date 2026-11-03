@@ -1,9 +1,11 @@
+import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
 // End-to-end tests drive a real browser against the real FastAPI backend and the Vite dev server.
 //   E2E_PYTHON            Python with the backend requirements installed (default: "python")
 //   E2E_BROWSER_CHANNEL   "chrome" (default, uses the installed Chrome), "msedge", or "chromium" after `npx playwright install chromium`
 //   E2E_BENCHMARK_RUN_DIR optional: a Benchmark V2 run directory to expose to the API (enables the benchmark test)
+//   The two recorded Benchmark 3D runs that ship with the repository are always exposed (read-only CSV files), so their page is tested for real.
 const python = process.env.E2E_PYTHON || "python";
 const apiPort = 8765;
 const webPort = 5199;
@@ -27,7 +29,7 @@ export default defineConfig({
       url: `http://127.0.0.1:${apiPort}/api/health`,
       reuseExistingServer: false,
       timeout: 120_000,
-      env: { BENCHMARK_RUN_DIRS: process.env.E2E_BENCHMARK_RUN_DIR || "", CT_SERIES_DIR: "", PYTHONUTF8: "1" },
+      env: { BENCHMARK_RUN_DIRS: process.env.E2E_BENCHMARK_RUN_DIR || "", BENCHMARK_3D_RUN_DIRS: ["docs/results/benchmark_3d_2026-10-26", "docs/results/benchmark_3d_correlated_2026-10-27"].join(path.delimiter), CT_SERIES_DIR: "", PYTHONUTF8: "1" },
     },
     {
       command: `node node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${webPort} --strictPort`,

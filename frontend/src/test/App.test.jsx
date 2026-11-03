@@ -18,7 +18,8 @@ describe("application shell", () => {
     expect(within(await screen.findByTestId("api-status")).getByText(/API ONLINE/)).toBeInTheDocument();
     expect(await screen.findByText("Denoising methods")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Denoising methods").nextSibling).toHaveTextContent(String(CATALOGUE.methods.length)));
-    expect(screen.getByText("None configured")).toBeInTheDocument();
+    expect(screen.getAllByText("None configured")).toHaveLength(2);                       // Benchmark V2 and Benchmark 3D: nothing is invented when no run is configured
+    expect(screen.getByText(/No recorded run is configured on this server/)).toBeInTheDocument();
     expect(screen.getByText(/Scope and limits/)).toBeInTheDocument();
     expect(screen.queryByTestId("api-banner")).not.toBeInTheDocument();
   });
@@ -33,6 +34,8 @@ describe("application shell", () => {
     expect(await screen.findByRole("heading", { name: "2D Denoising Lab", level: 1 })).toBeInTheDocument();
     await user.click(within(nav).getByRole("button", { name: /Benchmark V2/ }));
     expect(await screen.findByText("No benchmark V2 run is configured")).toBeInTheDocument();
+    await user.click(within(nav).getByRole("button", { name: /Benchmark 3D/ }));
+    expect(await screen.findByText("No Benchmark 3D run is configured")).toBeInTheDocument();
     await user.click(within(nav).getByRole("button", { name: /3D CT Explorer/ }));
     expect(await screen.findByText("No CT volume loaded")).toBeInTheDocument();
     await user.click(within(nav).getByRole("button", { name: /Older 2D results/ }));
@@ -46,10 +49,18 @@ describe("application shell", () => {
     localStorage.clear();
     mockApi(baseRoutes());
     render(<App />);
+    expect(document.documentElement.dataset.theme).toBe("light");                          // light by default when the system states no preference
+    await user.click(await screen.findByRole("button", { name: /dark mode/i }));
     expect(document.documentElement.dataset.theme).toBe("dark");
-    await user.click(await screen.findByRole("button", { name: /light mode/i }));
-    expect(document.documentElement.dataset.theme).toBe("light");
-    expect(localStorage.getItem("biomed-theme")).toBe("light");
+    expect(localStorage.getItem("biomed-theme")).toBe("dark");
+  });
+
+  it("follows the system preference for a dark theme until the user chooses", async () => {
+    localStorage.clear();
+    vi.stubGlobal("matchMedia", query => ({ matches: query.includes("dark"), media: query, addEventListener() {}, removeEventListener() {} }));
+    mockApi(baseRoutes());
+    render(<App />);
+    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 
   it("states the benchmark status without inventing results", async () => {

@@ -7,7 +7,7 @@ const API_PORT = 8861;
 const WEB_PORT = 5261;
 const WEB = `http://127.0.0.1:${WEB_PORT}`;
 const API_HEALTH = `http://127.0.0.1:${API_PORT}/api/health`;
-const PAGES = ["Overview", "2D Denoising Lab", "Benchmark V2", "3D CT Explorer", "Older 2D results", "Methods & Guide"];
+const PAGES = ["Overview", "2D Denoising Lab", "Benchmark V2", "Benchmark 3D", "3D CT Explorer", "Older 2D results", "Methods & Guide"];
 
 test.describe.configure({ mode: "serial" });
 
@@ -101,7 +101,7 @@ test("dashboard server stopped while the page is open: the message names the das
 });
 
 for (const hostname of ["127.0.0.1", "localhost"]) {
-  test(`all six pages work through ${hostname}, with no failed request and no console error`, async ({ page }) => {
+  test(`all seven pages work through ${hostname}, with no failed request and no console error`, async ({ page }) => {
     api = startApi(API_PORT);
     await waitUntil(answers(API_HEALTH), { label: "the API" });         // the API is ready BEFORE the dashboard starts sending requests
     dashboard = startDashboard(WEB_PORT, API_PORT);

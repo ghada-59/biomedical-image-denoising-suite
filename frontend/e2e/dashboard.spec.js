@@ -178,12 +178,38 @@ test.describe("connection states", () => {
   });
 });
 
+test.describe("Benchmark 3D against the recorded run that ships with the repository", () => {
+  test("shows the verified run, its statements computed from the tables, the recorded figures and the charts", async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto("/");
+    await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /Benchmark 3D/ }).click();
+    await expect(page.getByRole("heading", { name: "Benchmark 3D", level: 1 })).toBeVisible();
+    await expect(page.getByText("FILES VERIFIED")).toBeVisible();
+    await expect(page.getByText(/8 files match the recorded SHA-256/)).toBeVisible();
+    await expect(page.getByText(/white, independent between voxels and between slices/)).toBeVisible();
+    await expect(page.getByText(/lower in 6, higher in 2 of the slices/)).toBeVisible();              // the recorded mixed-sign gain at 50 HU, counted from test_per_slice.csv
+    await expect(page.locator(".js-plotly-plot").first()).toBeVisible({ timeout: 30_000 });
+    const figure = page.getByRole("img", { name: /structure change against residual noise/i });
+    await figure.scrollIntoViewIfNeeded();                                                             // the image is loaded lazily, when it comes into view
+    await expect(figure).toBeVisible();
+    await expect.poll(() => figure.evaluate(img => img.complete && img.naturalWidth > 1000)).toBe(true);   // the recorded PNG really loads from the API
+    await expect(page.getByText(/python benchmark_3d.py --dicom-series/)).toBeVisible();
+    const table = page.getByRole("region", { name: "Selected parameters" });
+    await expect(table.getByRole("row")).toHaveCount(10);                                              // header + 3 methods x 3 noise levels
+    await expect(page.getByRole("link", { name: /Download test_summary.csv/ })).toHaveAttribute("href", /\/api\/3d\/runs\/benchmark_3d_2026-10-26\/tables\/test_summary\?format=csv/);
+    const sideBySide = page.getByRole("region", { name: "Runs compared" });                              // the second recorded run (noise correlated between slices)
+    await expect(sideBySide).toBeVisible();
+    await expect(sideBySide.getByText("benchmark_3d_correlated_2026-10-27").first()).toBeVisible();
+    await expect(sideBySide.getByText("correlation 0.3").first()).toBeVisible();
+    expect(problems).toEqual([]);
+  });
+});
+
 test.describe("responsive layout", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("the lab fits a phone screen and navigation opens from the menu", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator(".hero-visual")).toBeHidden();
     await page.getByRole("button", { name: "Open navigation" }).click();
     await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /2D Denoising Lab/ }).click();
     await page.getByLabel("Upload an image or DICOM slice").setInputFiles(fixture("phantom.png"));
@@ -198,11 +224,73 @@ test.describe("responsive layout", () => {
     });
     expect(overflow).toEqual({ scrolls: false, outside: [] });
   });
+
+  test("no page scrolls sideways on a phone and nothing sticks out of its scrollable container", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+    const labels = [/Overview/, /3D CT Explorer/, /Benchmark 3D/, /Older 2D results/, /Methods & Guide/];
+    for (const label of labels) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+      await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: label }).click();
+      await expect(page.getByRole("main")).toBeVisible();
+      if (String(label).includes("Benchmark 3D")) await expect(page.locator(".js-plotly-plot").first()).toBeVisible({ timeout: 30_000 });
+      const result = await page.evaluate(() => {
+        const width = document.documentElement.clientWidth;
+        const scrollsInside = el => {                                   // an ancestor that scrolls sideways contains the overflow on purpose
+          for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+            if (["auto", "scroll"].includes(getComputedStyle(node).overflowX)) return true;
+          }
+          return false;
+        };
+        const insidePlot = el => el.closest(".js-plotly-plot") && !el.matches(".js-plotly-plot, .plot-container, .svg-container, .main-svg, .gtitle, .legend");   // drawn points outside the axes are clipped by Plotly
+        const outside = [...document.querySelectorAll("main *")]
+          .filter(el => !insidePlot(el) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().right > width + 1 && !scrollsInside(el))
+          .map(el => `${el.tagName.toLowerCase()}.${String(el.className.baseVal ?? el.className)}`.slice(0, 60));
+        return { scrolls: document.documentElement.scrollWidth > width, outside: outside.slice(0, 8) };
+      });
+      expect(result, String(label)).toEqual({ scrolls: false, outside: [] });
+    }
+  });
+
+  test("the title of the 3D explorer chart fits a phone screen once a volume is loaded", async ({ page }) => {
+    // The title is the one the backend writes (backend/src/plotly_ct_viewer.py); only the response is simulated, the layout and Plotly are real.
+    const title = "Interactive CT Volume — 512 × 512 × 100 voxels";
+    const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+    await page.route("**/api/ct/volume", route => route.fulfill({ json: {
+      filename_count: 100, slices: 100, dimensions_xyz: [512, 512, 100], spacing_xyz_mm: [0.54, 0.54, 3], intensity_range: [-1024, 1500],
+      middle_slice: pixel, note: "Research and educational visualization only; not for diagnosis.",
+      figure: { data: [{ type: "scatter", x: [0, 1, 2], y: [0, 1, 0], mode: "lines" }], layout: { title: { text: title }, margin: { t: 100 } } },
+    } }));
+    await page.goto("/");
+    await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /3D CT Explorer/ }).click();
+    await page.locator('input[type="file"][aria-label="Select DICOM files"]').setInputFiles([path.join(here, "..", "..", "backend", "samples", "synthetic_ct_scan.dcm"),
+                                                                                              path.join(here, "..", "..", "backend", "samples", "synthetic_ct_scan.dcm")]);
+    const heading = page.locator(".js-plotly-plot .gtitle").first();
+    await expect(heading).toBeVisible({ timeout: 30_000 });
+    const box = await heading.evaluate(el => { const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, width: document.documentElement.clientWidth }; });
+    expect(box.left).toBeGreaterThanOrEqual(0);
+    expect(box.right).toBeLessThanOrEqual(box.width);                  // before the fix the title ran past the right edge of a 390 px screen
+    expect(await heading.locator("tspan.line").count()).toBeGreaterThan(1);                           // and it is wrapped on several lines
+  });
+
+  test("Benchmark 3D has no serious accessibility violations on a phone", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("api-status")).toContainText("API ONLINE");
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: /Benchmark 3D/ }).click();
+    await expect(page.getByText("FILES VERIFIED")).toBeVisible();
+    await expect(page.locator(".js-plotly-plot").first()).toBeVisible({ timeout: 30_000 });
+    const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const serious = result.violations.filter(v => ["serious", "critical"].includes(v.impact)).map(v => `${v.id}: ${v.nodes.length} node(s), e.g. ${String(v.nodes[0]?.target)}`);
+    expect(serious, "scrollable regions, such as the command block, must be reachable with the keyboard").toEqual([]);
+  });
 });
 
 test.describe("accessibility (axe-core, WCAG 2 A and AA rules)", () => {
   for (const theme of ["dark", "light"]) {
-    test(`overview and lab have no serious violations in the ${theme} theme`, async ({ page }) => {
+    test(`overview, lab and Benchmark 3D have no serious violations in the ${theme} theme`, async ({ page }) => {
       await page.addInitScript(value => localStorage.setItem("biomed-theme", value), theme);
       await page.goto("/");
       await expect(page.getByTestId("api-status")).toContainText("API ONLINE");

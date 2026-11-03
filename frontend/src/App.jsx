@@ -1,28 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, BarChart3, ChevronRight, CircleHelp, FlaskConical, Layers3, LayoutDashboard, Menu, Moon, RefreshCw, ScanLine, ShieldCheck, Sun, TriangleAlert, X } from "lucide-react";
+import { BarChart3, Box, ChevronRight, CircleHelp, FlaskConical, Layers3, LayoutDashboard, Menu, Moon, RefreshCw, ScanLine, ShieldCheck, Sun, TriangleAlert, X } from "lucide-react";
 import { api, apiHostLabel } from "./api";
+import Benchmark3D from "./Benchmark3D";
 import BenchmarkV2 from "./BenchmarkV2";
+import { BrandMark } from "./components";
 import CtExplorer from "./CtExplorer";
 import Guide from "./Guide";
 import Lab from "./Lab";
 import Overview from "./Overview";
 import Results from "./Results";
 
-const NAV = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "lab", label: "2D Denoising Lab", icon: ScanLine },
-  { id: "v2", label: "Benchmark V2", icon: FlaskConical },
-  { id: "ct", label: "3D CT Explorer", icon: Layers3 },
-  { id: "results", label: "Older 2D results", icon: BarChart3 },
-  { id: "guide", label: "Methods & Guide", icon: CircleHelp },
+const NAV_GROUPS = [
+  { label: null, items: [{ id: "overview", label: "Overview", icon: LayoutDashboard }] },
+  { label: "Experiment", items: [{ id: "lab", label: "2D Denoising Lab", icon: ScanLine }, { id: "ct", label: "3D CT Explorer", icon: Layers3 }] },
+  { label: "Recorded benchmarks", items: [{ id: "v2", label: "Benchmark V2", icon: FlaskConical }, { id: "b3d", label: "Benchmark 3D", icon: Box }, { id: "results", label: "Older 2D results", icon: BarChart3 }] },
+  { label: "Reference", items: [{ id: "guide", label: "Methods & Guide", icon: CircleHelp }] },
 ];
+const NAV = NAV_GROUPS.flatMap(group => group.items);
 const NO_RESULTS = { available: false, rows: [], noise_types: [] };
 // How often the page checks the API: quickly while it is down (so it recovers by itself), slowly while it is up (to notice it stopping).
 export const POLL_OFFLINE_MS = 2000;
 export const POLL_ONLINE_MS = 5000;
 
 function storedTheme() {
-  try { return localStorage.getItem("biomed-theme") || "dark"; } catch { return "dark"; }
+  try {
+    const saved = localStorage.getItem("biomed-theme");
+    if (saved === "light" || saved === "dark") return saved;
+  } catch { /* storage may be unavailable */ }
+  try {
+    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
+  } catch { /* no preference available */ }
+  return "light";
 }
 
 export default function App() {
@@ -72,17 +80,20 @@ export default function App() {
       {sidebarOpen && <button type="button" className="sidebar-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />}
       <aside className={"sidebar" + (sidebarOpen ? " sidebar-open" : "")} aria-label="Primary">
         <div className="brand">
-          <div className="brand-mark"><Activity size={23} aria-hidden="true" /></div>
-          <div className="brand-copy"><strong>MED<span>LAB</span></strong><small>IMAGING WORKSPACE</small></div>
+          <div className="brand-mark"><BrandMark size={22} /></div>
+          <div className="brand-copy"><strong>Denoising Suite</strong><small>Biomedical imaging</small></div>
           <button type="button" className="icon-button mobile-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={18} aria-hidden="true" /></button>
         </div>
-        <div className="workspace-tag"><span className="status-dot" /> RESEARCH WORKSPACE</div>
-        <p className="nav-label">WORKSPACE</p>
         <nav className="main-nav" aria-label="Pages">
-          {NAV.map(({ id, label, icon: Icon }) => (
-            <button type="button" key={id} className={"nav-item" + (page === id ? " active" : "")} aria-current={page === id ? "page" : undefined} onClick={() => go(id)}>
-              <Icon size={18} aria-hidden="true" /><span>{label}</span>{page === id && <ChevronRight className="nav-chevron" size={15} aria-hidden="true" />}
-            </button>
+          {NAV_GROUPS.map(group => (
+            <div key={group.label || "top"} role="group" aria-label={group.label || "Overview"}>
+              {group.label && <p className="nav-label" aria-hidden="true">{group.label}</p>}
+              {group.items.map(({ id, label, icon: Icon }) => (
+                <button type="button" key={id} className={"nav-item" + (page === id ? " active" : "")} aria-current={page === id ? "page" : undefined} onClick={() => go(id)}>
+                  <Icon size={17} aria-hidden="true" /><span>{label}</span>{page === id && <ChevronRight className="nav-chevron" size={15} aria-hidden="true" />}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-spacer" />
@@ -94,7 +105,7 @@ export default function App() {
           <p>{statusText}</p>
           <div className="privacy-note"><ShieldCheck size={16} aria-hidden="true" /><span>Research and education only. Not for diagnosis.</span></div>
         </div>
-        <div className="sidebar-footer"><span>BIOMEDICAL IMAGE DENOISING AND BENCHMARKING</span></div>
+        <div className="sidebar-footer">Classical denoising, controlled experiments, recorded benchmarks.</div>
       </aside>
 
       <main className="main-area">
@@ -106,7 +117,7 @@ export default function App() {
           <div className="topbar-right">
             <span className="live-pill"><span className={"status-dot " + (health === "online" ? "online" : health === "offline" ? "offline" : "")} /> {health === "online" ? "API CONNECTED" : health === "offline" ? "API OFFLINE" : "CHECKING API"}</span>
             <button type="button" className="theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-              {theme === "dark" ? <><Sun size={17} aria-hidden="true" />Light mode</> : <><Moon size={17} aria-hidden="true" />Dark mode</>}
+              {theme === "dark" ? <><Sun size={16} aria-hidden="true" />Light mode</> : <><Moon size={16} aria-hidden="true" />Dark mode</>}
             </button>
           </div>
         </header>
@@ -131,11 +142,12 @@ export default function App() {
           {page === "overview" && <Overview setPage={go} benchmark={benchmark} apiState={health} apiEpoch={apiEpoch} />}
           {page === "lab" && <Lab apiOnline={health === "online"} apiEpoch={apiEpoch} />}
           {page === "v2" && <BenchmarkV2 apiEpoch={apiEpoch} />}
+          {page === "b3d" && <Benchmark3D apiEpoch={apiEpoch} />}
           {page === "ct" && <CtExplorer apiState={health} />}
           {page === "results" && <Results benchmark={benchmark} apiState={health} apiMessage={healthError?.message} />}
           {page === "guide" && <Guide apiEpoch={apiEpoch} />}
         </div>
-        <footer className="main-footer"><span>MEDLAB · BIOMEDICAL IMAGE DENOISING AND BENCHMARKING</span><span>RESEARCH SOFTWARE <b>/</b> NOT FOR DIAGNOSIS</span></footer>
+        <footer className="main-footer"><span>Biomedical image denoising and benchmarking</span><span>Research software <b>/</b> not for diagnosis</span></footer>
       </main>
     </div>
   );

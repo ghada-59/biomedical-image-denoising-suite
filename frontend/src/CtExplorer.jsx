@@ -3,8 +3,10 @@ import { Activity, Check, CircleHelp, FileImage, Layers3, ShieldCheck, UploadClo
 import { Plot } from "./plot";
 import { api, apiHostLabel, apiIsLocal } from "./api";
 import { EmptyState, ImagePanel, MetricCard, PageHeading } from "./components";
+import { useThemeTick, withWrappedTitle } from "./chartTheme";
 
 export default function CtExplorer({ apiState = "online" }) {
+  useThemeTick();                                                       // re-wrap the chart title when the window width changes
   const [files, setFiles] = useState([]);
   const [data, setData] = useState(null);
   const [slicePreview, setSlicePreview] = useState(null);
@@ -81,7 +83,7 @@ export default function CtExplorer({ apiState = "online" }) {
           <div className="ct-viewer-panel">
             <div className="panel-heading"><span>Interactive CT volume</span><span className="mini-badge">3D · PLOTLY</span></div>
             <Plot data={data.figure.data}
-              layout={{ ...data.figure.layout, autosize: true, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "var(--text)" } }}
+              layout={{ ...withWrappedTitle(data.figure.layout), autosize: true, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "var(--text)" } }}
               config={{ responsive: true, displaylogo: false, scrollZoom: true }} useResizeHandler style={{ width: "100%", height: "610px" }} />
           </div>
           <div className="ct-preview-grid">

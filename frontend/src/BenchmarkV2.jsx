@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDownToLine, FlaskConical, ShieldCheck } from "lucide-react";
 import { Plot } from "./plot";
 import { API_BASE_URL, api, queryString } from "./api";
+import { FAMILY_COLORS, MASK_COLORS, baseLayout, intervalBars, themeColors, useThemeTick } from "./chartTheme";
 
 const METRICS = [
   { key: "RMSE_HU", label: "RMSE (HU)", unit: "HU", lowerIsBetter: true, note: "Error in Hounsfield units over the mask, unclipped." },
@@ -10,39 +11,12 @@ const METRICS = [
   { key: "SSIM_Wang2004", label: "SSIM (Wang 2004)", unit: "", lowerIsBetter: false, note: "Windowed display images; 11x11 Gaussian window, windows fully inside the mask." },
 ];
 const MASKS = { main: "Principal mask", inner: "Inner mask (10 px from padding removed)" };
-const FAMILY_COLORS = { "Noisy (no filter)": "#8d9aa8", Mean: "#7188ff", Median: "#22a699", Gaussian: "#e3a64f", "FFT ideal": "#b18aff", "FFT Gaussian": "#5ca8e8", "FFT Butterworth": "#e27d9b", Bilateral: "#8bd17c", "Non-local means": "#ff8a65", "Wavelet BayesShrink": "#4dd0e1" };
 const ADDED_NOTES = {
   Bilateral: "Bilateral: the tuned value is the intensity scale (HU); the spatial scale is fixed.",
   "Non-local means": "Non-local means: the tuned value is the filtering strength h (HU); patch and search window are fixed, and the true noise level is not supplied.",
   "Wavelet BayesShrink": "Wavelet BayesShrink: the tuned value is the noise level the thresholds ASSUME (HU), used as a strength control, not a measurement.",
 };
 const RANGE_NOTE = "Intervals are 95% percentile bootstrap intervals over test slices of one patient; they under-cover and are descriptive.";
-
-function useThemeTick() {
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const observer = new MutationObserver(() => setTick(value => value + 1));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => observer.disconnect();
-  }, []);
-  return tick;
-}
-
-function themeColors() {
-  const style = getComputedStyle(document.documentElement);
-  const read = (name, fallback) => (style.getPropertyValue(name) || fallback).trim() || fallback;
-  return { text: read("--text", "#edf1e8"), muted: read("--muted", "#b2bdaf"), grid: read("--border", "#37463b") };
-}
-
-function baseLayout(title, xTitle, yTitle, extra) {
-  const c = themeColors();
-  return {
-    title: { text: title, font: { size: 13, color: c.text } }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-    font: { color: c.muted, size: 11 }, margin: { l: 62, r: 14, t: 42, b: 150 }, legend: { orientation: "h", x: 0, y: -0.42, yanchor: "top", entrywidth: 110, entrywidthmode: "pixels", font: { size: 10 } },
-    xaxis: { title: { text: xTitle, standoff: 14 }, gridcolor: c.grid, automargin: true, tickangle: -30 }, yaxis: { title: { text: yTitle }, gridcolor: c.grid, zeroline: true, zerolinecolor: c.grid },
-    autosize: true, ...extra,
-  };
-}
 
 function Section({ title, badge, children, note }) {
   return <section className="panel v2-section"><div className="panel-heading"><span>{title}</span>{badge && <span className="mini-badge">{badge}</span>}</div><div className="v2-body">{children}{note && <p className="footnote">{note}</p>}</div></section>;
@@ -108,7 +82,7 @@ function MetricCharts({ summary, metric, scenario }) {
         const rows = conditions.map(c => summary.find(r => r.condition === c && r.mask === mask && r.family === family));
         const mean = rows.map(r => r?.[`${metric}_mean`] ?? null), low = rows.map(r => r?.[`${metric}_ci_low`]), high = rows.map(r => r?.[`${metric}_ci_high`]);
         return { type: "bar", name: family, x: conditions, y: mean, marker: { color: FAMILY_COLORS[family] || "#999" },
-          error_y: { type: "data", symmetric: false, array: high.map((h, i) => (h == null || mean[i] == null ? 0 : h - mean[i])), arrayminus: low.map((l, i) => (l == null || mean[i] == null ? 0 : mean[i] - l)), thickness: 1, width: 2 },
+          error_y: intervalBars(mean, low, high),
           hovertemplate: `%{x}<br>${family}: %{y:.3f} ${def.unit}<extra></extra>` };
       });
       return <div key={mask} className="v2-chart"><Plot data={traces} layout={baseLayout(`${def.label} — ${label}`, "Noise condition (synthetic)", `${def.label}${def.unit ? "" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: 380 }}/></div>;
@@ -123,8 +97,8 @@ function GainChart({ summary, metric, condition }) {
   const traces = Object.entries(MASKS).map(([mask, label], i) => {
     const rows = families.map(f => summary.find(r => r.condition === condition && r.mask === mask && r.family === f));
     const mean = rows.map(r => r?.[`${metric}_gain_mean`] ?? null), low = rows.map(r => r?.[`${metric}_gain_ci_low`]), high = rows.map(r => r?.[`${metric}_gain_ci_high`]);
-    return { type: "bar", name: label, x: families, y: mean, marker: { color: i ? "#e3a64f" : "#7188ff" },
-      error_y: { type: "data", symmetric: false, array: high.map((h, k) => (h == null || mean[k] == null ? 0 : h - mean[k])), arrayminus: low.map((l, k) => (l == null || mean[k] == null ? 0 : mean[k] - l)), thickness: 1, width: 2 },
+    return { type: "bar", name: label, x: families, y: mean, marker: { color: MASK_COLORS[i] },
+      error_y: intervalBars(mean, low, high),
       hovertemplate: `%{x}: %{y:+.3f} ${def.unit}<extra>${label}</extra>` };
   });
   return <Plot data={traces} layout={baseLayout(`Change of ${def.label} versus the unfiltered noisy image — ${condition}`, "Tuned filter", `Filtered minus unfiltered${def.unit ? " (" + def.unit + ")" : ""}`, { barmode: "group" })} config={{ responsive: true, displaylogo: false }} useResizeHandler style={{ width: "100%", height: 380 }}/>;
@@ -164,7 +138,7 @@ function SliceViewer({ run, conditions }) {
   }, [run.id, slice, condition, repeat, row, maxRepeat]);
 
   const imageUrl = view => `${API_BASE_URL}/api/v2/runs/${encodeURIComponent(run.id)}/slice-image?${queryString({ slice, condition, repeat: Math.min(repeat, maxRepeat), view, window_center: center, window_width: width, diff_range_hu: diffRange, overlay })}`;
-  const profileTraces = data ? [{ x: data.profile.reference.map((_, i) => i), y: data.profile.reference, name: "Reference (clinical slice)", line: { color: "#ffffff", width: 1.2, dash: "dot" } },
+  const profileTraces = data ? [{ x: data.profile.reference.map((_, i) => i), y: data.profile.reference, name: "Reference (clinical slice)", line: { color: themeColors().text, width: 1.4, dash: "dot" } },
     ...Object.entries(data.profile.series).map(([name, y]) => ({ x: y.map((_, i) => i), y, name, line: { width: 1, color: FAMILY_COLORS[name] } }))] : [];
 
   return <div>

@@ -43,6 +43,7 @@ export function baseRoutes(extra = {}) {
     "GET /api/methods": CATALOGUE,
     "GET /api/samples": SAMPLES,
     "GET /api/v2/runs": { configured: false, runs: [], caveats: [], slice_comparison_available: false },
+    "GET /api/3d/runs": { configured: false, runs: [], caveats: [] },
     ...extra,
   };
 }

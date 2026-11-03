@@ -379,7 +379,7 @@ export default function Lab({ apiOnline = true, apiEpoch = 0 }) {
                   {result.settings.seed != null ? `, seed ${result.settings.seed}` : ""}. Input: {result.inputName}.
                 </p>
                 <div className="table-wrap" tabIndex={0} role="region" aria-label="Measurements for this run">
-                  <table data-testid="lab-results-table">
+                  <table data-testid="lab-results-table" className="lab-table">
                     <thead><tr><th scope="col">Method</th><th scope="col">PSNR (dB)</th><th scope="col">SSIM</th><th scope="col">Time (ms)</th><th scope="col">Parameters used</th></tr></thead>
                     <tbody>
                       {result.results.map(row => {

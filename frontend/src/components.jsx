@@ -1,5 +1,15 @@
 import { BarChart3, FileImage } from "lucide-react";
 
+/** Original mark: a jagged (noisy) trace that becomes a smooth one. */
+export function BrandMark({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path d="M1.5 13.5l1.4-3.2 1.5 5.4 1.6-7.6 1.6 8.8 1.5-6.4 1.3 3" stroke="currentColor" strokeOpacity=".55" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11.5 12.6c1.3-4.4 2.9-4.4 4.2 0s2.9 4.4 4.2 0 1.7-2.2 2.6-2.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function PageHeading({ eyebrow, title, description, action }) {
   return (
     <div className="page-heading">

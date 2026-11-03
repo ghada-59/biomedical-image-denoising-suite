@@ -10,13 +10,13 @@ A biomedical image-processing project for **comparing classical denoising method
 
 ## At a glance
 
-| What | Status (2026-10-26, one Windows laptop; nothing has run on GitHub Actions or Render) |
+| What | Status (2026-10-29, one Windows laptop; the workflows of this branch have not run on GitHub yet, although earlier versions ran on `main`; nothing has run on Render) |
 | --- | --- |
 | Denoising methods | Nine classical, non-learned methods: mean, median, Gaussian, FFT ideal / Gaussian / Butterworth low-pass, **bilateral, non-local means and wavelet (BayesShrink)**. No neural network, on purpose ([why](backend/docs/methods_and_decisions.md)). |
-| Benchmarks | **V2 (2D):** synthetic noise in Hounsfield units on one public CT series, parameters tuned on 3 slices and tested on 8 others, two masks, bootstrap intervals. **3D:** slice-wise versus volumetric Gaussian smoothing, same protocol, with the error split into structure change and residual noise. A legacy fixed-setting benchmark is kept apart. **All exploratory: one patient, noisy reference, not an independent validation.** |
-| Reproducibility | **V2:** the recorded run was produced from a clean commit with source-file hashes and the input manifest recorded; two full runs from two commits gave byte-identical result files and the six original filters reproduce an earlier recorded run (both checks were done when the run was made and were **not repeated** afterwards). Three source files have changed since; a reduced run of the complete pipeline with the old and the current code gave 12 byte-identical result files, and 60 recorded rows recompute exactly ([details](backend/docs/benchmark_v2.md#provenance-and-reproduction)). **3D:** two complete runs gave identical tables; 72 recorded rows were recomputed independently; the run was made from uncommitted code, so its `git_commit` reads `+dirty` and the source hashes identify the code. |
-| Dashboard | React + FastAPI (V2 results only; Benchmark 3D is a script with recorded files). The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes; the Benchmark V2 page reads recorded results and says when none are configured. |
-| Tests | Backend 800 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, as installed on the host) 704 passed / 1 skipped; frontend 72 unit/component tests (5 of them start the real Vite server); 21 browser tests against the real API and real servers (1 skipped without a configured run). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies. |
+| Benchmarks | **V2 (2D):** synthetic noise in Hounsfield units on one public CT series, parameters tuned on 3 slices and tested on 8 others, two masks, bootstrap intervals. **3D:** slice-wise versus volumetric Gaussian smoothing, same protocol, with the error split into structure change and residual noise; run twice, with noise independent between slices and with noise correlated between adjacent slices as measured on the series. A legacy fixed-setting benchmark is kept apart. **All exploratory: one patient, noisy reference, not an independent validation.** |
+| Reproducibility | **V2:** the recorded run was produced from a clean commit with source-file hashes and the input manifest recorded; two full runs from two commits gave byte-identical result files and the six original filters reproduce an earlier recorded run. On 2026-10-27 the **complete benchmark was run again with the current code and gave 12 result files byte-identical to the recorded run** (three source files had changed since the recorded run; their new hashes are the only difference in the metadata; [details](backend/docs/benchmark_v2.md#provenance-and-reproduction)). **3D:** two complete executions of the first run gave identical tables and 72 recorded rows were recomputed independently; both runs were made from uncommitted code, so their `git_commit` reads `+dirty` and the source hashes identify the code. |
+| Dashboard | React + FastAPI. The 2D lab runs the real pipeline on an upload or a bundled sample and reports parameters used, scores and measured runtimes. The Benchmark V2 and Benchmark 3D pages read recorded runs, check their files against the SHA-256 hashes recorded in each run's metadata (and list any file the metadata does not cover), and say when no run is configured. |
+| Tests | Backend 915 passed / 1 skipped (Python 3.12 and 3.10); API-only environment (Python 3.11, the 25 test files other than `test_vtk_viewer.py` and `test_benchmark_3d.py`) 876 passed / 1 skipped; frontend 95 unit/component tests (5 of them start the real Vite server); 25 browser tests against the real API and real servers (1 skipped when a benchmark run is configured). Lint clean (ruff, ESLint); no known vulnerabilities in the Python (pip-audit) or npm dependencies on 2026-10-29. |
 | Deployment | `render.yaml` is configured and checked against the code; **it has not been deployed**, so there is no public URL. |
 
 ## What the project does
@@ -88,13 +88,13 @@ python -m uvicorn api:app --host 127.0.0.1 --port 8000
 
 It is ready when it prints `Uvicorn running on http://127.0.0.1:8000`. Check it in a browser: http://127.0.0.1:8000/ answers with a short JSON note saying that this is the API, http://127.0.0.1:8000/docs lists every route, and http://127.0.0.1:8000/api/health answers `{"status":"ok",...}`.
 
-To make the recorded benchmark run that ships with the repository visible on the *Benchmark V2* page, set `BENCHMARK_RUN_DIRS` before starting the API (without it that page says that no run is configured):
+To make the recorded benchmark runs that ship with the repository visible on the *Benchmark V2* and *Benchmark 3D* pages, set `BENCHMARK_RUN_DIRS` (one V2 run) and `BENCHMARK_3D_RUN_DIRS` (two 3D runs, separated by `;` on Windows and `:` elsewhere) before starting the API. Without them those pages say that no run is configured:
 
 | Shell | Command |
 | --- | --- |
-| Windows Command Prompt | `set BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25` |
-| Windows PowerShell | `$env:BENCHMARK_RUN_DIRS = "docs/results/benchmark_v2_methods_2026-10-25"` |
-| macOS / Linux | `export BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25` |
+| Windows Command Prompt | `set BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25` and `set BENCHMARK_3D_RUN_DIRS=docs/results/benchmark_3d_2026-10-26;docs/results/benchmark_3d_correlated_2026-10-27` |
+| Windows PowerShell | `$env:BENCHMARK_RUN_DIRS = "docs/results/benchmark_v2_methods_2026-10-25"` and `$env:BENCHMARK_3D_RUN_DIRS = "docs/results/benchmark_3d_2026-10-26;docs/results/benchmark_3d_correlated_2026-10-27"` |
+| macOS / Linux | `export BENCHMARK_RUN_DIRS=docs/results/benchmark_v2_methods_2026-10-25` and `export BENCHMARK_3D_RUN_DIRS=docs/results/benchmark_3d_2026-10-26:docs/results/benchmark_3d_correlated_2026-10-27` |
 
 **Terminal 2: the dashboard server**, from `frontend/`:
 
@@ -127,11 +127,12 @@ If the API is started later than the dashboard, or is stopped and started again,
 
 ### Configuration
 
-Everything is configured with environment variables; none is required for a local run.
+Everything is configured with environment variables; none is required for a local run. [`backend/.env.example`](backend/.env.example) and [`frontend/.env.example`](frontend/.env.example) list them with their defaults and placeholder values only (the project has no secrets); a test keeps them identical to the variables the code reads. The API does not read a `.env` file by itself: start it with `python -m uvicorn api:app --env-file .env` from `backend/` (`python-dotenv` comes with `uvicorn[standard]`), or set the variables in the shell. In the dashboard, only `VITE_API_BASE_URL` can live in a `.env` file; `VITE_DEV_API_TARGET` must be set in the shell that starts the server.
 
 | Variable | Read by | Default | Purpose |
 | --- | --- | --- | --- |
-| `BENCHMARK_RUN_DIRS` | API | none | Benchmark V2 run directories to serve (relative to the API's working directory or absolute; several are separated by `;` on Windows and `:` elsewhere). |
+| `BENCHMARK_RUN_DIRS` | API | none | Benchmark V2 run directories to serve (a relative entry means relative to `backend/`, whatever the working directory; several are separated by `;` on Windows and `:` elsewhere). Only directories that hold a `run_metadata.json` are served. |
+| `BENCHMARK_3D_RUN_DIRS` | API | none | Benchmark 3D run directories to serve; same rules as `BENCHMARK_RUN_DIRS`. |
 | `CT_SERIES_DIR` | API | none | A local CT series; lets the Benchmark V2 page recompute images. Its path is never sent to, or accepted from, the browser. |
 | `CORS_ORIGINS` | API | the two development origins (`127.0.0.1:5173`, `localhost:5173`) | Extra browser origins allowed to call the API, comma-separated. Needed only when the page and the API have different origins (a hosted dashboard). |
 | `MAX_UPLOAD_MB`, `MAX_IMAGE_PIXELS`, `MAX_ADVANCED_PIXELS`, `MAX_CONCURRENT_JOBS`, `MAX_CT_FILES`, `MAX_CT_TOTAL_MB` | API | 25, 4,194,304, 1,048,576, 2, 400, 200 | Request limits (see the API section). |
@@ -182,7 +183,7 @@ The API in production: `uvicorn api:app --host 0.0.0.0 --port $PORT` from `backe
 
 ### React dashboard and FastAPI
 
-`frontend/` is a React + Vite interface; `backend/api.py` provides the FastAPI service and `backend/api_v2.py` serves recorded benchmark runs. Pages: Overview (scope, limits, live API and benchmark status), 2D Denoising Lab, Benchmark V2, 3D CT Explorer, Older 2D results, Methods & Guide. Every number on a page comes from the API (a computation done for that request, or a recorded file labelled with its provenance); there are no built-in demo values. The dashboard shows when the API is offline and offers a retry.
+`frontend/` is a React + Vite interface; `backend/api.py` provides the FastAPI service, and `backend/api_v2.py` and `backend/api_3d.py` serve recorded benchmark runs. Pages: Overview (scope, limits, live API and benchmark status), 2D Denoising Lab, 3D CT Explorer, Benchmark V2, Benchmark 3D, Older 2D results, Methods & Guide. Benchmark 3D shows the two recorded runs side by side: provenance and file integrity, held-out results by method with intervals, the trade-off between structure change and residual noise, the selected parameters, statements computed from the tables, and the recorded figures. Every number on a page comes from the API (a computation done for that request, or a recorded file labelled with its provenance); there are no built-in demo values. The dashboard shows when the API is offline and offers a retry.
 
 The Streamlit application (`streamlit run app.py` from `backend/`) is the earlier exploratory 2D/3D lab; the React dashboard is the main interface and the only one that shows the tuned benchmark.
 
@@ -193,6 +194,7 @@ The Streamlit application (`streamlit run app.py` from `backend/`) is the earlie
 | `GET /api/health` | Liveness check |
 | `GET /api/methods` | The nine methods with parameter limits, defaults, assumptions and references, plus the server's size and concurrency limits |
 | `GET /api/samples`, `GET /api/samples/{id}/file` | Bundled sample images with provenance, licence and cautions (ids only; no client path is ever opened). Ids: `synthetic_ct`, `chest_ct`, `cell_phase`; the retired ids `brain_mri` and `head_ct` answer 404 |
+| `GET /api/3d/runs`, `GET /api/3d/runs/{run_id}`, `GET /api/3d/runs/{run_id}/tables/{name}`, `GET /api/3d/runs/{run_id}/figures/{name}`, `GET /api/3d/runs/{run_id}/interpretation` | Recorded Benchmark 3D runs (read-only, set with `BENCHMARK_3D_RUN_DIRS`): provenance and file integrity, tables, the recorded figures, and statements computed from the tables |
 | `POST /api/image/preview` | Decode an upload and return its size and a PNG preview |
 | `POST /api/denoise` | Add noise, run the selected methods, return images, PSNR/SSIM, the parameters used and per-method runtimes |
 | `POST /api/ct/volume` | Reconstruct an interactive volume from the slices of one DICOM series |
@@ -241,13 +243,16 @@ Definitions, assumptions, implementations and the parameter-selection rules are 
 ├── backend/                        # Python code, tests, documentation assets (run commands from here)
 │   ├── api.py                      # FastAPI service: lab, samples, CT volume, limits
 │   ├── api_v2.py                   # Read-only /api/v2 endpoints over recorded benchmark runs
+│   ├── api_3d.py                   # Read-only /api/3d endpoints over recorded Benchmark 3D runs
 │   ├── methods.py                  # Registry of the nine lab methods (parameters, limits, assumptions)
 │   ├── sample_images.py            # Catalogue of the bundled samples with provenance
 │   ├── filters.py                  # Image loading, noise, filters (including bilateral, NLM, wavelet), metrics
 │   ├── benchmark_v2.py             # Benchmark V2 (HU-domain noise, tuning/test split, two masks)
 │   ├── benchmark_3d.py             # Benchmark 3D (slice-wise vs volumetric Gaussian smoothing)
+│   ├── benchmark_3d_correlated.py  # The same benchmark with noise correlated between adjacent slices (calls benchmark_3d.py unchanged)
 │   ├── evaluate_denoising.py       # Earlier 2D CT benchmark
 │   ├── provenance.py               # Provenance label for result files
+│   ├── diagnostics.py              # Measurements that qualify the benchmarks' assumptions (real noise correlation, edge-band error, bootstrap coverage)
 │   ├── app.py                      # Streamlit interface
 │   ├── download_data.py            # Local synthetic examples and optional downloads
 │   ├── src/                        # DICOM volume loading, oriented orthogonal views, 3D smoothing, viewers
@@ -256,14 +261,16 @@ Definitions, assumptions, implementations and the parameter-selection rules are 
 │   ├── docs/methods_and_decisions.md  # Methods, metrics, protocol, decision on deep learning, references
 │   ├── docs/references_verification.md  # What was checked, and what was not, for each cited reference
 │   ├── docs/benchmark_v2.md        # Complete description of Benchmark V2
+│   ├── docs/benchmark_3d.md        # Complete description of Benchmark 3D (both runs)
 │   ├── docs/images/                # Committed figures (README.md: how each was made and checked)
-│   ├── docs/results/               # Historical snapshots + the recorded V2 and 3D runs (byte-exact)
+│   ├── docs/results/               # Historical snapshots + the recorded V2 run and the two 3D runs (byte-exact)
 │   ├── CONTRIBUTING.md             # Development setup, checks, how to add a method or a benchmark run
 │   ├── requirements.txt            # Full development / Streamlit / test dependencies
 │   ├── requirements-api.txt        # Runtime dependencies of the hosted API
 │   └── ruff.toml                   # Lint configuration
 ├── frontend/                       # React + Vite dashboard (src/test: Vitest, e2e: Playwright)
 ├── dev.cmd, scripts/dev.ps1        # Optional Windows launcher (start / status / stop); not needed to run the project
+├── scripts/smoke_test.py           # Checks a running API (and a deployed dashboard) from outside; standard library only
 ├── render.yaml                     # Render deployment (not deployed)
 ├── .gitattributes                  # Keeps recorded runs byte-exact
 └── .github/workflows/              # Python tests + lint, frontend lint/test/build, browser tests
@@ -273,7 +280,7 @@ Local datasets (`backend/data/`), generated outputs (`backend/reports/`, `backen
 
 ## Development
 
-Python 3.10, 3.11 (API-only) and 3.12 were exercised; the GitHub workflow is configured for 3.10 and 3.12 but has not run. Install the full development environment once (from `backend/`, with a virtual environment activated as in the quick start):
+Python 3.10, 3.11 (API-only) and 3.12 were exercised; the workflow in this branch is configured for 3.10 and 3.12 but has not run yet (an earlier version ran on `main`). Install the full development environment once (from `backend/`, with a virtual environment activated as in the quick start):
 
 ```bash
 cd backend
@@ -289,7 +296,7 @@ Everyday commands:
 | Run the API with reload | `python -m uvicorn api:app --reload --host 127.0.0.1 --port 8000` (`backend/`) |
 | Run the dashboard server | `npm run dev` (`frontend/`) |
 | Backend tests | `python -m pytest -q` (`backend/`) |
-| Python lint | `ruff check .` (`backend/`) |
+| Python lint | `ruff check --config ruff.toml . ../scripts` (`backend/`) |
 | Frontend lint / unit tests | `npm run lint` / `npm test` (`frontend/`) |
 | Browser tests (real API, real servers, installed Chrome) | `E2E_PYTHON=<python with the API requirements> npm run e2e` (`frontend/`; in PowerShell `$env:E2E_PYTHON = "..."` first) |
 | Production build | `npm run build` (`frontend/`) |
@@ -332,7 +339,7 @@ Mean test RMSE_HU over 8 slices with the 95 % bootstrap interval over slices, pr
 | speckle (robustness) | 119.19 [110.77, 128.67] | 40.17 [38.99, 41.56] (Median) | **35.69 [34.66, 36.98]** | 39.04 [36.49, 41.75] | 44.68 [43.39, 46.47] |
 
 - The added filters had a lower RMSE_HU than the best original filter, with the whole paired interval below zero, in 7 (bilateral), 6 (non-local means) and 4 (wavelet) of the 8 conditions. The pattern is consistent with what each method assumes (wavelet shrinkage models white Gaussian noise; non-local means is lowest on correlated noise; the median filter is far ahead on impulse noise), but that explanation was not tested separately.
-- RMSE over the whole body mask is dominated by the few high-contrast edges: a 3-pixel band along the mask edge is about 2.3 % of the mask pixels, yet after mean or Gaussian smoothing its RMSE_HU is 228 to 284 HU and in a worked example it carried 87 to 89 % of the squared error. Where "no filter" scored best, that means no smoothing lowered this boundary-dominated error, not that smoothing is useless elsewhere. The choice of mask and metric changes the winner in some conditions (see the full description).
+- RMSE over the whole body mask is dominated by the few high-contrast edges: with a fixed 3 x 3 mean, 5 x 5 mean or Gaussian of sigma 1 px applied to 25 HU white noise, a 3-pixel band along the mask edge (2.3 % of the mask pixels) has an RMSE_HU of 232 to 390 HU over the 8 test slices and carries 77 to 92 % of the squared error of the whole mask (`python diagnostics.py edge-band`, see [backend/docs/benchmark_v2.md](backend/docs/benchmark_v2.md)). Where "no filter" scored best, that means no smoothing lowered this boundary-dominated error, not that smoothing is useless elsewhere. The choice of mask and metric changes the winner in some conditions (see the full description).
 - **None of this shows that the denoised images are better for any clinical purpose.** No structure-preservation measure was computed.
 
 ### Benchmark 3D: slice-wise versus volumetric Gaussian smoothing
@@ -367,9 +374,9 @@ Held-out results (8 slices, mean [95 % bootstrap interval over slices]; HU):
 What this shows, and what it does not:
 
 - **Weak smoothing is what minimises the error.** The settings chosen on the tuning slices are in-plane sigmas of 0.25 mm (10 HU noise) and 0.4 mm (25 and 50 HU), that is 0.5 to 0.7 pixel. They bring the held-out RMSE_HU from 10, 25 and 50 HU down to 7.9, 13.8 and 21.7 HU. Wider kernels remove more noise but change the structure by more than they gain: the selected setting is the point of each curve closest to the origin, that is, with the smallest total error.
-- **Smoothing across slices is not worth it on 3 mm slices.** At 10 and 25 HU the tuned 2D, 3D isotropic and 3D anisotropic filters give identical results: nothing is taken from neighbouring slices (the isotropic family selects 0.25 or 0.4 mm, about a tenth of a slice, which puts a weight below 1e-9 on a neighbour). At 50 HU the anisotropic family selects a very light kernel (sigma_z = 1 mm, about 1 % of the weight on each neighbouring slice) and lowers the held-out RMSE_HU by 0.11 HU [95 % interval -0.18, -0.04] out of 21.7, i.e. 0.5 %. A gain of 0.5 % is a small, dataset-specific observation: its interval excludes zero only in the sense of comparing the 8 slices of one patient with each other. It is not evidence that volumetric smoothing is better in general, and says nothing about other patients, scanners, slice thicknesses or noise.
+- **Smoothing across slices is not worth it on 3 mm slices.** At 10 and 25 HU the tuned 2D, 3D isotropic and 3D anisotropic filters give identical results: nothing is taken from neighbouring slices (the isotropic family selects 0.25 or 0.4 mm, about a tenth of a slice, which puts a weight below 1e-9 on a neighbour). At 50 HU the anisotropic family selects a very light kernel (sigma_z = 1 mm, about 1 % of the weight on each neighbouring slice) and lowers the held-out RMSE_HU by 0.11 HU [95 % interval -0.18, -0.04] out of 21.7, i.e. 0.5 %. A gain of 0.5 % is a small, dataset-specific observation: its interval excludes zero only in the sense of comparing the 8 slices of one patient with each other, and the sign is not uniform (RMSE_HU is lower in 6 of the 8 slices and slightly higher in the other 2; per noise realisation it is lower in 30 of 40 and higher in 10, with a mean of -0.11 HU and a standard deviation of 0.10 HU; from `test_per_slice.csv` and `test_per_run.csv`). It is not evidence that volumetric smoothing is better in general, and says nothing about other patients, scanners, slice thicknesses or noise.
 - **Why.** At an in-plane sigma of 0.4 mm and 25 HU noise, widening the kernel across one whole slice (sigma_z = 3 mm) cuts the residual noise from 9.6 to 5.1 HU, but raises the structure change on the principal mask from 10.7 to 43.5 HU, and even in the soft-tissue region from 4.2 to 13.2 HU (tuning slices): the anatomy changes between neighbouring 3 mm slices, soft tissue included. The structure change also contains the removal of the reference's own noise, so it is not a pure loss of anatomy.
-- **The experiment is generous to 3D smoothing**, because the added noise is independent between slices; real CT noise is partly correlated across slices, which would make averaging them less useful.
+- **The experiment is generous to 3D smoothing**, because the added noise is independent between slices, whereas the real noise of this series is partly correlated between neighbouring slices: the high-pass residual of adjacent slices correlates at +0.29 (mean over 62 slice pairs, from +0.21 to +0.40), against +0.02 two slices apart and about 0 for simulated independent noise (`python diagnostics.py noise-texture --dicom-series ...`; a rough estimator, not a noise power spectrum). That correlation would make averaging slices less useful than the experiment suggests.
 - **Not shown:** thinner slices, correlated noise, 3D filters other than the Gaussian (3D median, bilateral, non-local means), other patients, a task-based or clinical measure. The result is "on this series, with these noise levels, a volumetric Gaussian brings almost nothing over a slice-wise one", not "3D denoising is useless".
 
 Reproduce (needs the local series and the packages of `requirements.txt`, matplotlib included for the figures; about 8 minutes; the output directory must be outside the repository). The recorded run was made from the working tree on top of commit `103d359`, so its `git_commit` reads `103d359...+dirty`; the SHA-256 of every source file it used is recorded instead, and the committed files can be compared with them:

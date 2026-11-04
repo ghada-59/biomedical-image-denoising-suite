@@ -4,6 +4,14 @@
 
 A suite for **comparing classical (non-learned) denoising methods** on grayscale images and CT slices: nine spatial, frequency-domain, edge-preserving and wavelet filters; a tuned and held-out CT benchmark in Hounsfield units; a study of slice-wise versus volumetric smoothing; and an interactive dashboard (React and FastAPI) that runs the real code. A Streamlit application and optional 3D DICOM tools are included.
 
+![Python 3.10 to 3.12](https://img.shields.io/badge/Python-3.10%E2%80%933.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
+![React 18 and Vite](https://img.shields.io/badge/Dashboard-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
+![Plotly](https://img.shields.io/badge/Charts-Plotly-3F4F75?logo=plotly&logoColor=white)
+![NumPy, SciPy, scikit-image, OpenCV, pydicom](https://img.shields.io/badge/Imaging-NumPy%20%C2%B7%20SciPy%20%C2%B7%20scikit--image%20%C2%B7%20OpenCV%20%C2%B7%20pydicom-5C3EE8)
+![Tests: pytest, Vitest, Playwright](https://img.shields.io/badge/tests-pytest%20%7C%20Vitest%20%7C%20Playwright-informational)
+![Classical methods only](https://img.shields.io/badge/methods-classical%2C%20no%20neural%20network-6b8e23)
+
 **Hosted deployments.** The Render-hosted instance checked on 2026-11-03 is an earlier revision without the redesigned dashboard: [dashboard](https://biomedical-image-denoising-dashboard.onrender.com) and [API health](https://biomedical-image-denoising-api.onrender.com/api/health). The redesigned dashboard and FastAPI migration are now merged into `main`; GitHub Actions passed on the merged `main` commit `59e0619f`. This does not mean Render was redeployed or that the protected Vercel API preview was runtime-verified. The Render plan in `render.yaml` is free and sleeps when idle; the first request after a pause can take up to a minute. Details and limits: [Deployment](#deployment-render).
 
 ## Screenshots
